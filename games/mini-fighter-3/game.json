@@ -1,0 +1,15 @@
+{
+  "title": "Mini Fighter III",
+  "author": "jandelima",
+  "description": "Jogo de luta 2D com 10 lutadores, especiais e supers. Tem modo arcade contra a CPU até o chefe Kaiser, 2 jogadores no mesmo teclado, treino com boneco e salas online de até 8 pessoas (quem ganha fica).",
+  "tags": [
+    "luta",
+    "multiplayer",
+    "retrô"
+  ],
+  "players": "1-8",
+  "controls": "P1: WASD + F R G T · P2: setas + K I L O · controle",
+  "online": true,
+  "thumb": "thumb.svg",
+  "created": "2026-09-29"
+}

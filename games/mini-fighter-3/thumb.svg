@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 400" width="640" height="400">
+<defs>
+<linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a0b3d"/><stop offset=".45" stop-color="#b3306b"/><stop offset=".72" stop-color="#ff8a3d"/><stop offset="1" stop-color="#ffd27a"/></linearGradient>
+<radialGradient id="sun" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#fff4c2"/><stop offset=".6" stop-color="#ffc25a"/><stop offset="1" stop-color="#ff8a3d" stop-opacity="0"/></radialGradient>
+<linearGradient id="floor" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a1420"/><stop offset="1" stop-color="#12060c"/></linearGradient>
+<filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+</defs>
+<rect width="640" height="400" fill="url(#sky)"/>
+<circle cx="320" cy="215" r="120" fill="url(#sun)"/>
+<path d="M0 250 L90 180 L150 220 L230 150 L300 215 L370 170 L450 225 L520 160 L640 240 L640 290 L0 290Z" fill="#5a1a3f" opacity=".75"/>
+<g fill="#2a0a1f"><rect x="286" y="170" width="68" height="92"/><path d="M262 178 L378 178 L360 164 L280 164Z"/><path d="M270 150 L370 150 L352 136 L288 136Z"/><rect x="298" y="150" width="44" height="16"/><path d="M280 124 L360 124 L346 112 L294 112Z"/><rect x="308" y="124" width="24" height="14"/><rect x="318" y="96" width="4" height="18"/></g>
+<rect y="262" width="640" height="138" fill="url(#floor)"/>
+<g stroke="#ff8a3d" stroke-opacity=".18"><line x1="160" y1="262" x2="-560" y2="400"/><line x1="180" y1="262" x2="-450" y2="400"/><line x1="200" y1="262" x2="-340" y2="400"/><line x1="220" y1="262" x2="-230" y2="400"/><line x1="240" y1="262" x2="-120" y2="400"/><line x1="260" y1="262" x2="-10" y2="400"/><line x1="280" y1="262" x2="100" y2="400"/><line x1="300" y1="262" x2="210" y2="400"/><line x1="320" y1="262" x2="320" y2="400"/><line x1="340" y1="262" x2="430" y2="400"/><line x1="360" y1="262" x2="540" y2="400"/><line x1="380" y1="262" x2="650" y2="400"/><line x1="400" y1="262" x2="760" y2="400"/><line x1="420" y1="262" x2="870" y2="400"/><line x1="440" y1="262" x2="980" y2="400"/><line x1="460" y1="262" x2="1090" y2="400"/><line x1="480" y1="262" x2="1200" y2="400"/></g>
+<g transform="translate(210,262) scale(1,1)">
+<ellipse cx="0" cy="6" rx="46" ry="9" fill="#000" opacity=".45"/>
+<path d="M-18 0 L-10 -58 L10 -58 L22 0 L12 0 L2 -36 L-6 0Z" fill="#1b0e22"/>
+<rect x="-15" y="-112" width="30" height="58" rx="10" fill="#1b0e22"/>
+<rect x="-15" y="-62" width="30" height="7" fill="#ff4a3d"/>
+<path d="M10 -104 L62 -98 L62 -86 L10 -90Z" fill="#1b0e22"/>
+<circle cx="68" cy="-92" r="10" fill="#ff4a3d"/>
+<path d="M-10 -100 L-30 -80 L-18 -72 L0 -90Z" fill="#1b0e22"/>
+<circle cx="-20" cy="-74" r="8" fill="#ff4a3d"/>
+<circle cx="2" cy="-126" r="15" fill="#1b0e22"/>
+<path d="M-14 -132 L18 -134 L20 -128 L-14 -126Z" fill="#ff4a3d"/>
+</g>
+<g transform="translate(430,262) scale(-1,1)">
+<ellipse cx="0" cy="6" rx="46" ry="9" fill="#000" opacity=".45"/>
+<path d="M-24 0 L-12 -56 L12 -56 L26 0 L14 0 L2 -32 L-10 0Z" fill="#1b0e22"/>
+<rect x="-16" y="-110" width="32" height="56" rx="10" fill="#1b0e22"/>
+<rect x="-16" y="-60" width="32" height="7" fill="#3db4ff"/>
+<path d="M8 -102 L30 -88 L24 -78 L4 -92Z" fill="#1b0e22"/>
+<circle cx="32" cy="-84" r="9" fill="#3db4ff"/>
+<path d="M-8 -102 L10 -112 L16 -104 L-2 -94Z" fill="#1b0e22"/>
+<circle cx="16" cy="-110" r="9" fill="#3db4ff"/>
+<circle cx="0" cy="-124" r="15" fill="#1b0e22"/>
+<path d="M-15 -134 L15 -138 L12 -128 L-16 -126Z" fill="#111"/>
+</g>
+<g filter="url(#glow)" transform="translate(290,170)"><polygon points="0,-26 7,-8 26,-10 11,3 18,22 0,11 -18,22 -11,3 -26,-10 -7,-8" fill="#fff6c9"/></g>
+<g><rect x="24" y="22" width="250" height="16" rx="3" fill="#12060c" stroke="#fff" stroke-opacity=".5"/><rect x="28" y="26" width="180" height="8" fill="#ffd23d"/><rect x="366" y="22" width="250" height="16" rx="3" fill="#12060c" stroke="#fff" stroke-opacity=".5"/><rect x="370" y="26" width="120" height="8" fill="#ffd23d"/><rect x="490" y="26" width="122" height="8" fill="#ff3d3d"/><text x="320" y="38" text-anchor="middle" font-family="Impact, sans-serif" font-size="22" fill="#fff">99</text></g>
+<g font-family="Impact, 'Arial Black', sans-serif" text-anchor="middle"><text x="320" y="360" font-size="64" fill="#1a0610" transform="translate(4,4)">MINI FIGHTER III</text><text x="320" y="360" font-size="64" fill="#ffd23d" stroke="#8a1a0a" stroke-width="2">MINI FIGHTER III</text></g>
+</svg>
