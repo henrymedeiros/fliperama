@@ -11,5 +11,23 @@
   "controls": "Clique ou WASD · Espaço pula",
   "online": true,
   "thumb": "thumb.svg",
-  "created": "2026-09-29"
+  "created": "2026-09-29",
+  "versions": [
+    {
+      "id": "classico",
+      "name": "Clássico",
+      "note": "A pista isométrica original.",
+      "entry": "index.html",
+      "thumb": "thumb.svg"
+    },
+    {
+      "id": "vista-de-cima",
+      "name": "Vista de cima",
+      "kind": "alternativa",
+      "note": "A mesma partida com a câmera olhando a pista de cima.",
+      "entry": "vista-de-cima/index.html",
+      "thumb": "vista-de-cima/thumb.svg",
+      "created": "2026-09-30"
+    }
+  ]
 }
