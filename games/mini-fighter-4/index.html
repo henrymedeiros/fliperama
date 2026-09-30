@@ -4335,8 +4335,8 @@ const Net = {
   get remoteName() { return Room.members.length > 1 ? 'ok' : ''; },
 
   // ---------- conexão ----------
-  host() {
-    this.close(true); this.role = 'host'; this.id = 'h';
+  host(pub = this.pub) {
+    this.close(true); this.role = 'host'; this.id = 'h'; this.pub = !!pub;
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
     this.code = Array.from({ length: 5 }, () => chars[Math.random() * chars.length | 0]).join('');
     Object.assign(Room, { members: [{ id: 'h', name: this.myName, wins: 0 }], queue: ['h'], fighters: [], phase: 'lobby', sel: [0, 1], ready: [false, false], simple: [false, false], last: null, chars: {} });
@@ -4344,6 +4344,7 @@ const Net = {
     this.makePeer(PEER_PREFIX + this.code, () => { this.status = 'Sala aberta! Aguardando jogadores...'; this.ready = true; });
     if (this.peer) this.peer.on('connection', c => this.accept(c));
     Relay.hostListen(this.code, c => this.accept(c));
+    if (this.pub) Lobby.open(this.code);                                     // pública: aparece em "Procurar salas"
     clearInterval(this.pingT); this.pingT = setInterval(() => {
       for (const id in this.conns) this.sendTo(id, { t: 'ping', ts: performance.now() });
       Room.pings = Object.assign({}, this.pingOf); if (Room.members.length > 1) this.broadcastRoom();
@@ -4410,7 +4411,7 @@ const Net = {
     const rcpt = to == 'host' ? ['h'] : to == 'all' ? all : to == 'opp' ? opp : to == 'specs' ? specs : to == 'fs' ? [...new Set(opp.concat(specs))].filter(x => x != from) : [to];
     for (const r of rcpt) { if (r == 'h') { if (from != 'h') this.onMsg(o, from); } else this.sendTo(r, o); }
   },
-  broadcastRoom() { if (this.role != 'host') return; const room = JSON.parse(JSON.stringify(Room)); this.route({ t: 'room', room }, 'h', 'all'); Game.onRoom && Game.onRoom(); },
+  broadcastRoom() { if (this.role != 'host') return; const room = JSON.parse(JSON.stringify(Room)); this.route({ t: 'room', room }, 'h', 'all'); Game.onRoom && Game.onRoom(); Lobby.announce(); },
   memberLeft(id) {
     delete this.conns[id];
     const was = Room.members.find(m => m.id == id); if (!was) return;
@@ -4423,7 +4424,7 @@ const Net = {
   },
   lost(msg) { if (!this.role) return; this.error = msg; this.ready = false; this.active = false; const r = this.role; this.close(true); this.error = msg; Game.onNetLost(msg, r); },
   close(keepErr) {
-    clearInterval(this.pingT); clearTimeout(this.joinT); Relay.closeAll(); try { this.conn && this.conn.close(); } catch (e) {} for (const id in this.conns) try { this.conns[id].close(); } catch (e) {}
+    clearInterval(this.pingT); clearTimeout(this.joinT); Relay.closeAll(); Lobby.close(); try { this.conn && this.conn.close(); } catch (e) {} for (const id in this.conns) try { this.conns[id].close(); } catch (e) {}
     try { this.peer && this.peer.destroy(); } catch (e) {}
     Object.assign(this, { peer: null, conn: null, conns: {}, role: null, id: null, code: '', status: '', ready: false, ping: 0, pings: [], pingOf: {}, active: false, spectating: false, slot: -1, viaRelay: false, fallback: null });
     if (!keepErr) this.error = '';
@@ -4636,6 +4637,50 @@ const Relay = {
     for (const c of this.clients) { try { c.end(true); } catch (e) {} }
     this.clients = []; this.links = {};
   }
+};
+// ===== salas públicas: a sala se anuncia num tópico aberto do broker MQTT (sem servidor próprio) =====
+// Cada sala pública publica uma mensagem "retida" em minifighter4/salas/v<versão>/<CÓDIGO> com nome, jogadores e se está em luta.
+// Quem procura assina minifighter4/salas/v<versão>/+ e recebe as salas abertas na hora. Ao fechar, o anfitrião apaga o anúncio;
+// se a aba cair, o "testamento" (will) do MQTT apaga sozinho. Anúncio sem atualização por 16 s some da lista.
+const Lobby = {
+  host: null, sub: null, rooms: {}, err: '',
+  prefix() { return 'minifighter4/salas/v' + NET_VERSION + '/'; },
+  // ---- anfitrião de sala pública ----
+  open(code) {
+    this.close(); if (!Relay.available()) return;
+    const topic = this.prefix() + code;
+    const clients = Relay.brokers.map(url => { const c = Relay.newClient(url, { will: { topic, payload: '', qos: 1, retain: true } }); c.on('connect', () => this.announce(true)); c.on('error', () => {}); return c; });
+    this.host = { code, topic, clients, last: '' };
+    this.host.t = setInterval(() => this.announce(true), 6000);
+  },
+  announce(force) {
+    const h = this.host; if (!h) return;
+    const msg = JSON.stringify({ c: h.code, n: Net.myName, p: Room.members.length, m: MAX_ROOM, f: Room.phase == 'lobby' ? 0 : 1 });
+    if (!force && msg == h.last) return; h.last = msg;
+    for (const c of h.clients) if (c.connected) try { c.publish(h.topic, msg, { qos: 0, retain: true }); } catch (e) {}
+  },
+  close() {
+    const h = this.host; if (!h) return; this.host = null; clearInterval(h.t);
+    for (const c of h.clients) { try { if (c.connected) c.publish(h.topic, '', { qos: 1, retain: true }, () => { try { c.end(true); } catch (e) {} }); } catch (e) {} }
+    setTimeout(() => { for (const c of h.clients) try { c.end(true); } catch (e) {} }, 2000);
+  },
+  // ---- quem procura ----
+  search() {
+    this.stopSearch(); this.rooms = {}; this.t0 = performance.now(); this.err = '';
+    if (!Relay.available()) { this.err = 'Busca indisponível: o módulo de rede não carregou.'; return; }
+    this.sub = Relay.brokers.map(url => { const c = Relay.newClient(url); c.on('connect', () => c.subscribe(this.prefix() + '+', { qos: 0 })); c.on('message', (t, raw) => this.onAd(t, raw)); c.on('error', () => {}); return c; });
+  },
+  onAd(topic, raw) {
+    const code = topic.slice(this.prefix().length); if (!/^[A-Z0-9]{5}$/.test(code)) return;
+    const str = raw && raw.length ? new TextDecoder().decode(raw) : '';
+    if (!str) { delete this.rooms[code]; return; }                       // anúncio apagado: a sala fechou
+    let d; try { d = JSON.parse(str); } catch (e) { return; }
+    if (!d || d.c !== code || code == Net.code) return;
+    const n = Math.max(1, Math.min(MAX_ROOM, d.p | 0)), name = String(d.n || '').replace(/[^\p{L}\p{N} ._-]/gu, '').trim().slice(0, 12) || 'Sala';
+    this.rooms[code] = { code, name, n, full: n >= MAX_ROOM, fight: !!d.f, seen: performance.now() };
+  },
+  list() { const now = performance.now(); return Object.values(this.rooms).filter(r => now - r.seen < 16000).sort((a, b) => a.full - b.full || a.fight - b.fight || b.n - a.n || a.name.localeCompare(b.name)); },
+  stopSearch() { if (this.sub) for (const c of this.sub) try { c.end(true); } catch (e) {} this.sub = null; }
 };
 class RelayLink {
   constructor(client, outTopic, cid, key, k) { Object.assign(this, { client, outTopic, cid, key, k, q: Promise.resolve(), h: {}, isOpen: false, closed: false, seen: performance.now(), relay: true }); }
@@ -4878,7 +4923,7 @@ const HUD = {
   attract(c) {
     c.fillStyle = 'rgba(0,0,0,.5)'; c.fillRect(0, H - 60, W, 44);
     if (UIF % 60 < 42) txt(c, 'DEMO  ·  PRESSIONE QUALQUER TECLA', W / 2, H - 28, 26, '#ffd21e', 'center', 5);
-    txt(c, 'MINI FIGHTER III', 20, 40, 30, '#fff', 'left', 5);
+    txt(c, 'MINI FIGHTER IV', 20, 40, 30, '#fff', 'left', 5);
   }
 };
 
@@ -4890,7 +4935,7 @@ const GRID_COLS = 10;   // 27 lutadores + célula aleatória
 
 const Menus = {
   modes: [['ARCADE', 'Enfrente 6 lutadores da CPU até o chefe final'], ['VERSUS', '2 jogadores no mesmo computador (teclado dividido ou controles)'],
-    ['ONLINE', 'Jogue pela internet com um amigo — crie uma sala e passe o código'], ['TREINO', 'Pratique combos contra um boneco configurável'], ['TUTORIAL', 'Aprenda passo a passo: movimentos, defesa, especiais, EX, parry e super'], ['DESAFIOS', 'Combos de cada lutador, validados pelo jogo — do básico ao avançado'], ['OPÇÕES', 'Dificuldade, som, música, narrador, controle']],
+    ['ONLINE', 'Jogue pela internet — procure uma sala pública ou crie a sua (pública ou com código)'], ['TREINO', 'Pratique combos contra um boneco configurável'], ['TUTORIAL', 'Aprenda passo a passo: movimentos, defesa, especiais, EX, parry e super'], ['DESAFIOS', 'Combos de cada lutador, validados pelo jogo — do básico ao avançado'], ['OPÇÕES', 'Dificuldade, som, música, narrador, controle']],
   lobbyJoin: false,
   nav(mi, n) { const g = Game; if (mi.u) { g.idx = (g.idx + n - 1) % n; Audio.sfx('move'); } if (mi.d) { g.idx = (g.idx + 1) % n; Audio.sfx('move'); } },
   optItems() {
@@ -4985,17 +5030,41 @@ const Menus = {
           else if (g.escEdge) { TextInput.active = false; this.editName = false; }
           break;
         }
-        this.nav(mi, 4);
+        if (this.createPick) {                     // criar sala: pública ou privada
+          this.nav(mi, 3);
+          if (mi.ok) {
+            Audio.sfx('select');
+            if (g.idx < 2) { g.netMsg = ''; this.lobbyJoin = false; this.fromList = false; this.createPick = false; Net.host(g.idx == 0); g.go('lobby'); }
+            else { this.createPick = false; g.idx = 0; }
+          }
+          if (mi.back) { Audio.sfx('back'); this.createPick = false; g.idx = 0; } break;
+        }
+        this.nav(mi, 5);
         if (mi.ok) {
           Audio.sfx('select');
-          if (g.idx == 0) { g.netMsg = ''; this.lobbyJoin = false; Net.host(); g.go('lobby'); }
-          else if (g.idx == 1) { g.netMsg = ''; this.lobbyJoin = true; Net.close(); TextInput.filter = /^[A-Z0-9]$/; TextInput.max = 5; TextInput.value = ''; TextInput.active = true; g.go('lobby'); }
-          else if (g.idx == 2) { this.editName = true; TextInput.filter = /^[A-Z0-9 ]$/; TextInput.max = 12; TextInput.value = settings.name || ''; TextInput.active = true; }
+          if (g.idx == 0) { this.createPick = true; g.idx = 0; }
+          else if (g.idx == 1) { g.netMsg = ''; this.roomSel = 0; Net.close(); Lobby.search(); g.go('rooms'); }
+          else if (g.idx == 2) { g.netMsg = ''; this.lobbyJoin = true; this.fromList = false; Net.close(); TextInput.filter = /^[A-Z0-9]$/; TextInput.max = 5; TextInput.value = ''; TextInput.active = true; g.go('lobby'); }
+          else if (g.idx == 3) { this.editName = true; TextInput.filter = /^[A-Z0-9 ]$/; TextInput.max = 12; TextInput.value = settings.name || ''; TextInput.active = true; }
           else g.go('mode');
         }
         if (mi.back) { Audio.sfx('back'); g.go('mode'); } break;
       }
       case 'lobby': this.lobbyUpdate(mi); break;
+      case 'rooms': this.roomsUpdate(mi); break;
+    }
+  },
+  // ---------- procurar salas públicas ----------
+  roomsUpdate(mi) {
+    const g = Game, list = Lobby.list(), n = list.length;
+    if (mi.back || g.escEdge) { Audio.sfx('back'); Lobby.stopSearch(); g.go('online'); return; }
+    if (n) { if (mi.u) { this.roomSel = (this.roomSel + n - 1) % n; Audio.sfx('move'); } if (mi.d) { this.roomSel = (this.roomSel + 1) % n; Audio.sfx('move'); } }
+    this.roomSel = Math.min(this.roomSel || 0, Math.max(0, n - 1));
+    if (mi.ok && n) {
+      const r = list[this.roomSel];
+      if (r.full) { Audio.sfx('back'); g.netMsg = 'Essa sala está cheia.'; return; }
+      Audio.sfx('select'); g.netMsg = ''; Lobby.stopSearch();
+      this.lobbyJoin = true; this.fromList = true; TextInput.active = false; TextInput.value = r.code; Net.join(r.code); g.go('lobby');
     }
   },
   // ---------- remapeamento de controles ----------
@@ -5042,7 +5111,10 @@ const Menus = {
       if (keys.Enter && TextInput.value.length == 5) { keys.Enter = false; TextInput.active = false; Net.join(TextInput.value); }
       return;
     }
-    if (this.lobbyJoin && Net.error && !Net.role) { TextInput.active = true; return; }
+    if (this.lobbyJoin && Net.error && !Net.role) {
+      if (this.fromList) { g.netMsg = Net.error; Net.error = ''; this.fromList = false; Lobby.search(); g.go('rooms'); return; }
+      TextInput.active = true; return;
+    }
     if (Net.role == 'host' && Room.phase == 'lobby' && Room.members.length >= 2 && (keys.Enter || keys.Space || (mi && mi.ok))) { keys.Enter = false; Audio.sfx('select'); Net.hostStartSelect(); }
   },
   selectUpdate() {
@@ -5204,6 +5276,7 @@ Object.assign(Menus, {
       case 'pause': this.drawPause(c); break;
       case 'online': this.drawOnline(c); break;
       case 'lobby': this.drawLobby(c); break;
+      case 'rooms': this.drawRooms(c); break;
     }
   },
   drawSelect(c) {
@@ -5335,32 +5408,61 @@ Object.assign(Menus, {
   },
   drawOnline(c) {
     const g = Game; this.bg(c, '#3cf'); this.header(c, 'JOGAR ONLINE', '#3cf');
-    this.list(c, ['CRIAR SALA', 'ENTRAR COM CÓDIGO', 'NOME: ' + (this.editName ? TextInput.value + (UIF % 40 < 20 ? '_' : ' ') : (settings.name || '(sem nome)')), 'VOLTAR'], 110, 130, g.idx, 380, 50);
-    if (this.editName) ui(c, 'Digite seu nome e aperte ENTER', 300, 380, 16, '#ffd21e', 'center');
+    const pick = this.createPick;
+    if (pick) this.list(c, ['SALA PÚBLICA', 'SALA PRIVADA', 'VOLTAR'], 110, 130, g.idx, 380, 50);
+    else this.list(c, ['CRIAR SALA', 'PROCURAR SALAS', 'ENTRAR COM CÓDIGO', 'NOME: ' + (this.editName ? TextInput.value + (UIF % 40 < 20 ? '_' : ' ') : (settings.name || '(sem nome)')), 'VOLTAR'], 110, 130, g.idx, 380, 50);
+    if (this.editName) ui(c, 'Digite seu nome e aperte ENTER', 300, 400, 16, '#ffd21e', 'center');
     c.fillStyle = 'rgba(0,0,0,.55)'; c.fillRect(540, 120, 380, 250); c.strokeStyle = '#3cf'; c.lineWidth = 2; c.strokeRect(540, 120, 380, 250);
-    ['Como funciona:', '1. Um jogador cria a sala e recebe um código', '2. Manda o código pros amigos (até 8 na sala)', '3. Eles escolhem "Entrar com código"', '4. Dois lutam, o resto assiste ao vivo', '5. Quem ganha fica; quem perde vai pro fim da fila', '', 'Rollback netcode para esconder o lag.', 'Precisa de internet em todos.']
-      .forEach((l, i) => ui(c, l, 556, 148 + i * 24, i == 0 ? 19 : 16, i == 0 ? '#3cf' : '#dde'));
-    if (g.netMsg) { c.fillStyle = 'rgba(160,20,20,.85)'; c.fillRect(110, 320, 390, 40); ui(c, g.netMsg, 305, 346, 17, '#fff', 'center'); }
+    const info = pick ? (g.idx == 1
+      ? ['Sala privada:', 'Só entra quem tiver o código.', 'Você recebe um código de 5 letras', 'e passa pros amigos.', '', 'Não aparece em "Procurar salas".']
+      : ['Sala pública:', 'Aparece em "Procurar salas" para', 'qualquer jogador, sem código.', 'Mostra seu nome e quantos estão', 'na sala. O código também funciona', 'para chamar amigos.'])
+      : ['Como funciona:', '1. Crie uma sala (pública ou privada)', '   ou procure uma sala pública aberta', '2. Sala privada: passe o código', '3. Até 8 na sala: dois lutam, o resto assiste', '4. Quem ganha fica; quem perde vai pra fila', '', 'Rollback netcode para esconder o lag.', 'Precisa de internet em todos.'];
+    info.forEach((l, i) => ui(c, l, 556, 148 + i * 24, i == 0 ? 19 : 16, i == 0 ? '#3cf' : '#dde'));
+    if (g.netMsg) { c.fillStyle = 'rgba(160,20,20,.85)'; c.fillRect(110, 420, 390, 40); ui(c, g.netMsg, 305, 446, 17, '#fff', 'center'); }
     this.hint(c, '↑↓ escolher · Soco Fraco / Enter confirmar · Soco Médio / Esc voltar');
+  },
+  drawRooms(c) {
+    const g = Game, list = Lobby.list(), sel = Math.min(this.roomSel || 0, Math.max(0, list.length - 1));
+    this.bg(c, '#3cf'); this.header(c, 'SALAS PÚBLICAS', '#3cf');
+    c.fillStyle = 'rgba(0,0,0,.6)'; c.fillRect(80, 110, W - 160, 300); c.strokeStyle = '#3cf'; c.lineWidth = 2; c.strokeRect(80, 110, W - 160, 300);
+    ui(c, 'ANFITRIÃO', 110, 140, 15, '#3cf'); ui(c, 'JOGADORES', 560, 140, 15, '#3cf', 'center'); ui(c, 'SITUAÇÃO', 740, 140, 15, '#3cf', 'center');
+    const top = Math.max(0, Math.min(sel - 3, list.length - 8));
+    list.slice(top, top + 8).forEach((r, k) => {
+      const i = top + k, y = 172 + k * 30, on = i == sel;
+      c.fillStyle = on ? 'rgba(60,200,255,.28)' : 'rgba(255,255,255,.05)'; c.fillRect(96, y - 20, W - 192, 26);
+      if (on) { c.fillStyle = '#3cf'; c.fillRect(96, y - 20, 5, 26); }
+      ui(c, r.name, 112, y, 18, on ? '#fff' : '#dde');
+      ui(c, r.n + '/' + MAX_ROOM, 560, y, 18, r.full ? '#f66' : '#fff', 'center');
+      ui(c, r.full ? 'CHEIA' : r.fight ? 'EM LUTA · entra na fila' : 'AGUARDANDO', 740, y, 15, r.full ? '#f66' : r.fight ? '#fd4' : '#6f6', 'center');
+      ui(c, r.code, W - 110, y, 14, '#889', 'right');
+    });
+    if (!list.length) {
+      const dots = '.'.repeat(1 + (UIF >> 4) % 3), waiting = performance.now() - (Lobby.t0 || 0) < 4000;
+      ui(c, Lobby.err || (waiting ? 'Procurando salas' + dots : 'Nenhuma sala pública aberta agora.'), W / 2, 250, 22, Lobby.err ? '#f66' : '#dde', 'center', 3);
+      if (!waiting && !Lobby.err) ui(c, 'Volte e escolha CRIAR SALA > SALA PÚBLICA para abrir a sua.', W / 2, 284, 16, '#9cf', 'center');
+    } else if (list.length > 8) ui(c, (sel + 1) + ' de ' + list.length, W - 100, 400, 13, '#889', 'right');
+    ui(c, 'A lista atualiza sozinha', 100, 400, 13, '#889');
+    if (g.netMsg) { c.fillStyle = 'rgba(160,20,20,.9)'; c.fillRect(W / 2 - 280, 420, 560, 34); ui(c, g.netMsg, W / 2, 443, 17, '#fff', 'center'); }
+    this.hint(c, '↑↓ escolher · Soco Fraco / Enter entrar · Soco Médio / Esc voltar');
   },
   drawLobby(c) {
     const joining = this.lobbyJoin && (TextInput.active || !Net.id), host = Net.role == 'host';
-    this.bg(c, '#3cf'); this.header(c, joining ? 'ENTRAR NA SALA' : 'SALA ' + (Net.code || ''), '#3cf');
+    this.bg(c, '#3cf'); this.header(c, joining ? 'ENTRAR NA SALA' : (host ? (Net.pub ? 'SALA PÚBLICA ' : 'SALA PRIVADA ') : 'SALA ') + (Net.code || ''), '#3cf');
     if (joining) {
       c.fillStyle = 'rgba(0,0,0,.6)'; c.fillRect(W / 2 - 280, 120, 560, 250); c.strokeStyle = '#3cf'; c.lineWidth = 2; c.strokeRect(W / 2 - 280, 120, 560, 250);
-      ui(c, 'Digite o código da sala (5 letras/números):', W / 2, 170, 20, '#dde', 'center');
+      ui(c, this.fromList ? 'Entrando na sala pública:' : 'Digite o código da sala (5 letras/números):', W / 2, 170, 20, '#dde', 'center');
       const v = TextInput.value.padEnd(5, '_');
       for (let i = 0; i < 5; i++) { const x = W / 2 - 150 + i * 62; c.fillStyle = '#10182a'; c.fillRect(x, 195, 54, 70); c.strokeStyle = i == TextInput.value.length && TextInput.active && UIF % 40 < 20 ? '#ffd21e' : '#3cf'; c.lineWidth = 3; c.strokeRect(x, 195, 54, 70); txt(c, v[i] == '_' ? '' : v[i], x + 27, 250, 48, '#fff', 'center', 0); }
       ui(c, TextInput.active ? (TextInput.value.length == 5 ? 'ENTER para conectar' : 'Ctrl+V cola o código') : Net.status, W / 2, 300, 20, '#ffd21e', 'center');
     } else {
       // código + lista de jogadores
       c.fillStyle = 'rgba(0,0,0,.6)'; c.fillRect(60, 110, 360, 290); c.strokeStyle = '#3cf'; c.lineWidth = 2; c.strokeRect(60, 110, 360, 290);
-      ui(c, host ? 'Passe este código para os amigos:' : 'Você está na sala:', 240, 146, 18, '#dde', 'center');
+      ui(c, host ? (Net.pub ? 'Aberta em "Procurar salas" · código p/ amigos:' : 'Passe este código para os amigos:') : 'Você está na sala:', 240, 146, 18, '#dde', 'center');
       if (Net.code) { c.save(); c.shadowColor = '#3cf'; c.shadowBlur = 20; txt(c, Net.code, 240, 236, 80, '#fff', 'center', 6); c.restore(); }
       ui(c, Net.status, 240, 280, 17, '#9cf', 'center');
       const msg = host ? (Room.members.length >= 2 ? 'ENTER para começar!' : 'Aguardando pelo menos 1 amigo...') : Room.phase == 'lobby' ? 'Aguardando o anfitrião começar...' : 'Luta em andamento — você entra na fila';
       if (UIF % 60 < 45 || !host) ui(c, msg, 240, 340, 22, host && Room.members.length >= 2 ? '#ffd21e' : '#fff', 'center', 3);
-      ui(c, 'até ' + MAX_ROOM + ' jogadores · quem ganha fica', 240, 380, 14, '#889', 'center');
+      ui(c, (host ? (Net.pub ? 'pública · ' : 'privada · só com código · ') : '') + 'até ' + MAX_ROOM + ' jogadores · quem ganha fica', 240, 380, 14, '#889', 'center');
       c.fillStyle = 'rgba(0,0,0,.6)'; c.fillRect(450, 110, 450, 290); c.strokeStyle = '#3cf'; c.strokeRect(450, 110, 450, 290);
       ui(c, 'JOGADORES (' + Room.members.length + '/' + MAX_ROOM + ')', 470, 140, 18, '#3cf');
       Room.members.forEach((m, i) => {
