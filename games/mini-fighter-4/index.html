@@ -4121,10 +4121,12 @@ const FX = {
       c.globalAlpha = a;
       switch (p.type) {
         case 'flash': { c.globalCompositeOperation = 'lighter'; const g = c.createRadialGradient(x, y, 0, x, y, p.s); g.addColorStop(0, p.col); g.addColorStop(1, 'rgba(255,255,255,0)'); c.fillStyle = g; c.beginPath(); c.arc(x, y, p.s, 0, 7); c.fill(); c.globalCompositeOperation = 'source-over'; break; }
-        case 'ring': c.strokeStyle = p.col; c.lineWidth = 5 * a; c.beginPath(); c.arc(x, y, p.s, 0, 7); c.stroke(); break;
-        case 'star': c.fillStyle = p.col; c.beginPath(); for (let i = 0; i < 16; i++) { const an = p.rot + i * Math.PI / 8, r = i % 2 ? p.s * .22 : p.s * (.6 + (i % 4 == 0 ? .4 : 0)); c.lineTo(x + Math.cos(an) * r, y + Math.sin(an) * r); } c.fill(); break;
-        case 'streak': c.save(); c.translate(x, y); c.rotate(p.rot); c.fillStyle = p.col; c.beginPath(); c.moveTo(0, -3 * a); c.lineTo(p.s * (1.4 - a * .4), 0); c.lineTo(0, 3 * a); c.fill(); c.restore(); break;
-        case 'spark': c.strokeStyle = p.col; c.lineWidth = 2.5; c.beginPath(); c.moveTo(x, y); c.lineTo(x - p.vx * 2.2, y + p.vy * 2.2); c.stroke(); break;
+        // anel, estrela, risco e faísca com brilho (halo aditivo + núcleo claro) — vindo do Mini Fighter V
+        case 'ring': c.globalCompositeOperation = 'lighter'; c.strokeStyle = p.col; c.globalAlpha = a * .35; c.lineWidth = 14 * a; c.beginPath(); c.arc(x, y, p.s, 0, 7); c.stroke(); c.globalAlpha = a; c.lineWidth = 4 * a; c.stroke(); c.globalCompositeOperation = 'source-over'; break;
+        case 'star': { c.globalCompositeOperation = 'lighter'; const st = k => { c.beginPath(); for (let i = 0; i < 16; i++) { const an = p.rot + i * Math.PI / 8, r = (i % 2 ? p.s * .22 : p.s * (.6 + (i % 4 == 0 ? .4 : 0))) * k; c.lineTo(x + Math.cos(an) * r, y + Math.sin(an) * r); } c.fill(); };
+          c.fillStyle = p.col; c.globalAlpha = a * .45; st(1.25); c.globalAlpha = a; st(1); c.fillStyle = '#fff'; st(.45); c.globalCompositeOperation = 'source-over'; break; }
+        case 'streak': c.save(); c.globalCompositeOperation = 'lighter'; c.translate(x, y); c.rotate(p.rot); c.fillStyle = p.col; c.beginPath(); c.moveTo(0, -6 * a); c.lineTo(p.s * (1.4 - a * .4), 0); c.lineTo(0, 6 * a); c.globalAlpha = a * .4; c.fill(); c.beginPath(); c.moveTo(0, -2.5 * a); c.lineTo(p.s * (1.4 - a * .4), 0); c.lineTo(0, 2.5 * a); c.globalAlpha = a; c.fill(); c.restore(); break;
+        case 'spark': c.globalCompositeOperation = 'lighter'; c.lineCap = 'round'; c.strokeStyle = p.col; c.globalAlpha = a * .35; c.lineWidth = 7; c.beginPath(); c.moveTo(x, y); c.lineTo(x - p.vx * 2.6, y + p.vy * 2.6); c.stroke(); c.globalAlpha = a; c.lineWidth = 2.2; c.strokeStyle = '#fff'; c.stroke(); c.globalCompositeOperation = 'source-over'; c.lineCap = 'butt'; break;
         case 'dust': c.fillStyle = `rgba(215,185,150,${.5 * a})`; c.globalAlpha = 1; c.beginPath(); c.arc(x, y, p.s, 0, 7); c.fill(); break;
         case 'dia': c.strokeStyle = p.col; c.lineWidth = 4; c.beginPath(); c.moveTo(x, y - p.s); c.lineTo(x + p.s * .7, y); c.lineTo(x, y + p.s); c.lineTo(x - p.s * .7, y); c.closePath(); c.stroke(); break;
         case 'slash': c.save(); c.translate(x, y); c.rotate(p.rot); c.fillStyle = p.col; c.shadowColor = '#c8f'; c.shadowBlur = 16; c.beginPath(); c.ellipse(0, 0, p.s * (1.2 - a * .4), 4 * a, 0, 0, 7); c.fill(); c.restore(); break;
@@ -4871,12 +4873,12 @@ const HUD = {
     const s = M.superF; if (!s || s.t <= 0) return;
     const F = M.f[s.f], k = easeOut((32 - s.t) / 7), out = s.t < 8 ? s.t / 8 : 1, L = s.f == 0;
     c.save(); c.globalAlpha = out;
-    const y = 190, h = 110, g = c.createLinearGradient(0, y, 0, y + h); g.addColorStop(0, shade(F.ch.aura, .9)); g.addColorStop(1, shade(F.ch.aura, .25));
+    const y = 100, h = 92, g = c.createLinearGradient(0, y, 0, y + h); g.addColorStop(0, shade(F.ch.aura, .9)); g.addColorStop(1, shade(F.ch.aura, .25));   // mais alta: não cobre o rosto do lutador
     c.fillStyle = g; c.beginPath(); c.moveTo(L ? -40 : W + 40, y); c.lineTo(L ? W * k + 40 : W - W * k - 40, y); c.lineTo(L ? W * k : W - W * k, y + h); c.lineTo(L ? -40 : W + 40, y + h); c.fill();
-    c.strokeStyle = 'rgba(255,255,255,.35)'; c.lineWidth = 2; for (let i = 0; i < 8; i++) { const yy = y + 10 + i * 13, off = (UIF * 22 + i * 90) % (W + 200) - 100; c.beginPath(); c.moveTo(L ? off : W - off, yy); c.lineTo(L ? off + 80 : W - off - 80, yy); c.stroke(); }
+    c.strokeStyle = 'rgba(255,255,255,.35)'; c.lineWidth = 2; for (let i = 0; i < 8; i++) { const yy = y + 8 + i * 11, off = (UIF * 22 + i * 90) % (W + 200) - 100; c.beginPath(); c.moveTo(L ? off : W - off, yy); c.lineTo(L ? off + 80 : W - off - 80, yy); c.stroke(); }
     c.beginPath(); c.rect(0, y, W, h); c.clip();
     puppet(c, F.ch, L ? 150 * k : W - 150 * k, y + h / 2 + 128 * 3.1 * F.ch.sz, 3.1, L ? 1 : -1);
-    txt(c, s.name, L ? 300 : W - 300, y + 72, 50, '#fff', L ? 'left' : 'right', 7);
+    txt(c, s.name, L ? 300 : W - 300, y + 62, 46, '#fff', L ? 'left' : 'right', 7);
     c.restore();
   },
   announce(c) {
@@ -5867,7 +5869,9 @@ const Game = {
     Music.hot = M.phase == 'fight' && !M.training && ((M.f[0].wins == WINS_NEEDED - 1 && M.f[1].wins == WINS_NEEDED - 1) || M.f.some(f => f.hp < f.ch.hp * .25) || M.timer < 600);
     // no K.O. a câmera se aproxima do derrotado
     const l = M.phase == 'ko' && M.phaseT < 100 && M.winner >= 0 ? M.f[1 - M.winner] : null;
-    if (l) Cam.update({ x: l.x - 140, y: l.y }, { x: l.x + 140, y: l.y }); else Cam.update(M.f[0], M.f[1]);
+    // no super a câmera fecha em quem soltou e depois volta (vindo do Mini Fighter V)
+    const sf = !l && M.superF && M.superF.t > 3 ? M.f[M.superF.f] : null;
+    if (l) Cam.update({ x: l.x - 140, y: l.y }, { x: l.x + 140, y: l.y }); else if (sf) Cam.zBoost = Math.max(Cam.zBoost, .28), Cam.update({ x: sf.x + sf.face * 40 - 90, y: sf.y }, { x: sf.x + sf.face * 40 + 90, y: sf.y }); else Cam.update(M.f[0], M.f[1]);
   },
   matchEnd() {
     if (this.replaying) return;                                          // o fim do replay volta ao resultado sozinho
@@ -5920,6 +5924,7 @@ const Game = {
       c.save(); c.globalCompositeOperation = 'saturation'; c.fillStyle = '#808080'; c.fillRect(-20, -20, W + 40, H + 40);
       c.globalCompositeOperation = 'source-over'; c.fillStyle = 'rgba(70,30,120,.3)'; c.fillRect(-20, -20, W + 40, H + 40); c.restore();
     }
+    this.drawLights(c);
     c.save(); Cam.apply(c);
     drawShadow(c, a); drawShadow(c, b);
     for (const f of [a, b]) for (const t of f.trail) { c.globalAlpha = t.a * .6; drawFighter(c, Object.assign(Object.create(f), { x: t.x, y: t.y, face: t.face, flash: 0, shakeT: 0 }), t.pose, t.ex ? EX_COL[0] : f.ch.aura); }
@@ -5942,6 +5947,28 @@ const Game = {
     HUD.announce(c);
     if (M.flash > 0) { c.fillStyle = `rgba(255,255,255,${Math.min(.55, M.flash / 14) * (settings.reduceFlash ? .3 : 1)})`; c.fillRect(0, 0, W, H); }
     if (this.mode == 'online') HUD.netInfo(c);
+  },
+  // luz dos golpes (versão 2D da luz do cenário 3D do Mini Fighter V): mesmas fontes (projéteis e clarões de impacto, as 4 mais fortes);
+  // cada uma acende uma mancha no chão (mais fraca quanto mais alto está) e um halo largo no cenário, na cor do golpe
+  drawLights(c) {
+    const src = [];
+    for (const pr of M.projs) if (!pr.dead && pr.p && pr.p.col) src.push([pr.x, pr.y, pr.p.glow || pr.p.col, 26 + pr.p.r * .4]);
+    for (const p of FX.parts) if (p.type == 'flash' && p.s > 20) src.push([p.x, p.y, p.col == '#fff' ? '#ffe8c0' : p.col, 30 * p.l / p.m * Math.min(2, p.s / 30)]);
+    if (!src.length) return;
+    src.sort((u, v) => v[3] - u[3]);
+    const dim = settings.reduceFlash ? .5 : 1;
+    c.save(); Cam.apply(c); c.globalCompositeOperation = 'lighter';
+    for (const [x, y, col, I] of src.slice(0, 4)) {
+      const k = Math.min(1, I / 40) * dim, R = 90 + I * 2.2, near = Math.max(0, 1 - y / 260);
+      if (near > 0) {                                              // chão
+        c.save(); c.translate(x, 0); c.scale(1, .22);
+        const g = c.createRadialGradient(0, 0, 0, 0, 0, R); g.addColorStop(0, col); g.addColorStop(1, 'rgba(0,0,0,0)');
+        c.globalAlpha = .8 * k * near; c.fillStyle = g; c.fillRect(-R, -R, R * 2, R * 2); c.restore();
+      }
+      const R2 = R * 1.8, g2 = c.createRadialGradient(x, -y, 0, x, -y, R2); g2.addColorStop(0, col); g2.addColorStop(1, 'rgba(0,0,0,0)');   // cenário
+      c.globalAlpha = .22 * k; c.fillStyle = g2; c.fillRect(x - R2, -y - R2, R2 * 2, R2 * 2);
+    }
+    c.restore();
   },
   // entradas: cair do alto, surgir (fade), chegar andando
   drawIntro(c, f) {
