@@ -1,0 +1,8 @@
+# gerados por scripts/build.mjs (o GitHub gera de novo a cada publicação)
+games.json
+games.js
+
+node_modules/
+.DS_Store
+Thumbs.db
+*.log

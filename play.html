@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Jogando · Fliperama</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans:wght@500;600&display=swap">
+<style>
+:root{--bg:#0c0a12;--panel:#15121e;--line:rgba(200,180,255,.13);--ink:#f1ecf8;--dim:#9d95b3;--coin:#ffb000;
+  --display:'Bungee','Impact',system-ui,sans-serif;--body:'IBM Plex Sans',system-ui,sans-serif;--mono:'IBM Plex Mono',ui-monospace,monospace;color-scheme:dark}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font:15px var(--body);display:flex;flex-direction:column;overflow:hidden}
+.top{display:flex;align-items:center;gap:14px;padding:0 12px;padding-top:env(safe-area-inset-top,0px);height:calc(46px + env(safe-area-inset-top,0px));border-bottom:1px solid var(--line);background:var(--panel);flex:none}
+.back{font:400 15px var(--display);color:var(--coin);text-decoration:none;white-space:nowrap;letter-spacing:.02em}
+.who{min-width:0;display:flex;align-items:baseline;gap:10px;overflow:hidden}
+.who b{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.who span{font:500 12px var(--mono);color:var(--dim);white-space:nowrap}
+.tools{margin-left:auto;display:flex;gap:6px}
+.tools a,.tools button{font:500 13px var(--body);color:var(--ink);background:transparent;border:1px solid var(--line);border-radius:8px;padding:6px 10px;cursor:pointer;text-decoration:none;white-space:nowrap}
+.tools a:hover,.tools button:hover{border-color:var(--coin)}
+:focus-visible{outline:2px solid var(--coin);outline-offset:2px}
+iframe{flex:1;width:100%;border:0;display:block;background:#000}
+.msg{margin:auto;max-width:44ch;padding:24px 16px;text-align:center;color:var(--dim)}
+.msg a{color:var(--coin)}
+@media (max-width:560px){.who span,.tools .opt{display:none}}
+</style>
+</head>
+<body>
+<div class="top">
+  <a class="back" href="./" aria-label="Voltar pro Fliperama">← Fliperama</a>
+  <div class="who"><b id="title"></b><span id="by"></span></div>
+  <div class="tools">
+    <button type="button" id="reload" class="opt">Reiniciar</button>
+    <a id="code" class="opt" target="_blank" rel="noopener" hidden>Código</a>
+    <button type="button" id="full">Tela cheia</button>
+  </div>
+</div>
+<script src="games.js"></script>
+<script>
+(()=>{
+const $=id=>document.getElementById(id);
+const slug=new URLSearchParams(location.search).get('g');
+const data=window.FLIPERAMA, g=data&&data.games.find(x=>x.slug===slug);
+if(!g){
+  const m=document.createElement('p'); m.className='msg';
+  m.innerHTML='Esse jogo não está no catálogo. <a href="./">Voltar pro Fliperama</a>.';
+  document.body.append(m); $('title').textContent='Jogo não encontrado';
+  document.querySelector('.tools').hidden=true; return;
+}
+document.title=g.title+' · Fliperama';
+$('title').textContent=g.title; $('by').textContent='@'+g.author+(g.controls?' · '+g.controls:'');
+if(data.repo){ $('code').href=data.repo+'/tree/main/games/'+g.slug; $('code').hidden=false; }
+const f=document.createElement('iframe');
+f.src='games/'+g.slug+'/'+g.entry+location.hash;
+f.title=g.title;
+f.allow='autoplay; fullscreen; gamepad; clipboard-write; screen-wake-lock';
+f.addEventListener('load',()=>{ try{ f.focus(); f.contentWindow.focus(); }catch(e){} });
+document.body.append(f);
+$('reload').addEventListener('click',()=>{ f.src=f.src; });
+$('full').addEventListener('click',()=>{ const p=f.requestFullscreen?f.requestFullscreen():null; if(p&&p.catch) p.catch(()=>{}); try{ f.focus(); }catch(e){} });
+})();
+</script>
+</body>
+</html>

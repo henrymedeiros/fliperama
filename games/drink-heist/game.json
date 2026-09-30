@@ -1,0 +1,15 @@
+{
+  "title": "Drink Heist",
+  "author": "henrymedeiros",
+  "description": "Roube drinks numa pista de balada neon enquanto os seguranças tentam te encurralar. Tem pulo, drible, champanhe que deixa os seguranças tontos e modo online pra 3 pessoas (1 ladrão contra 2 seguranças).",
+  "tags": [
+    "ação",
+    "multiplayer",
+    "isométrico"
+  ],
+  "players": "1-3",
+  "controls": "Clique ou WASD · Espaço pula",
+  "online": true,
+  "thumb": "thumb.svg",
+  "created": "2026-09-29"
+}

@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Fliperama</title>
+<meta name="description" content="Os jogos que a gente faz com Claude Code.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+:root{
+  /* Layout: letreiro de fliperama no topo, prateleira de fichas (cards) em grade abaixo. */
+  --bg:#0c0a12; --panel:#15121e; --panel-2:#1d1929; --line:rgba(200,180,255,.13);
+  --ink:#f1ecf8; --dim:#9d95b3; --coin:#ffb000; --cyan:#33e1ed; --pink:#ff4f9a;
+  --display:'Bungee','Impact',system-ui,sans-serif;
+  --body:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,Consolas,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:16px/1.5 var(--body);min-height:100vh;
+  background-image:radial-gradient(ellipse 80% 50% at 50% -10%,rgba(255,176,0,.10),transparent 70%),radial-gradient(circle at 1px 1px,rgba(255,255,255,.035) 1px,transparent 0);
+  background-size:auto,22px 22px}
+.wrap{max-width:1200px;margin:0 auto;padding-inline:16px}
+a{color:inherit}
+:focus-visible{outline:2px solid var(--coin);outline-offset:3px;border-radius:6px}
+
+/* letreiro */
+header{padding-block:48px 28px}
+.marquee{display:inline-block;position:relative;padding:14px 26px 12px;border:3px solid var(--coin);border-radius:14px;
+  box-shadow:0 0 0 6px var(--bg),0 0 0 8px rgba(255,176,0,.35),0 0 40px rgba(255,176,0,.25) inset,0 0 50px rgba(255,176,0,.2)}
+.marquee h1{margin:0;font-family:var(--display);font-weight:400;font-size:clamp(40px,9vw,88px);line-height:1;letter-spacing:.02em;color:#fff3d6;
+  text-shadow:0 0 4px #fff,0 0 16px var(--coin),0 0 38px rgba(255,176,0,.7)}
+.bulbs{position:absolute;inset:-9px;pointer-events:none;border-radius:18px;
+  background:radial-gradient(circle,#ffe7a3 0 2px,transparent 3px) 0 0/18px 18px;
+  -webkit-mask:linear-gradient(#000 0 0) content-box exclude,linear-gradient(#000 0 0);mask:linear-gradient(#000 0 0) content-box exclude,linear-gradient(#000 0 0);
+  padding:4px;opacity:.8;animation:chase 1.2s steps(2) infinite}
+@keyframes chase{50%{background-position:9px 0}}
+.lede{margin:22px 0 0;max-width:60ch;color:#d9d1ea;font-size:18px;text-wrap:pretty}
+.stats{display:flex;flex-wrap:wrap;gap:8px 22px;margin-top:14px;font:500 13px/1 var(--mono);color:var(--dim);letter-spacing:.04em}
+.stats b{color:var(--ink);font-weight:500}
+
+/* filtros */
+.bar{position:sticky;top:0;z-index:5;background:rgba(12,10,18,.86);backdrop-filter:blur(10px);border-block:1px solid var(--line)}
+.bar .wrap{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:center;padding-block:12px}
+.search{flex:1 1 220px;min-width:0;position:relative}
+.search input{width:100%;font:500 15px var(--body);color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px 10px 36px}
+.search input::placeholder{color:var(--dim)}
+.search svg{position:absolute;left:11px;top:50%;translate:0 -50%;width:16px;height:16px;color:var(--dim)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font:500 13px/1 var(--body);color:var(--dim);background:transparent;border:1px solid var(--line);border-radius:999px;padding:8px 12px;cursor:pointer}
+.chip:hover{color:var(--ink)}
+.chip[aria-pressed="true"]{color:var(--bg);background:var(--c,var(--coin));border-color:transparent}
+select{font:500 13px var(--body);color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:9px 10px}
+
+/* grade */
+main{padding-block:28px 60px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:18px}
+.card{display:flex;flex-direction:column;text-decoration:none;background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden;transition:transform .18s,border-color .18s,box-shadow .18s}
+.card:hover{transform:translateY(-4px);border-color:rgba(255,176,0,.55);box-shadow:0 14px 40px rgba(0,0,0,.45),0 0 0 1px rgba(255,176,0,.25)}
+.thumb{position:relative;aspect-ratio:16/10;max-width:100%;background:var(--panel-2);overflow:hidden}
+.thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.gen{position:absolute;inset:0;display:grid;place-items:center;font-family:var(--display);font-size:56px;color:rgba(255,255,255,.9);text-shadow:0 4px 30px rgba(0,0,0,.4)}
+.play{position:absolute;right:12px;bottom:12px;font:600 12px/1 var(--body);letter-spacing:.12em;text-transform:uppercase;color:var(--bg);background:var(--coin);padding:8px 12px;border-radius:8px;opacity:0;translate:0 6px;transition:.18s}
+.card:hover .play,.card:focus-visible .play{opacity:1;translate:0 0}
+.badges{position:absolute;left:10px;top:10px;display:flex;gap:6px}
+.badge{font:500 11px/1 var(--mono);letter-spacing:.04em;background:rgba(12,10,18,.8);border:1px solid var(--line);border-radius:6px;padding:5px 7px;color:var(--ink)}
+.badge.new{background:var(--pink);border-color:transparent;color:#fff}
+.body{display:grid;gap:8px;padding:14px 16px 16px;flex:1}
+.body h2{margin:0;font:600 19px/1.2 var(--body);text-wrap:balance}
+.by{font:500 13px/1 var(--mono);color:var(--c,var(--dim))}
+.desc{margin:0;color:#cfc7e0;font-size:14px;line-height:1.45;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.foot{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:auto;padding-top:4px}
+.tag{font-size:12px;color:var(--dim);border:1px solid var(--line);border-radius:6px;padding:3px 7px}
+.when{margin-left:auto;font:500 12px var(--mono);color:var(--dim)}
+.empty{padding:48px 0;color:var(--dim);max-width:52ch}
+.empty code,.how code{font-family:var(--mono);color:var(--coin)}
+
+/* como publicar */
+.how{border-top:1px solid var(--line);padding-block:32px 48px;color:var(--dim)}
+.how h3{margin:0 0 14px;font:400 18px var(--display);color:var(--ink);letter-spacing:.03em}
+.how ol{margin:0;padding-left:1.2em;display:grid;gap:8px;max-width:70ch}
+@media (prefers-reduced-motion:reduce){.bulbs{animation:none}.card,.play{transition:none}}
+</style>
+</head>
+<body>
+<header class="wrap">
+  <div class="marquee"><span class="bulbs"></span><h1>Fliperama</h1></div>
+  <p class="lede" id="lede">Os jogos que a gente faz com Claude Code. Clique numa ficha pra jogar.</p>
+  <div class="stats" id="stats"></div>
+</header>
+
+<div class="bar">
+  <div class="wrap">
+    <label class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+      <input id="q" type="search" placeholder="Buscar por nome, tag ou descrição" autocomplete="off" aria-label="Buscar jogos"></label>
+    <div class="chips" id="authors" role="group" aria-label="Filtrar por autor"></div>
+    <select id="sort" aria-label="Ordenar">
+      <option value="updated">Atualizados agora</option>
+      <option value="created">Mais novos</option>
+      <option value="title">Nome (A–Z)</option>
+    </select>
+  </div>
+</div>
+
+<main class="wrap">
+  <div class="grid" id="grid"></div>
+  <p class="empty" id="empty" hidden></p>
+</main>
+
+<section class="how wrap">
+  <h3>Colocar um jogo aqui</h3>
+  <ol>
+    <li>No Claude Code, dentro da pasta do repositório, rode <code>/novo-jogo</code> e descreva a ideia.</li>
+    <li>Quando estiver bom, rode <code>/publicar</code>. Em cerca de um minuto o jogo aparece nesta página.</li>
+    <li>Pra mexer no jogo de outra pessoa, rode <code>/alterar</code>. A mudança vira um pedido pro autor aprovar.</li>
+  </ol>
+</section>
+
+<script src="games.js"></script>
+<script>
+(()=>{
+const $=id=>document.getElementById(id);
+const data=window.FLIPERAMA;
+if(!data){ $('empty').hidden=false; $('empty').innerHTML='O catálogo ainda não foi gerado. Rode <code>node scripts/build.mjs</code> na pasta do repositório.'; return; }
+const games=data.games;
+const state={q:'',author:null,sort:'updated'};
+try{ const s=JSON.parse(localStorage.getItem('fliperama:filtros')||'{}'); if(s.sort) state.sort=s.sort; }catch(e){}
+$('sort').value=state.sort;
+
+const hue=s=>{ let h=0; for(const c of s) h=(h*31+c.charCodeAt(0))>>>0; return h%360; };
+const authorCol=a=>`hsl(${hue(a)} 90% 66%)`;
+const rtf=new Intl.RelativeTimeFormat('pt-BR',{numeric:'auto'});
+function ago(iso){
+  const s=(new Date(iso)-Date.now())/1000, units=[['year',31536000],['month',2592000],['week',604800],['day',86400],['hour',3600],['minute',60]];
+  for(const [u,v] of units) if(Math.abs(s)>=v) return rtf.format(Math.round(s/v),u);
+  return 'agora';
+}
+const authors=[...new Set(games.map(g=>g.author))].sort();
+$('stats').innerHTML='';
+const stat=(n,t)=>{ const s=document.createElement('span'); const b=document.createElement('b'); b.textContent=n; s.append(b,' '+t); $('stats').append(s); };
+stat(games.length,games.length===1?'jogo':'jogos'); stat(authors.length,authors.length===1?'autor':'autores');
+if(games.length){ const s=document.createElement('span'), b=document.createElement('b'); b.textContent=ago(games.reduce((m,g)=>g.updated>m?g.updated:m,games[0].updated)); s.append('última mudança ',b); $('stats').append(s); }
+if(authors.length) $('lede').textContent='Os jogos que '+(authors.length>1?authors.slice(0,-1).map(a=>'@'+a).join(', ')+' e @'+authors[authors.length-1]:'@'+authors[0])+(authors.length>1?' fazem':' faz')+' com Claude Code. Clique numa ficha pra jogar.';
+
+function chip(label,val,col){
+  const b=document.createElement('button'); b.type='button'; b.className='chip'; b.textContent=label;
+  if(col) b.style.setProperty('--c',col);
+  b.setAttribute('aria-pressed',String(state.author===val));
+  b.addEventListener('click',()=>{ state.author=val; render(); });
+  return b;
+}
+function renderChips(){ const c=$('authors'); c.textContent=''; c.append(chip('Todos',null)); for(const a of authors) c.append(chip('@'+a,a,authorCol(a))); }
+
+function card(g){
+  const a=document.createElement('a'); a.className='card'; a.href='play.html?g='+encodeURIComponent(g.slug);
+  a.style.setProperty('--c',authorCol(g.author));
+  const th=document.createElement('div'); th.className='thumb';
+  if(g.thumb){ const img=document.createElement('img'); img.src='games/'+g.slug+'/'+g.thumb; img.alt=''; img.loading='lazy'; th.append(img); }
+  else{ const h=hue(g.slug), gen=document.createElement('div'); gen.className='gen';
+    th.style.background=`linear-gradient(135deg,hsl(${h} 70% 38%),hsl(${(h+60)%360} 75% 22%))`;
+    gen.textContent=g.title.split(/\s+/).map(w=>w[0]).join('').slice(0,2).toUpperCase(); th.append(gen); }
+  const bd=document.createElement('div'); bd.className='badges';
+  const addBadge=(t,cls)=>{ const s=document.createElement('span'); s.className='badge'+(cls?' '+cls:''); s.textContent=t; bd.append(s); };
+  if(Date.now()-new Date(g.created)<7*864e5) addBadge('novo','new');
+  addBadge(g.players==='1'?'1 jogador':g.players+' jogadores');
+  if(g.online) addBadge('online');
+  th.append(bd);
+  const pl=document.createElement('span'); pl.className='play'; pl.textContent='Jogar'; th.append(pl);
+  const body=document.createElement('div'); body.className='body';
+  const h=document.createElement('h2'); h.textContent=g.title;
+  const by=document.createElement('span'); by.className='by'; by.textContent='@'+g.author;
+  const d=document.createElement('p'); d.className='desc'; d.textContent=g.description;
+  const ft=document.createElement('div'); ft.className='foot';
+  for(const t of g.tags.slice(0,3)){ const s=document.createElement('span'); s.className='tag'; s.textContent=t; ft.append(s); }
+  const w=document.createElement('span'); w.className='when'; w.textContent=ago(g.updated); w.title='Última mudança: '+new Date(g.updated).toLocaleString('pt-BR'); ft.append(w);
+  body.append(h,by,d,ft); a.append(th,body);
+  return a;
+}
+function render(){
+  renderChips();
+  const q=state.q.trim().toLowerCase();
+  let list=games.filter(g=>(!state.author||g.author===state.author)&&(!q||[g.title,g.description,g.author,...g.tags].join(' ').toLowerCase().includes(q)));
+  if(state.sort==='title') list.sort((a,b)=>a.title.localeCompare(b.title,'pt-BR'));
+  else list.sort((a,b)=>b[state.sort].localeCompare(a[state.sort]));
+  const grid=$('grid'); grid.textContent=''; for(const g of list) grid.append(card(g));
+  const empty=$('empty'); empty.hidden=list.length>0;
+  if(!list.length) empty.innerHTML=games.length?'Nenhum jogo com esse filtro.':'Nenhum jogo ainda. No Claude Code, rode <code>/novo-jogo</code> pra criar o primeiro.';
+}
+$('q').addEventListener('input',e=>{ state.q=e.target.value; render(); });
+$('sort').addEventListener('change',e=>{ state.sort=e.target.value; try{ localStorage.setItem('fliperama:filtros',JSON.stringify({sort:state.sort})); }catch(err){} render(); });
+render();
+})();
+</script>
+</body>
+</html>
