@@ -1623,7 +1623,7 @@ const Combat = {
       return;
     }
     if (out.r == 'armor') {
-      touch(1); o.armorLeft--; const gd = Math.max(0, Math.min(o.hp - 1, Math.round(h.dmg * .5)));
+      touch(1); o.armorLeft--; const gd = Math.max(0, Math.min(o.hp - 1, Math.round(h.dmg)));   // como no SF: o dano inteiro vira cinza (recuperável)
       o.hp -= gd; o.grey += gd; o.greyT = GREY_DELAY; o.flash = 3; o.flashCol = 3;       // o dano da armadura vira vida cinza
       FX.hit(px, py, dir, 1, 'armor'); Audio.sfx('armor', 1, px); M.stop = Math.max(M.stop, L.stop); o.shakeT = L.stop;
       FX.text('ARMADURA', o.x, o.y + 150, '#fa3');
@@ -5755,7 +5755,7 @@ const Training = {
     for (const [x, y] of [[a, b], [b, a]]) if ((y.st == 'hit' || y.st == 'knock' || y.st == 'crumple') && x.comboDmg) this.last = { n: x.combo, dmg: x.comboDmg };
     const busy = f => ['hit', 'knock', 'down', 'wake', 'cineD', 'thrown', 'block', 'cine', 'throw', 'crumple', 'parry'].includes(f.st);
     if (busy(a) || busy(b)) this.calm = 0;
-    else if (++this.calm > 45) for (const f of [a, b]) { f.hp = f.ch.hp; f.hpS = f.hp; f.meter = METER_MAX; }
+    else if (++this.calm > 45) for (const f of [a, b]) { f.meter = METER_MAX; if (f.grey <= 0) { f.hp = f.ch.hp; f.hpS = f.hp; } }   // com vida cinza, deixa ela voltar sozinha (dá pra ver a mecânica)
   }
 };
 
