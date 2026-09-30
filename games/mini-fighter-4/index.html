@@ -87,11 +87,16 @@ const DEFAULT_KEYMAP = [
   { u: 'ArrowUp', d: 'ArrowDown', l: 'ArrowLeft', r: 'ArrowRight', lp: 'KeyI', mp: 'KeyO', hp: 'KeyP', lk: 'KeyK', mk: 'KeyL', hk: 'Semicolon', start: 'Backspace' }
 ];
 // botões do controle no padrão "standard" (Xbox): 0 A, 1 B, 2 X, 3 Y, 4 LB, 5 RB, 6 LT, 7 RT, 8 Back, 9 Start, 12-15 direcional
-const DEFAULT_PADMAP = { lp: 2, mp: 3, hp: 5, lk: 0, mk: 1, hk: 7, throw: 4, vskill: 6, start: 9, back: 8 };
+const DEFAULT_PADMAP = { lp: 2, mp: 3, hp: 5, lk: 0, mk: 1, hk: 7, exP: 4, exK: 6, throw: null, vskill: null, start: 9, back: 8 };
+// mapas salvos antes do L1/L2 = EX: LB/LT eram arremesso/V-Skill; passam a ser 3 socos / 3 chutes
+function migratePadmap(m) {
+  if (!('exP' in m)) { m.exP = 4; m.exK = 6; if (m.throw == 4) m.throw = null; if (m.vskill == 6) m.vskill = null; }
+  return m;
+}
 const keys = {}, latch = {};
 const Input = {
   keymap: settings.keymap || JSON.parse(JSON.stringify(DEFAULT_KEYMAP)),
-  padmap: settings.padmap || Object.assign({}, DEFAULT_PADMAP),
+  padmap: settings.padmap ? migratePadmap(settings.padmap) : Object.assign({}, DEFAULT_PADMAP),
   external: [],            // estados de controle vindos do processo nativo (XInput no executável)
   capture: null,           // callback de remapeamento: recebe o próximo keydown
   lastDevice: ['kb', 'kb'],
@@ -114,8 +119,10 @@ const Input = {
     r.u = r.u || b(12); r.d = r.d || b(13); r.l = r.l || b(14); r.r = r.r || b(15);
     if (p.mapping != 'standard' && p.axes.length > 9) { const v = p.axes[9]; if (v >= -1.05 && v <= 1.05) { const i = Math.round((v + 1) / (2 / 7)); r.u = r.u || i == 0 || i == 1 || i == 7; r.r = r.r || (i >= 1 && i <= 3); r.d = r.d || (i >= 3 && i <= 5); r.l = r.l || (i >= 5 && i <= 7); } }
     for (const k of BTN) r[k] = b(m[k]);
+    if (b(m.exP)) r.lp = r.mp = r.hp = true;
+    if (b(m.exK)) r.lk = r.mk = r.hk = true;
     if (b(m.throw)) r.lp = r.lk = true;
-    if (b(m.vskill)) r.mp = r.hp = true;
+    if (b(m.vskill)) r.mp = r.mk = true;
     r.start = b(m.start); r.back = b(m.back);
     if (p.buttons.some(x => x && x.pressed)) Audio.unlock && Audio.unlock();
     return r;
@@ -1025,7 +1032,7 @@ const MOTIONS = {
   '2': { seqs: [[2], [1], [3]], cls: 0 },
 };
 const Cmd = {
-  fresh() { return { ic: 100, dir: 5, hist: [5, 0], bt: { lp: -99, mp: -99, hp: -99, lk: -99, mk: -99, hk: -99 }, held: 0, chB: 0, chBr: 0, chBt: -99, chD: 0, chDr: 0, chDt: -99, pP: [], pK: [], tapF: -99, tapD: -99, parryLock: 0, dashF: -99, dashB: -99, airT: -99, throwT: -99 }; },
+  fresh() { return { ic: 100, dir: 5, hist: [5, 0], bt: { lp: -99, mp: -99, hp: -99, lk: -99, mk: -99, hk: -99 }, held: 0, chB: 0, chBr: 0, chBt: -99, chD: 0, chDr: 0, chDt: -99, pP: [], pK: [], tapF: -99, tapD: -99, parryLock: 0, dashF: -99, dashB: -99, airT: -99, throwT: -99, cbt: null }; },
   numpad(inp, face) {
     const fx = (inp.r ? 1 : 0) - (inp.l ? 1 : 0), fwd = fx * face;
     return inp.d ? (fwd > 0 ? 3 : fwd < 0 ? 1 : 2) : inp.u ? (fwd > 0 ? 9 : fwd < 0 ? 7 : 8) : (fwd > 0 ? 6 : fwd < 0 ? 4 : 5);
@@ -1077,6 +1084,8 @@ const Cmd = {
     return ts.length >= 2 && ts[0] - ts[1] <= PAIR_WIN;
   },
   combo(f, a, b) { const ta = f.in.bt[a], tb = f.in.bt[b], ic = f.in.ic; return ic - ta <= BTN_BUF && ic - tb <= BTN_BUF && Math.abs(ta - tb) <= PAIR_WIN; },
+  // igual ao combo, mas lembra os toques do normal de 1 botão que acabou de sair (MP e MK com 1-2 quadros de diferença ainda viram V-Skill / arremesso)
+  comboConv(f, a, b) { const c = f.in.cbt, bt = k => Math.max(f.in.bt[k], c ? c[k] : -99), ta = bt(a), tb = bt(b), ic = f.in.ic; return ic - ta <= BTN_BUF && ic - tb <= BTN_BUF && Math.abs(ta - tb) <= PAIR_WIN; },
   strength(b) { return b[1] == 'p' || b[1] == 'k' ? (b[0] == 'l' ? 0 : b[0] == 'm' ? 1 : 2) : 0; },
   charged(f, d) {
     const s = f.in;
@@ -1158,6 +1167,8 @@ const NORMALS = {
   jmk: { anim: 'jmk', air: 1, startup: 6, active: 6, recovery: 0, hits: [{ box: [8, 18, 66, 32], dmg: 7, lv: 'M', high: 1, hs: 16, bs: 12 }] },
   jhk: { anim: 'jhk', air: 1, startup: 9, active: 5, recovery: 0, hits: [{ box: [14, 18, 78, 34], dmg: 9, lv: 'H', high: 1, hs: 18, bs: 14 }] },
   throw: { anim: 'throwA', startup: 5, active: 3, recovery: 20, grab: { range: 72, dmg: 12, type: 'throw', normal: 1 } },
+  // agarrão aéreo (Soco Fraco + Chute Fraco no ar, perto de um oponente no ar): não dá pra escapar (sem tech)
+  athrow: { anim: 'throwA', air: 1, startup: 3, active: 4, recovery: 0, grab: { range: 66, dmg: 13, type: 'air', air: 1, yr: 80 } },
   dashF: { anim: 'dash', startup: 99, active: 0, recovery: 0, dur: 18, move: 1, vel: [[1, 12, 8, null]] },
   dashB: { anim: 'dashB', startup: 99, active: 0, recovery: 0, dur: 21, move: 1, vel: [[1, 14, -7, null]], inv: { strike: [1, 7] }, back: 1 },
 };
@@ -1199,6 +1210,7 @@ function validateMove(m) {
 <script>/* src/sim/fighter.js */
 // ===== lutador: estado, decisão (input → golpe), execução de golpes, física =====
 const GRAV = 0.75, METER_MAX = 300, EX_COST = 100, SUPER_COST = 200;
+const GREY_DELAY = 120, GREY_STEP = 3;   // vida cinza: espera 2 s sem apanhar, depois volta 1 de vida a cada 3 quadros
 const PREJUMP = 4, JUMP_LAND = 3;
 
 function getMove(ch, key) {
@@ -1235,11 +1247,11 @@ class Fighter {
       combo: 0, comboDmg: 0, comboScale: 1, starterL: false, juggle: 0, airReset: false, airUsed: false,
       hitMask: 0, contact: 0, cancelUntil: -1, grabDone: false, armorLeft: 0, projMask: 0, throwInv: 0, throwBack: false,
       flash: 0, flashCol: 0, shakeT: 0, cine: null, thr: null, cineRot: 0, parryFx: 0, want: null, in: Cmd.fresh(),
-      mode: 0, tStop: 0, frozen: 0, sPrev: 0, sStep: 0, wantBuf: null, wantBufT: 0, bounced: 0, lastDmg: 'V' });
+      mode: 0, tStop: 0, frozen: 0, sPrev: 0, sStep: 0, wantBuf: null, wantBufT: 0, bounced: 0, lastDmg: 'V', grey: 0, greyT: 0, airVs: false });
     this.trail = [];
   }
   get m() { return this.mv ? getMove(this.ch, this.mv) : null; }
-  setSt(s) { this.st = s; this.stT = 0; if (s == 'idle') { this.mv = null; this.juggle = 0; this.crouchHit = false; this.airReset = false; } }
+  setSt(s) { this.st = s; this.stT = 0; if (s == 'idle') { this.mv = null; this.juggle = 0; this.crouchHit = false; this.airReset = false; this.airVs = false; } }
 
   // ---------------- decisão ----------------
   normalKey(air) {
@@ -1254,16 +1266,18 @@ class Fighter {
   decide(o) {
     const st = this.st, m = this.m, air = this.y > 0, ic = this.in.ic;
     const free = st == 'idle' || st == 'prejump';
-    const airFree = (st == 'air' && !m && !this.airUsed) || (st == 'atk' && m && m.airActs && this.y > 20 && this.t > 12);
+    const airFree = (st == 'air' && !m && !this.airUsed) || ((st == 'atk' || st == 'air') && m && m.airActs && this.y > 20 && this.t > 12);
     const airCancel = st == 'air' && m && !m.special && this.contact && this.t <= this.cancelUntil;
     const cancel = st == 'atk' && m && this.contact && this.t <= this.cancelUntil;
     const conv = st == 'atk' && m && !m.special && !m.move && !this.contact && this.t <= 2;
+    // normal aéreo de 1 botão que acabou de sair pode virar agarrão aéreo / V-Skill aérea (os 2 botões nunca chegam no mesmo quadro)
+    const convAir = st == 'air' && m && !m.special && !this.contact && this.t <= 2 && /^j[lm][pk]$/.test(this.mv);
     if ((st == 'atk' || st == 'air') && m && m.follow && !this.want) for (const fo of m.follow) {
       if (this.t < fo.from || this.t > fo.to || (fo.onHit && this.contact != 1)) continue;
       const b = fo.btn == 'P' ? Cmd.latest(this, 'P', 2) : fo.btn == 'K' ? Cmd.latest(this, 'K', 2) : Cmd.pressed(this, fo.btn, 2) ? fo.btn : null;
       if (b && (!fo.dir || fo.dir.includes(this.in.dir))) return fo.key;
     }
-    if (!(free || airFree || airCancel || cancel || conv)) return null;
+    if (!(free || airFree || airCancel || cancel || conv || convAir)) return null;
     if (this.want) {
       // golpes pedidos direto (IA/desafios) obedecem às MESMAS regras de cancelamento do jogador
       const w = this.want, isSu = w == 'super', isSp = w.includes(':');
@@ -1277,11 +1291,11 @@ class Fighter {
     const P = Cmd.latest(this, 'P'), K = Cmd.latest(this, 'K'), ch = this.ch;
     const dashF = free && this.in.dashF == ic, dashB = free && this.in.dashB == ic;
     if (!P && !K) return dashF ? 'dashF' : dashB ? 'dashB' : null;
-    // super (motion ou atalho Soco Forte + Chute Forte)
+    // super: só pelo comando (sem atalho de botões)
     const canSu = !air && this.meter >= SUPER_COST && (!m || !m.super) && (!cancel || m.cancel.su);
     if (canSu) {
       const su = ch.superCmd || { input: '236236', btn: 'P' }, b = su.btn == 'P' ? P : K;
-      if ((b && Cmd.motion(this, su.input, this.in.bt[b]) != null) || Cmd.combo(this, 'hp', 'hk')) return 'super';
+      if (b && Cmd.motion(this, su.input, this.in.bt[b]) != null) return 'super';
     }
     // especiais: o comando mais complexo vence; empate → o último passo mais recente
     const canSp = !cancel || m.cancel.sp || m.special;
@@ -1304,10 +1318,13 @@ class Fighter {
     }
     if (cancel || airCancel) { const nk = this.normalKey(air); return nk && m.cancel.chains && m.cancel.chains.includes(nk) ? nk : null; }
     if (!air) {
-      if (ch.vskill && Cmd.combo(this, 'mp', 'hp')) return 'vskill';
-      if (Cmd.combo(this, 'lp', 'lk') && !this.holdDown) return 'throw';
+      if (ch.vskill && Cmd.comboConv(this, 'mp', 'mk')) return 'vskill';
+      if (Cmd.comboConv(this, 'lp', 'lk') && !this.holdDown) return 'throw';
+    } else {
+      if (ch.vskill && ch.vskill.airOk && !this.airVs && Cmd.comboConv(this, 'mp', 'mk')) return 'vskill';
+      if (ch.airThrow && Cmd.comboConv(this, 'lp', 'lk')) return 'athrow';
     }
-    if (conv) return null;
+    if (conv || convAir) return null;
     if (dashF) return 'dashF'; if (dashB) return 'dashB';
     return this.normalKey(air);
   }
@@ -1321,6 +1338,7 @@ class Fighter {
     mv = getMove(this.ch, key);
     if (mv.proj && !mv.multiProj && M.projs.some(p => p.o === this.i && !p.dead)) return;
     this.want = null; this.wantBufT = 0;
+    this.in.cbt = !mv.special && !mv.super && !mv.grab ? Object.assign({}, this.in.bt) : null;
     Cmd.consume(this);
     this.startMove(key, o);
   }
@@ -1330,6 +1348,7 @@ class Fighter {
     Object.assign(this, { mv: key, t: 0, hitMask: 0, contact: 0, cancelUntil: -1, grabDone: false, armorLeft: m.armor ? (m.armor.hits || 1) : 0, projMask: 0 });
     this.crouch = !!m.crouch;
     if (key == 'throw') this.throwBack = this.holdBack;
+    if (key == 'vskill') this.airVs = true;             // uma V-Skill por pulo (a do chão também conta se decolar)
     if (m.super) { this.meter -= SUPER_COST; Combat.superFlash(this, m); }
     else if (key.endsWith(':3')) { this.meter -= EX_COST; Combat.exFlash(this, m); }
     else if (m.special) this.meter = Math.min(METER_MAX, this.meter + 3);
@@ -1408,6 +1427,7 @@ class Fighter {
     const flags = this.runMove(o);
     this.physics(o, flags);
     if (this.hpS > this.hp && this.st != 'hit' && this.st != 'knock') this.hpS = Math.max(this.hp, this.hpS - .6);
+    if (this.grey > 0) { if (this.greyT > 0) this.greyT--; else if (this.hp > 0 && M.phase == 'fight' && M.frame % GREY_STEP == 0) { this.hp = Math.min(this.ch.hp, this.hp + 1); this.grey--; } }
     for (const t of this.trail) t.a -= .06; this.trail = this.trail.filter(t => t.a > 0);
   }
   frozenInput(inp) { if (!inp) return; const r = this.simple ? this.simpleIn(inp) : inp; if (r.want) { this.wantBuf = r.want; this.wantBufT = 6; } Cmd.record(this, r, true); }
@@ -1465,7 +1485,8 @@ class Fighter {
     if (this.t == m.s && m.hits.length) Audio.sfx('whiff', m.hits[0].lv == 'H' ? 1.6 : m.hits[0].lv == 'M' ? 1.25 : 1, this.x);
     if (m.fx == 'elec' && this.t % 6 == 0 && this.t >= m.s && this.t <= m.e) Audio.sfx('elec', 1, this.x);
     if ((m.fx == 'psycho' || m.fx == 'fire' || m.fx == 'ice') && this.t == m.s) Audio.sfx(m.fx == 'ice' ? 'ice' : m.fx, 1, this.x);
-    if ((m.special || m.after) && this.t % 3 == 0 && !SIM.silent && typeof Anim != 'undefined') this.trail.push({ pose: Anim.pose(this), x: this.x, y: this.y, face: this.face, a: .5 });
+    const exMv = this.mv.endsWith(':3');   // EX: rastro branco mais denso
+    if ((m.special || m.after) && this.t % (exMv ? 2 : 3) == 0 && !SIM.silent && typeof Anim != 'undefined') this.trail.push({ pose: Anim.pose(this), x: this.x, y: this.y, face: this.face, a: exMv ? .75 : .5, ex: exMv });
     if (this.st == 'atk' && this.t >= m.dur && this.y <= 0) this.setSt('idle');
     else if (this.st == 'air' && m.air && this.t >= m.dur && m.dur < 90 && !m.hits.length) this.mv = null;
     return fl;
@@ -1511,9 +1532,11 @@ const Combat = {
   collect(a, o, ev) {
     const m = a.m; if (!m || (a.st != 'atk' && a.st != 'air')) return;
     if (m.grab && a.t >= m.s && a.t <= m.e && !a.grabDone) {
-      const g = m.grab;
-      const inY = g.air ? o.y > 20 && Math.abs(o.y - a.y) < 230 : Math.abs(o.y - a.y) < 40;
-      if (Math.abs(o.x - a.x) <= g.range * a.sz && inY && !o.invulTo(g.air ? 'athrow' : 'throw')) ev.push({ type: 'throw', a, o, g });
+      const g = m.grab, dx = Math.abs(o.x - a.x);
+      const airOk = g.air && dx <= g.range * a.sz && o.y > 20 && Math.abs(o.y - a.y) < (g.yr || 230) && !o.invulTo('athrow');
+      // g.ground (só nos agarrões aéreos): também pega no chão, com o alcance multiplicado por esse fator
+      const gndOk = (!g.air || g.ground) && dx <= g.range * (g.air ? g.ground : 1) * a.sz && Math.abs(o.y - a.y) < 40 && !o.invulTo('throw');
+      if (airOk || gndOk) ev.push({ type: 'throw', a, o, g });
     }
     for (const h of m.hits) {
       if (a.hitMask & (1 << h.idx) || a.t < h.f[0] || a.t > h.f[1]) continue;
@@ -1585,6 +1608,7 @@ const Combat = {
       touch(2);
       o.setSt('block'); o.stun = h.bs; o.crouch = o.holdDown; o.mv = null;
       if (proj || (m && (m.special || m.super))) { o.hp = Math.max(0, o.hp - (h.chip ?? Math.max(1, Math.round(h.dmg * (h.lv == 'SA' ? .25 : .18))))); o.hpS = Math.max(o.hpS, o.hp); o.lastDmg = 'C'; }
+      if (o.grey > 0) o.greyT = GREY_DELAY;
       o.vx = dir * L.push * (proj ? .6 : 1); if (!proj && (o.x < 45 || o.x > STAGE_W - 45)) a.vx = -dir * L.push * .8;
       a.meter = Math.min(METER_MAX, a.meter + (L.meter >> 1)); o.meter = Math.min(METER_MAX, o.meter + 2);
       M.stop = Math.max(M.stop, L.stop - 2); o.shakeT = M.stop;
@@ -1599,7 +1623,8 @@ const Combat = {
       return;
     }
     if (out.r == 'armor') {
-      touch(1); o.armorLeft--; o.hp = Math.max(1, o.hp - Math.round(h.dmg * .5)); o.flash = 3; o.flashCol = 3;
+      touch(1); o.armorLeft--; const gd = Math.max(0, Math.min(o.hp - 1, Math.round(h.dmg * .5)));
+      o.hp -= gd; o.grey += gd; o.greyT = GREY_DELAY; o.flash = 3; o.flashCol = 3;       // o dano da armadura vira vida cinza
       FX.hit(px, py, dir, 1, 'armor'); Audio.sfx('armor', 1, px); M.stop = Math.max(M.stop, L.stop); o.shakeT = L.stop;
       FX.text('ARMADURA', o.x, o.y + 150, '#fa3');
       return;
@@ -1611,7 +1636,7 @@ const Combat = {
     let sc = this.scaleFor(a, h); if (out.ctr) sc *= 1.2;
     if (a.simple && ((m && m.special) || proj)) sc *= .85;                  // controle simplificado: especiais um pouco mais fracos
     const dmg = Math.max(1, Math.round(h.dmg * sc));
-    o.hp = Math.max(0, o.hp - dmg); o.lastDmg = h.lv == 'SA' ? 'S' : 'V'; a.comboDmg += dmg; a.stats.dmg += dmg; a.stats.hits++; a.stats.maxCombo = Math.max(a.stats.maxCombo, a.combo);
+    o.hp = Math.max(0, o.hp - dmg); o.grey = 0; o.greyT = 0; o.lastDmg = h.lv == 'SA' ? 'S' : 'V'; a.comboDmg += dmg; a.stats.dmg += dmg; a.stats.hits++; a.stats.maxCombo = Math.max(a.stats.maxCombo, a.combo);
     o.mv = null; o.combo = 0; o.cine = null; o.flash = 2; o.flashCol = out.ctr ? 2 : 1;
     const air = o.y > 0 || o.st == 'knock';
     o.hitKind = py > o.y + 90 * o.sz ? 'head' : 'gut'; o.hitLv = h.lv;
@@ -1671,6 +1696,11 @@ const Combat = {
       o.y = T.t < 16 ? T.t * 9 : Math.max(0, 144 - (T.t - 16) * 36); o.cineRot = T.t < 16 ? -T.t * .08 : 0;
       if (T.t % 4 == 0) FX.aura(o, 3);
       if (T.t >= 20) { FX.shock(o.x); M.trauma = Math.min(1, (M.trauma || 0) + .45); this.release(a, o, T.dmg, 2, 5); a.face = o.x >= a.x ? 1 : -1; }
+    } else if (T.type == 'air') {
+      // agarrão aéreo: leva o oponente junto na queda e o crava no chão
+      if (T.t == 1) a.vy = Math.max(a.vy, 2);
+      o.x = clamp(a.x + a.face * 36 * s, 30, STAGE_W - 30); o.y = Math.max(0, a.y + 12); o.cineRot = -Math.min(T.t, 14) * .2;
+      if (a.y <= 0 || T.t >= 50) { o.y = 0; FX.shock(o.x); FX.dust(o.x, 0, 14); M.trauma = Math.min(1, (M.trauma || 0) + .4); this.release(a, o, T.dmg, 3, 5); }
     } else if (T.type == 'slam') {
       o.x = a.x + a.face * 30 * s; o.y = T.t < 14 ? T.t * 8 : Math.max(0, 112 - (T.t - 14) * 28); o.cineRot = T.t < 14 ? -T.t * .12 : Math.PI;
       if (T.t >= 18) { FX.shock(o.x); M.trauma = Math.min(1, (M.trauma || 0) + .5); this.release(a, o, T.dmg, 2, 4); }
@@ -1681,7 +1711,7 @@ const Combat = {
     }
   },
   release(a, o, dmg, vx, vy) {
-    a.combo = 1; a.comboDmg = dmg; a.starterL = false; o.hp = Math.max(0, o.hp - dmg); o.lastDmg = 'V'; o.cineRot = 0; a.stats.dmg += dmg;
+    a.combo = 1; a.comboDmg = dmg; a.starterL = false; o.hp = Math.max(0, o.hp - dmg); o.grey = 0; o.greyT = 0; o.lastDmg = 'V'; o.cineRot = 0; a.stats.dmg += dmg;
     o.kdType = 'hard'; o.setSt('knock'); o.juggle = 9; o.vy = vy; o.vx = a.face * vx; o.y = Math.max(o.y, 5); o.flash = 2;
     a.thr = null; a.setSt('land'); a.landT = 10; a.meter = Math.min(METER_MAX, a.meter + 8);
     FX.hit(o.x, o.y + 50, a.face, 1.5, 'H'); Audio.sfx('slam', 1, o.x); M.trauma = Math.min(1, (M.trauma || 0) + .3); M.stop = Math.max(M.stop, 8);
@@ -1694,7 +1724,7 @@ const Combat = {
   cineHit(a, o, d, big) {
     a.combo++; if (a.combo == 1) a.starterL = false;
     const dmg = Math.max(1, Math.round(d * Math.max(.5, SCALE[Math.min(a.combo - 1, 9)])));
-    o.hp = Math.max(0, o.hp - dmg); o.lastDmg = 'S'; a.comboDmg += dmg; a.stats.dmg += dmg; o.flash = 2; o.shakeT = 4;
+    o.hp = Math.max(0, o.hp - dmg); o.grey = 0; o.greyT = 0; o.lastDmg = 'S'; a.comboDmg += dmg; a.stats.dmg += dmg; o.flash = 2; o.shakeT = 4;
     M.comboShow = { f: a.i, n: a.combo, dmg: a.comboDmg, t: 90 };
     FX.hit(o.x + rnd(-20, 20), o.y + rnd(40, 110) * o.sz, a.face, big ? 2 : 1, big ? 'SA' : 'H'); Audio.sfx(big ? 'hitH' : 'hitM', 1, o.x);
     M.trauma = Math.min(1, (M.trauma || 0) + (big ? .5 : .1));
@@ -1714,7 +1744,7 @@ const Combat = {
     M.stop = 32; M.dim = 60; M.superF = { f: f.i, t: 32, name: m.name || 'SUPER' }; Audio.sfx('super', 1, f.x); Audio.duck(.3, 1.2); FX.aura(f);
     Audio.say && Audio.shout(f.ch, m.shout || m.name, f, true);
   },
-  exFlash(f, m) { M.stop = Math.max(M.stop, 6); f.flash = 6; f.flashCol = 4; Audio.sfx('ex', 1, f.x); FX.aura(f, 16); },
+  exFlash(f, m) { M.stop = Math.max(M.stop, 8); f.flash = 6; f.flashCol = 4; Audio.sfx('ex', 1, f.x); FX.exBurst(f); },
   shock(a, o, s) {
     FX.shock(a.x); M.trauma = Math.min(1, (M.trauma || 0) + .4); Audio.sfx('slam', 1, a.x);
     if (Math.abs(o.x - a.x) < s.range * a.sz && o.y <= 0 && !o.invulTo('strike')) {
@@ -1725,7 +1755,7 @@ const Combat = {
   // ---------- projéteis ----------
   spawnProj(f, p) {
     const opp = M.f[1 - f.i];
-    M.projs.push({ id: M.projSeq = (M.projSeq || 0) + 1, x: p.atOpp ? opp.x : f.x + f.face * (52 + (p.ahead || 0)) * f.sz, y: p.atOpp ? (p.yOff || 0) : f.y + (p.yOff || (p.shape == 'kunai' ? 92 : 84)) * f.sz,
+    M.projs.push({ ex: !!(f.mv && f.mv.endsWith(':3')), id: M.projSeq = (M.projSeq || 0) + 1, x: p.atOpp ? opp.x : f.x + f.face * (52 + (p.ahead || 0)) * f.sz, y: p.atOpp ? (p.yOff || 0) : f.y + (p.yOff || (p.shape == 'kunai' ? 92 : 84)) * f.sz,
       vx: f.face * p.vx, vy: p.vy || 0, ax: p.accel ? -f.face * p.accel : 0, o: f.i, p: JSON.parse(JSON.stringify(p)), left: p.hits || 1, gapT: p.delay || 0, life: p.life || 200, t: 0, dead: 0 });
     Audio.sfx(p.snd || (p.shape == 'boom' ? 'boom' : p.shape == 'fire' || p.shape == 'flame' ? 'fire' : p.big ? 'projBig' : 'proj'), 1, f.x);
   },
@@ -1740,6 +1770,13 @@ const Combat = {
       }
       if (pr.ax && pr.t > 12 && Math.sign(pr.vx) == Math.sign(pr.ax) && Math.abs(pr.x - owner.x) < 40) { pr.dead = 1; continue; }   // bumerangue voltou à mão
       const om = o.m;
+      // golpe que anula projétil (Palm Bomber, Mão Espalmada): tira até n acertos do projétil uma vez por golpe
+      const nl = om && om.nullify;
+      if (nl && o.t >= nl.f[0] && o.t <= nl.f[1] && pr.nb !== M.frame - o.t + ':' + o.i && overlap(o.box(nl.box), { x1: pr.x - r, x2: pr.x + r, y1: pr.y - r, y2: pr.y + r })) {
+        pr.nb = M.frame - o.t + ':' + o.i; pr.left -= nl.n || 1;
+        FX.hit(pr.x, pr.y, o.face, 1.3, 'proj'); Audio.sfx('clash', 1, pr.x);
+        if (pr.left <= 0) { pr.dead = 1; FX.projEnd(pr); continue; }
+      }
       if (om && om.reflect && o.t >= om.reflect[0] && o.t <= om.reflect[1] && Math.abs(pr.x - o.x) < 70 * o.sz + r) {
         pr.o = o.i; pr.vx = -pr.vx * 1.15; pr.x = o.x + o.face * 60 * o.sz; FX.hit(pr.x, pr.y, o.face, 1.2, 'proj'); Audio.sfx('reflect', 1, pr.x); continue;
       }
@@ -1758,7 +1795,8 @@ const Combat = {
     const L = M.projs;
     for (let i = 0; i < L.length; i++) for (let j = i + 1; j < L.length; j++) {
       const a = L[i], b = L[j];
-      if (a.o != b.o && !a.dead && !b.dead && !a.p.ghost && !b.p.ghost && Math.abs(a.x - b.x) < a.p.r + b.p.r && Math.abs(a.y - b.y) < a.p.r + b.p.r) {
+      const straight = p => !p.p.grav && !p.p.vy && !p.p.atOpp, yTol = a.p.r + b.p.r + (straight(a) && straight(b) ? 44 : 0);
+      if (a.o != b.o && !a.dead && !b.dead && !a.p.ghost && !b.p.ghost && Math.abs(a.x - b.x) < a.p.r + b.p.r && Math.abs(a.y - b.y) < yTol) {
         const da = a.left, db = b.left; a.left -= db; b.left -= da;
         if (a.left <= 0) a.dead = 1; if (b.left <= 0) b.dead = 1;
         FX.hit((a.x + b.x) / 2, a.y, 1, 1.4, 'proj'); Audio.sfx('clash', 1, a.x);
@@ -1954,6 +1992,12 @@ const Kit = {
       landEnd: o.hover ? 10 : undefined, armor: o.armor && s == 3 ? { f: [4, 16], hits: 2 } : undefined, bounce: o.bounce, inv: s == 3 ? { proj: [1, 30] } : {},
       hurtShape: o.hurtShape,
       hits: o.multi ? multi(S3(s, [2, 3, 3, 4]), 10, 8, 4, { box: [0, 10, 80, 72], dmg: 5, hs: 22, bs: 10, lastKd: 1 }) : [{ box: [0, 10, 78, 76], dmg: S3(s, o.dmg || [10, 12, 14, 14]), kd: 'soft', bs: 14, onBlock: o.onBlock ?? -6 }] });
+  },
+  // "corte pra fora": golpe que solta uma onda curta de energia (é um projétil de vida curta: bate em outros projéteis e os anula)
+  wave(o) {
+    return { anim: o.anim || 'chop', startup: o.startup, active: 1, recovery: o.recovery ?? 18, vel: o.vel, shout: o.shout, fx: o.fx, inv: o.inv || {}, name: o.name, multiProj: 1,
+      proj: { f: o.startup, vx: o.vx, r: o.r || 30, life: o.life, dmg: o.dmg, hits: o.ex ? 2 : 1, gap: 5, hs: o.hs || 22, bs: o.bs || 16, shape: 'slash', col: o.col, glow: o.glow,
+        lv: 'SP', yOff: o.yOff || 80, ahead: o.ahead ?? 4, ex: !!o.ex, kd: o.kd ? 1 : 0 } };
   },
   // agarrão de comando
   cmdGrab(o) {
@@ -2158,7 +2202,7 @@ defChar({
   quote: 'Vá pra casa. Sua família precisa mais de você do que o ringue.', voice: { spk: 'colt', pitch: .8 },
   look: { gloveType: 'bare', skin: '#f1c49c', hair: 'flattop', hairC: '#e3c25a', torso: 'tank', top: '#56663a', pants: '#4d5a33', camo: 1, sleeve: 'none', glove: '#f1c49c', feet: '#3a3326', dogtags: 1, tattoo: 1 },
   palettes: [{}, { top: '#2c3a5a', pants: '#26344c' }, { top: '#8a7a5a', pants: '#7a6a4a' }, { top: '#2a2a2a', pants: '#303030', hairC: '#2a2a2a' }],
-  sz: 1.04, hp: 105, walkF: 3.3, walkB: 2.9, jumpV: 14.5, jumpX: 4,
+  sz: 1.04, hp: 105, walkF: 3.3, walkB: 2.9, jumpV: 14.5, jumpX: 4, airThrow: 1,
   cmdNormals: [
     { key: '6lk', dir: [6, 4], btn: 'lk', move: { anim: 'knee', startup: 5, active: 4, recovery: 9, vel: [[2, 7, 4, null]], cancel: { sp: 1 }, hits: [{ box: [16, 50, 56, 34], dmg: 3, lv: 'L', onHit: 3, onBlock: -1 }] } },
     { key: '6hp', dir: [6, 4], btn: 'hp', move: { anim: 'backfist', startup: 12, active: 3, recovery: 16, hits: [{ box: [18, 80, 82, 26], dmg: 8, lv: 'H', onHit: 2, onBlock: -2 }] } },
@@ -2195,7 +2239,8 @@ defChar({
     lariat: s => ({ anim: 'spin', spin: 1, startup: 8, active: 24, recovery: 18, vel: [[6, 32, 1.4, null]], inv: { proj: [1, 40] }, shout: 'lariat',
       hits: multi(2, 10, 14, 4, { box: [-60, 60, 130, 40], dmg: 7, lv: 'SP', hs: 20, bs: 12, lastKd: 1 }) }),
     stomp: s => ({ anim: 'stomp', startup: 99, dur: 56, vel: [[4, 4, S3(s, [3, 4, 5, 5]), 14]], landEnd: 12, onLand: { range: S3(s, [150, 180, 220, 240]), dmg: 9, low: 1, kd: 'soft' } }),
-    flat: s => ({ anim: 'palm', startup: 12, active: 6, recovery: 20, inv: { proj: [1, 17] }, hits: [{ box: [14, 40, 64, 70], dmg: S3(s, [8, 9, 10, 11]), lv: 'SP', onHit: 1, onBlock: -8 }] }),
+    flat: s => ({ anim: 'palm', startup: 12, active: 6, recovery: 20, inv: { proj: [1, 17] }, nullify: { f: [6, 17], n: s == 3 ? 2 : 1, box: [10, 30, 84, 84] },
+      hits: [{ box: [14, 40, 64, 70], dmg: S3(s, [8, 9, 10, 13]), lv: 'SP', onHit: 1, onBlock: -8, kd: s == 3 ? 'soft' : undefined }] }),
     super: () => ({ anim: 'grab', super: 1, startup: 5, active: 5, recovery: 40, inv: { strike: [1, 9], throw: [1, 9] }, name: 'TERREMOTO FINAL', shout: 'atomicbuster', grab: { range: 110, dmg: 0, cine: 'buster' } }),
   },
   vskill: { anim: 'flex', startup: 4, active: 1, recovery: 30, armor: { f: [4, 26], hits: 2 }, name: 'MÚSCULO DE FERRO', follow: [{ btn: 'P', key: 'ironhead', from: 5, to: 30 }] },
@@ -2213,7 +2258,7 @@ defChar({
     { key: 'j2mk', dir: [1, 2, 3], btn: 'mk', air: true, move: { anim: 'dive', air: 1, startup: 5, active: 40, recovery: 0, vel: [[5, 99, 5, -7]], hits: [{ box: [14, -10, 50, 40], dmg: 7, lv: 'M', high: 1, hs: 16, bs: 10 }] } },
     { key: 'j2hp', dir: [1, 2, 3], btn: 'hp', air: true, move: { anim: 'drill', air: 1, startup: 6, active: 40, recovery: 0, vel: [[6, 99, 4, -6]], hits: [{ box: [14, 20, 50, 40], dmg: 8, lv: 'H', high: 1, hs: 18, bs: 12 }] } },
   ],
-  specials: [{ id: 'tele', input: '623', btn: 'P' }, { id: 'flame', input: '41236', btn: 'P' }, { id: 'blast', input: '41236', btn: 'K' }, { id: 'fire', input: '236', btn: 'P' }],
+  specials: [{ id: 'tele', input: '623', btn: 'P' }, { id: 'flame', input: '63214', btn: 'P' }, { id: 'blast', input: '63214', btn: 'K' }, { id: 'fire', input: '236', btn: 'P' }],
   moves: {
     fire: Kit.fireball({ startup: 14, shout: 'yogafire', shape: 'fire', col: '#ff6a1a', glow: '#ffd27a', vx: [2.6, 3.6, 4.8, 5.4], r: 16, yOff: 58, rec: [32, 32, 32, 30], dmg: 6, projExtra: { kd: 1 } }),
     flame: s => ({ anim: 'flame', startup: 16, active: 16, recovery: 20, shout: 'yogaflame', multiProj: 0,
@@ -2224,13 +2269,13 @@ defChar({
     super: () => ({ anim: 'flame', super: 1, startup: 20, active: 40, recovery: 22, inv: { strike: [1, 20], proj: [1, 20] }, name: 'INFERNO IOGUE', shout: 'yogainferno',
       proj: { f: 20, vx: 3.5, r: 44, life: 100, dmg: 6, hits: 6, gap: 6, shape: 'flame', big: 1, col: '#ff3a0a', glow: '#fff0a0', kd: 1, yOff: 96, ahead: 50, lv: 'SA' } }),
   },
-  vskill: { anim: 'float', air: 0, startup: 99, dur: 60, move: 1, vel: [[2, 2, 0, 9]], hover: [14, 50], landEnd: 4, name: 'LEVITAÇÃO', airActs: 1 },
+  vskill: { anim: 'float', air: 0, airOk: 1, startup: 99, dur: 60, move: 1, vel: [[2, 2, 0, 9]], hover: [14, 50], landEnd: 4, name: 'LEVITAÇÃO', airActs: 1 },
   ai: { proj: 'fire', aa: 'blast', enders: ['flame'], zoner: 1, tele: 'tele', poke: 'smp', bnb: ['clp', 'cmp'] }
 });
 
 </script>
 <script>/* src/data/chars/classics2.js */
-// ===== ZAGO (Blanka), TAIHO (E. Honda), REN (ninja), KAISER (M. Bison) =====
+// ===== ZAGO (Blanka), TAIHO (E. Honda), R.E.N (ninja), KAISER (M. Bison) =====
 defChar({
   id: 'zago', name: 'ZAGO', title: 'Fera da Amazônia', style: 'Imprevisível', stats: [3, 4, 3], stage: 'harbor', aura: '#8ef', charge: 1,
   quote: 'GRRRAAAH! A selva não perdoa!', voice: { spk: 'zago', pitch: .5, growl: 1 },
@@ -2282,16 +2327,16 @@ defChar({
 });
 
 defChar({
-  id: 'ren', name: 'REN', title: 'Sombra Silenciosa', style: 'Rápido', stats: [2, 5, 2], stage: 'neon', aura: '#c4f',
+  id: 'ren', name: 'R.E.N', title: 'Sombra Silenciosa', style: 'Rápido', stats: [2, 5, 2], stage: 'neon', aura: '#c4f',
   quote: 'Você nem viu de onde veio.', voice: { spk: 'ren', pitch: 1.2 },
   look: { gloveType: 'full', skin: '#e9b98d', hair: 'pony', hairC: '#0d0d12', torso: 'ninja', top: '#23304f', pants: '#1d2842', sleeve: 'long', fore: '#3a3a48', glove: '#2c2c36', feet: '#1a1a22', belt: '#b8932e', mask: '#141c30', scarf: '#d02b38' },
   palettes: [{}, { top: '#3a1a1a', pants: '#2a1414', scarf: '#e8e8e8' }, { top: '#e8e8e8', pants: '#d8d8d8', mask: '#bbb', scarf: '#1a1a1a' }, { top: '#1a3a1a', pants: '#142a14', scarf: '#e0c030' }],
-  sz: .93, hp: 98, walkF: 4.6, walkB: 3.8, jumpV: 16, jumpX: 5,
+  sz: .93, hp: 98, walkF: 4.6, walkB: 3.8, jumpV: 16, jumpX: 5, airThrow: 1,
   cmdNormals: [
     { key: '6mk', dir: [6], btn: 'mk', move: { anim: 'axe', startup: 18, active: 3, recovery: 12, hits: [{ box: [16, 56, 62, 62], dmg: 6, lv: 'M', high: 1, onHit: 2, onBlock: -1 }] } },
     { key: '3mk', dir: [3], btn: 'mk', move: { anim: 'slide', crouch: 1, startup: 8, active: 12, recovery: 12, vel: [[5, 18, 7.5, null]], hurtShape: 'flat', hits: [{ box: [10, 0, 70, 24], dmg: 6, lv: 'M', low: 1, onHit: 2, onBlock: -6 }], cancel: { sp: 1 } } },
   ],
-  specials: [{ id: 'dp', input: '623', btn: 'P' }, { id: 'kunai', input: '236', btn: 'P' }, { id: 'akunai', input: '236', btn: 'P', air: 'only' }, { id: 'step', input: '214', btn: 'K' }, { id: 'dive', input: '2', btn: 'K', air: 'only', fixed: 1 }],
+  specials: [{ id: 'dp', input: '623', btn: 'P' }, { id: 'kunai', input: '236', btn: 'P' }, { id: 'akunai', input: '236', btn: 'P', air: 'only' }, { id: 'step', input: '236', btn: 'K' }, { id: 'dive', input: '2', btn: 'K', air: 'only', fixed: 1 }],
   moves: {
     kunai: s => ({ anim: 'throwk', startup: 8, active: 1, recovery: 20, multiProj: s == 3 ? 1 : 0,
       projs: (s == 3 ? [0, 1] : [0]).map(i => ({ f: 8 + i * 4, vx: S3(s, [8, 10, 12, 12]), r: 10, life: 140, dmg: 5, hs: 16, bs: 10, col: '#ccd', shape: 'kunai', lv: 'SP' })) }),
@@ -2347,7 +2392,7 @@ defChar({
   cmdNormals: [
     { key: '6mk', dir: [6], btn: 'mk', move: { anim: 'knee', startup: 12, active: 4, recovery: 14, vel: [[4, 12, 4, null]], cancel: { sp: 1 }, hits: [{ box: [14, 56, 56, 40], dmg: 7, lv: 'M', onHit: 2, onBlock: -2 }] } },
   ],
-  specials: [{ id: 'tu', input: '623', btn: 'P' }, { id: 'tk', input: '2369', btn: 'K' }, { id: 'shot', input: '236', btn: 'P' }, { id: 'gshot', input: '236', btn: 'K' }],
+  specials: [{ id: 'tu', input: '623', btn: 'P' }, { id: 'tk', input: '623', btn: 'K' }, { id: 'shot', input: '236', btn: 'P' }, { id: 'gshot', input: '236', btn: 'K' }],
   moves: {
     shot: Kit.fireball({ shout: 'tiger', col: '#ff9a1a', glow: '#ffe0a0', yOff: 104, vx: [5, 6.5, 8, 9], rec: [26, 26, 26, 24], dmg: 6 }),
     gshot: s => Object.assign(Kit.fireball({ anim: 'fireball', shout: 'tiger', col: '#ff9a1a', glow: '#ffe0a0', yOff: 24, vx: [4.5, 6, 7.5, 8.5], rec: [28, 28, 28, 26], dmg: 5, projExtra: { low: 1 } })(s), { crouch: 1 }),
@@ -2409,11 +2454,12 @@ defChar({
   specials: [{ id: 'moon', input: '360', btn: 'P', ex: true }, { id: 'meat', input: '360', btn: 'K', ex: true }, { id: 'sdb', input: '623', btn: 'K' }, { id: 'palm', input: '236', btn: 'P' }],
   moves: {
     palm: s => ({ anim: 'palm', startup: S3(s, [12, 14, 16, 10]), active: 5, recovery: 22, vel: [[6, 14, S3(s, [3, 4, 5, 5]), null]], inv: s == 3 ? { proj: [1, 16] } : {}, shout: 'giantpalm',
+      nullify: { f: [S3(s, [8, 10, 12, 6]), S3(s, [17, 19, 21, 15])], n: s == 3 ? 2 : 1, box: [10, 30, 92, 90] },
       hits: [{ box: [16, 50, 70, 60], dmg: S3(s, [11, 12, 13, 14]), lv: 'SP', kd: 'soft', onBlock: -6 }] }),
     moon: Kit.cmdGrab({ type: 'slam', range: [74, 82, 90, 96], dmg: [20, 22, 24, 28], shout: 'moonsault' }),
     meat: Kit.cmdGrab({ type: 'swing', range: [70, 78, 86, 92], dmg: [18, 20, 22, 26], shout: 'meatsquasher' }),
-    sdb: s => ({ anim: 'grab', startup: 4, active: 10, recovery: 26, inv: { strike: [1, S3(s, [3, 5, 7, 9])] }, shout: 'shootdown',
-      grab: { range: S3(s, [90, 100, 110, 120]), dmg: S3(s, [15, 17, 19, 21]), type: 'slam', air: 1 } }),
+    sdb: s => ({ anim: 'grab', startup: 5, active: 12, recovery: 22, vel: [[4, 4, S3(s, [2, 2.4, 2.8, 3]), S3(s, [11.5, 12.5, 13.5, 14])]], landEnd: 12, inv: { strike: [1, S3(s, [3, 5, 7, 10])] }, shout: 'shootdown',
+      grab: { range: S3(s, [90, 100, 110, 120]), dmg: S3(s, [15, 17, 19, 22]), type: 'slam', air: 1 } }),
     super: () => ({ anim: 'grab', super: 1, startup: 5, active: 5, recovery: 40, inv: { strike: [1, 9], throw: [1, 9] }, name: 'GIGAS BREAKER', shout: 'gigasbreaker', grab: { range: 120, dmg: 0, cine: 'gigas' } }),
   },
   vskill: { anim: 'flex', startup: 4, active: 1, recovery: 28, armor: { f: [4, 24], hits: 2 }, name: 'PELE DE AÇO', follow: [{ btn: 'P', key: 'gpress', from: 5, to: 28 }] },
@@ -2484,7 +2530,7 @@ defChar({
   cmdNormals: [
     { key: '6hp', dir: [6], btn: 'hp', move: { anim: 'axe', startup: 20, active: 4, recovery: 14, hits: [{ box: [14, 56, 70, 66], dmg: 9, lv: 'H', high: 1, onHit: 2, onBlock: -2 }] } },
   ],
-  specials: [{ id: 'head', input: '[2]8', btn: 'P' }, { id: 'knee', input: '[2]8', btn: 'K' }, { id: 'sphere', input: '[4]6', btn: 'P' }, { id: 'chariot', input: '[4]6', btn: 'K' }],
+  specials: [{ id: 'head', input: '[2]8', btn: 'P' }, { id: 'knee', input: '[2]8', btn: 'K' }, { id: 'sphere', input: '236', btn: 'P' }, { id: 'chariot', input: '[4]6', btn: 'K' }],
   moves: {
     sphere: Kit.fireball({ anim: 'palm', shout: 'metallicsphere', col: '#b89aff', glow: '#fff', vx: [4, 5.5, 7, 8], r: 20, rec: [26, 26, 26, 24], dmg: 6 }),
     chariot: Kit.rush({ anim: 'headbutt', vx: [7, 8.5, 10, 11], dmg: [10, 11, 12, 13], onBlock: -3, shout: 'chariot' }),
@@ -2509,10 +2555,11 @@ defChar({
   cmdNormals: [
     { key: '6hp', dir: [6], btn: 'hp', move: { anim: 'chop', startup: 18, active: 4, recovery: 14, hits: [{ box: [14, 56, 70, 70], dmg: 9, lv: 'H', high: 1, onHit: 2, onBlock: -2 }] } },
   ],
-  specials: [{ id: 'aks', input: '623', btn: 'K' }, { id: 'bomb', input: '63214', btn: 'P' }, { id: 'chop', input: '236', btn: 'P' }, { id: 'elbow', input: '214', btn: 'K' }, { id: 'stamp', input: '22', btn: 'K' }],
+  specials: [{ id: 'aks', input: '623', btn: 'K' }, { id: 'bomb', input: '63214', btn: 'P' }, { id: 'chop', input: '236', btn: 'P' }, { id: 'elbow', input: '[4]6', btn: 'K' }, { id: 'stamp', input: '[2]8', btn: 'K' }],
   moves: {
-    chop: s => ({ anim: 'chop', startup: S3(s, [12, 14, 16, 12]), active: 4, recovery: 18, vel: [[4, 12, S3(s, [3, 4, 5, 5]), null]], inv: s == 3 ? { proj: [1, 14] } : {}, shout: 'flashchop',
-      hits: [{ box: [14, 50, 76, 60], dmg: S3(s, [10, 11, 12, 13]), lv: 'SP', onHit: 2, onBlock: -2 }] }),
+    // Flash Chop: o tapa solta uma onda amarela curta; anula projéteis de 1 acerto (EX: de 2 acertos e derruba)
+    chop: s => Kit.wave({ anim: 'chop', startup: S3(s, [12, 14, 16, 12]), recovery: 18, vel: [[4, 12, S3(s, [3, 4, 5, 5]), null]], inv: s == 3 ? { proj: [1, 14] } : {}, shout: 'flashchop',
+      col: '#ffd84a', glow: '#fff6c0', vx: S3(s, [5, 5.5, 6, 6.5]), life: S3(s, [9, 12, 15, 17]), r: 30, dmg: S3(s, [10, 11, 12, 7]), ex: s == 3, kd: s == 3, hs: 24, bs: 18 }),
     elbow: Kit.rush({ anim: 'elbow', vx: [6, 7, 8, 9], dmg: [10, 11, 12, 13], onBlock: -4, shout: 'slashelbow' }),
     aks: s => ({ anim: 'knee', startup: 5, active: 10, recovery: 22, vel: [[4, 4, 2, S3(s, [11, 12, 13, 13])]], landEnd: 10, inv: { strike: [1, S3(s, [3, 5, 7, 9])] }, shout: 'airknee',
       grab: { range: S3(s, [80, 90, 100, 110]), dmg: S3(s, [15, 17, 19, 21]), type: 'slam', air: 1 } }),
@@ -2538,7 +2585,7 @@ defChar({
     bhead: Kit.rush({ anim: 'headbutt', startup: [13, 13, 13, 10], vx: [6, 7.5, 9, 10], dmg: [8, 9, 10, 12], onBlock: -8, armor: 1, shout: 'bullhead' }),
     chain: Kit.cmdGrab({ anim: 'throwk', type: 'swing', range: [120, 140, 160, 170], dmg: [14, 15, 16, 19], shout: 'hangingchain' }),
     khead: s => ({ anim: 'grab', startup: 4, active: 10, recovery: 26, inv: { strike: [1, S3(s, [3, 5, 7, 9])] }, shout: 'killinghead',
-      grab: { range: S3(s, [96, 104, 112, 120]), dmg: S3(s, [15, 17, 19, 21]), type: 'slam', air: 1 } }),
+      grab: { range: S3(s, [96, 104, 112, 120]), dmg: S3(s, [15, 17, 19, 21]), type: 'slam', air: 1, ground: .8 } }),
     super: () => ({ anim: 'rush', super: 1, startup: 8, active: 16, recovery: 30, inv: { strike: [1, 12], throw: [1, 12] }, vel: [[8, 24, 9, null]], name: 'BULL REVENGER', shout: 'bullrevenger',
       grab: { range: 100, dmg: 0, cine: 'bullrev' } }),
   },
@@ -2552,7 +2599,7 @@ defChar({
   quote: 'Hahaha! Grite mais, isso me deixa com fome!', voice: { spk: 'yura', pitch: 1.4, fem: 1 },
   look: { gloveType: 'fingerless', fem: 1, skin: '#f0caa2', hair: 'horns', hairC: '#1a0a1a', trim: '#e040c0', eyeGlow: '#e040ff', torso: 'qipao', top: '#3a1a4a', pants: '#e8e0f0', sleeve: 'none', glove: '#1a1a1a', feet: 'bare', belt: '#e040c0' },
   palettes: [{}, { top: '#1a1a1a', trim: '#e8c040', eyeGlow: '#ffd24a' }, { top: '#e8e8e8', trim: '#3af', pants: '#1a1a2a', eyeGlow: '#3af' }, { top: '#6a1a1a', trim: '#f33', eyeGlow: '#f33' }],
-  sz: .95, hp: 92, walkF: 4.2, walkB: 3.4, jumpV: 16, jumpX: 5, stance: [54, -2, 22, 98, 4, 104, 22, 0, -20, 0, 0],
+  sz: .95, hp: 92, walkF: 4.2, walkB: 3.4, jumpV: 16, jumpX: 5, airThrow: 1, stance: [54, -2, 22, 98, 4, 104, 22, 0, -20, 0, 0],
   normals: { smk: { hits: [{ box: [20, 50, 98, 26], dmg: 6, lv: 'M', onHit: 1, onBlock: -2 }] } },
   cmdNormals: [
     { key: '6mk', dir: [6], btn: 'mk', move: { anim: 'axe', startup: 17, active: 3, recovery: 13, hits: [{ box: [16, 58, 64, 64], dmg: 6, lv: 'M', high: 1, onHit: 2, onBlock: -1 }] } },
@@ -2638,20 +2685,20 @@ defChar({
   specials: [{ id: 'slam', input: '63214', btn: 'P' }, { id: 'soul', input: '236', btn: 'P' }, { id: 'lift', input: '22', btn: 'P' }, { id: 'tele', input: '214', btn: 'K' }],
   moves: {
     soul: Kit.fireball({ startup: 13, shout: 'soulball', col: '#2f8a3a', glow: '#b8ffb0', vx: [4, 5.5, 7, 8], r: 18, rec: [30, 30, 30, 28], dmg: 6 }),
-    lift: s => ({ anim: 'reflect', startup: S3(s, [18, 20, 22, 16]), active: 6, recovery: 22, fx: 'tk', shout: 'forcelift',
-      hits: [{ box: [60, 0, S3(s, [120, 150, 180, 200]), 60], dmg: S3(s, [8, 9, 10, 11]), lv: 'SP', low: 1, launch: { vy: 14, vx: .4 }, jLimit: 2, onBlock: -10 }] }),
+    lift: s => ({ anim: 'reflect', startup: S3(s, [18, 20, 22, 16]), active: 6, recovery: 15, fx: 'tk', shout: 'forcelift',
+      hits: [{ box: [26, 0, S3(s, [154, 184, 214, 234]), 60], dmg: S3(s, [8, 9, 10, 11]), lv: 'SP', low: 1, launch: { vy: 16.5, vx: 0 }, jLimit: 3, onBlock: -10 }] }),
     slam: Kit.cmdGrab({ anim: 'reflect', type: 'tk', range: [160, 190, 220, 250], dmg: [15, 17, 19, 22], shout: 'telekineticslam' }),
     tele: s => ({ anim: 'tele', startup: 99, dur: 40, inv: { strike: [1, 30], throw: [1, 30], proj: [1, 30] }, ghost: 1, fade: [4, 26], tele: { f: 14, behind: s >= 1, front: s == 0 } }),
     super: () => ({ anim: 'reflect', super: 1, startup: 8, active: 8, recovery: 40, fx: 'tk', inv: { strike: [1, 12], throw: [1, 12], proj: [1, 12] }, name: 'ESMAGA-ALMAS', shout: 'soulcrusher',
       grab: { range: 300, dmg: 0, cine: 'soulcrush' } }),
   },
-  vskill: { anim: 'float', air: 0, startup: 99, dur: 60, move: 1, vel: [[2, 2, 0, 9]], hover: [14, 50], landEnd: 4, name: 'LEVITAÇÃO MÍSTICA', airActs: 1 },
+  vskill: { anim: 'float', air: 0, airOk: 1, startup: 99, dur: 60, move: 1, vel: [[2, 2, 0, 9]], hover: [14, 50], landEnd: 4, name: 'LEVITAÇÃO MÍSTICA', airActs: 1 },
   ai: { proj: 'soul', aa: 'chp', enders: ['lift'], zoner: 1, tele: 'tele', poke: 'cmk', bnb: ['clp', 'cmp'] }
 });
 
 </script>
 <script>/* src/data/chars/guests.js */
-// ===== convidados: XENO (Alien), VORHAS (Jason), JOE (Joseph jovem, HFTF), DARIO (Shadow Dio, HFTF), J-7 (Jack-7, Tekken) =====
+// ===== convidados: XENO (Alien), JASPER (Jason), JOE (Joseph jovem, HFTF), DARIO (Shadow Dio, HFTF), J-7 (Jack-7, Tekken) =====
 defChar({
   id: 'xeno', name: 'XENO', title: 'O Oitavo Passageiro', style: 'Predador ágil', stats: [3, 5, 2], stage: 'station', aura: '#7f7',
   quote: '...ssssSSSSHHHH...', voice: { spk: 'xeno', pitch: .3, growl: 1 },
@@ -2680,7 +2727,7 @@ defChar({
 });
 
 defChar({
-  id: 'vorhas', name: 'VORHAS', title: 'Pesadelo do Acampamento', style: 'Implacável', stats: [5, 1, 5], stage: 'camp', aura: '#8a4',
+  id: 'vorhas', name: 'JASPER', title: 'Pesadelo do Acampamento', style: 'Implacável', stats: [5, 1, 5], stage: 'camp', aura: '#8a4',
   quote: '...', voice: { spk: 'vorhas', pitch: .3, silent: 1 },
   look: { gloveType: 'bare', skin: '#9a8a7a', hair: 'bald', hairC: '#3a2a1a', hockey: '#eeeae0', torso: 'jacket', top: '#3a4a2a', pants: '#2a2a26', sleeve: 'long', fore: '#3a4a2a', glove: '#9a8a7a', feet: '#2a1a10', weapon: 'machete', build: 1.3 },
   palettes: [{}, { top: '#2a2a3a', fore: '#2a2a3a' }, { top: '#5a3a2a', fore: '#5a3a2a', hockey: '#e8d8b0' }, { top: '#1a1a1a', fore: '#1a1a1a', pants: '#1a1a1a' }],
@@ -2711,13 +2758,17 @@ defChar({
   sz: 1.02, hp: 98, walkF: 3.8, walkB: 3.2, jumpV: 15, jumpX: 4.5, stance: [55, 4, 26, 102, 16, 96, 14, 0, -18, 0, 0],
   cmdNormals: [
     { key: '6hp', dir: [6], btn: 'hp', move: { anim: 'plexus', startup: 12, active: 6, recovery: 16, fx: 'hamon', cancel: { sp: 1 }, hits: [{ box: [14, 70, 70, 30], dmg: 8, lv: 'H', onHit: 2, onBlock: -3 }] } },
+    { key: '3mk', dir: [3], btn: 'mk', move: { anim: 'slide', crouch: 1, startup: 8, active: 12, recovery: 12, vel: [[5, 18, 7.5, null]], hurtShape: 'flat', hits: [{ box: [10, 0, 70, 24], dmg: 6, lv: 'M', low: 1, onHit: 2, onBlock: -6 }], cancel: { sp: 1 } } },
   ],
-  specials: [{ id: 'hbeat', input: '623', btn: 'P' }, { id: 'clack', input: '236', btn: 'P' }, { id: 'over', input: '214', btn: 'P' }],
+  specials: [{ id: 'hbeat', input: '623', btn: 'P' }, { id: 'clack', input: '236', btn: 'P' }, { id: 'over', input: '236', btn: 'K' }, { id: 'hslash', input: '214', btn: 'P' }],
   moves: {
     clack: s => ({ anim: 'throwk', startup: 12, active: 1, recovery: S3(s, [26, 26, 26, 24]), shout: 'clacker',
       proj: { f: 12, vx: S3(s, [7, 8, 9, 10]), accel: .28, r: 16, life: 120, dmg: 4, hits: 2, gap: 20, hs: 18, bs: 10, shape: 'clacker', lv: 'SP', yOff: 96 } }),
-    over: s => ({ anim: 'straight', fx: 'hamon', startup: S3(s, [10, 12, 14, 10]), active: 14, recovery: 14, vel: [[6, 20, S3(s, [6, 7, 8, 8.5]), null]], inv: s == 3 ? { proj: [1, 20] } : {}, shout: 'overdrive',
+    over: s => ({ anim: 'stepkick', fx: 'hamon', startup: S3(s, [10, 12, 14, 10]), active: 14, recovery: 14, vel: [[6, 20, S3(s, [6, 7, 8, 8.5]), null]], inv: s == 3 ? { proj: [1, 20] } : {}, shout: 'overdrive',
       hits: multi(S3(s, [2, 2, 3, 3]), S3(s, [10, 12, 14, 10]), 6, 3, { box: [16, 60, 76, 40], dmg: 5, lv: 'SP', hs: 18, bs: 10, snd: 'elec', lastKd: 1 }) }),
+    // Corte Hamon: respira fundo e corta o ar com a mão carregada de Hamon (onda curta, bom alcance)
+    hslash: s => Kit.wave({ anim: 'chop', fx: 'hamon', name: 'CORTE HAMON', startup: S3(s, [12, 12, 13, 10]), recovery: S3(s, [23, 25, 25, 22]), shout: 'hamon',
+      col: '#ffe04a', glow: '#fff8c0', vx: S3(s, [6, 7, 8, 8]), life: S3(s, [14, 17, 20, 22]), r: 28, dmg: S3(s, [9, 10, 11, 6]), ex: s == 3, hs: 24, bs: 16 }),
     hbeat: s => { const m = Kit.dp({ shout: 'hamon', vy: [11.5, 13, 14.5, 14.5], d1: [0, 6, 7, 6], d2: [0, 5, 7, 5] })(s); m.fx = 'hamon'; return m; },
     super: () => ({ anim: 'fireball', super: 1, startup: 12, active: 40, recovery: 24, inv: { strike: [1, 12], proj: [1, 12] }, name: 'TOMMY GUN', shout: 'tommygun', multiProj: 1,
       projs: Array.from({ length: 12 }, (_, i) => ({ f: 12 + i * 3, vx: 16, r: 8, life: 70, dmg: 2.4, hs: 16, bs: 8, shape: 'bullet', lv: 'SA', snd: 'hitL', yOff: 96, kd: i == 11 ? 1 : 0 })) }),
@@ -2769,7 +2820,7 @@ defChar({
     { key: '6hp', dir: [6], btn: 'hp', move: { anim: 'chop', startup: 20, active: 4, recovery: 16, armor: { f: [6, 20], hits: 1 }, hits: [{ box: [14, 50, 80, 80], dmg: 11, lv: 'H', high: 1, onHit: 2, onBlock: -3 }] } },
     { key: '2lp', dir: [1, 2, 3], btn: 'lp', move: { anim: 'cjab', crouch: 1, startup: 3, active: 2, recovery: 7, cancel: { sp: 1, su: 1, chains: ['2lp', 'clk'] }, hits: [{ box: [18, 36, 60, 18], dmg: 3, lv: 'L', onHit: 4, onBlock: 0 }] } },
   ],
-  specials: [{ id: 'greet', input: '63214', btn: 'P' }, { id: 'mega', input: '41236', btn: 'P' }, { id: 'giga', input: '214', btn: 'P' }, { id: 'hammer', input: '236', btn: 'P' }, { id: 'cossack', input: '22', btn: 'K' }],
+  specials: [{ id: 'greet', input: '63214', btn: 'P' }, { id: 'mega', input: '623', btn: 'P' }, { id: 'giga', input: '214', btn: 'P' }, { id: 'hammer', input: '236', btn: 'P' }, { id: 'cossack', input: '22', btn: 'K' }],
   moves: {
     mega: s => ({ anim: 'dp', startup: S3(s, [16, 18, 20, 14]), active: 6, recovery: 26, armor: { f: [3, 14], hits: s == 3 ? 2 : 1 }, landEnd: 14, vel: [[S3(s, [16, 18, 20, 14]), S3(s, [16, 18, 20, 14]), 2, 6]], shout: 'megaton',
       hits: [{ box: [8, 40, 60, 110], dmg: S3(s, [14, 15, 16, 17]), lv: 'SP', launch: { vy: 13 }, kd: 'soft', armorBreak: 1 }] }),
@@ -2787,6 +2838,57 @@ defChar({
   extraMoves: { sitjab: { anim: 'cjab', crouch: 1, startup: 4, active: 3, recovery: 12, hits: [{ box: [18, 20, 70, 30], dmg: 6, lv: 'M', onHit: 3, onBlock: -1 }] } },
   ai: { grab: 'greet', aa: 'mega', enders: ['giga', 'hammer'], rush: 1, poke: 'smp', bnb: ['clp', 'cmp'] }
 });
+
+</script>
+<script>/* src/data/exfix.js */
+// ===== EX revisados: todo EX muda alguma propriedade do golpe em relação ao forte (mais acertos, armadura, invencibilidade, alcance, derrubada...) =====
+// Vários golpes usavam tabelas de 3 valores (fraco/médio/forte): o EX repetia o forte. Aqui cada um ganha algo inspirado no EX original.
+(() => {
+  const ex = (id, key, patch) => { const ch = charById(id), f = ch.moves[key]; if (!f) throw new Error('exfix: ' + id + '.' + key); ch.moves[key] = s => { const m = f(s); if (s == 3) patch(m); return m; }; };
+  const invAll = (a, b) => ({ strike: [a, b], throw: [a, b], proj: [a, b] });
+  // pisão do Goro: derrubada forte, mais dano, invencível na subida
+  ex('goro', 'stomp', m => { m.onLand = Object.assign({}, m.onLand, { dmg: 12, kd: 'hard', launch: { vy: 8 } }); m.inv = { strike: [1, 14] }; });
+  // teleportes: EX sai mais rápido e fica invencível o tempo todo
+  ex('ravi', 'tele', m => { m.tele = Object.assign({}, m.tele, { f: 10, behind: true }); m.dur = 34; m.fade = [3, 20]; m.inv = invAll(1, 28); });
+  ex('legion', 'tele', m => { m.tele = Object.assign({}, m.tele, { f: 9, behind: true, front: false }); m.dur = 32; m.fade = [3, 18]; m.inv = invAll(1, 26); });
+  ex('vorhas', 'stalk', m => { m.tele = Object.assign({}, m.tele, { f: 14, behind: true }); m.dur = 38; m.fade = [3, 26]; m.inv = invAll(1, 30); });
+  // backstep do Zago: invencível do começo ao fim e vai mais longe
+  ex('zago', 'bstep', m => { m.inv = invAll(1, 30); m.vel = [[2, 2, -6, 11]]; });
+  // R.E.N: kunai aérea EX joga 2 kunais; Passo Sombrio EX é mais rápido e totalmente invencível
+  ex('ren', 'akunai', m => { const k = m.projs[0]; m.projs = [k, Object.assign({}, k, { f: k.f + 3, vy: k.vy * 1.45 })]; for (const p of m.projs) p.dmg = 5; });
+  ex('ren', 'step', m => { m.vel = [[3, 16, 14, null]]; m.inv = invAll(1, 22); });
+  // Kaiser: Head Press EX sai mais rápido, invencível na subida e derruba
+  ex('kaiser', 'press', m => { m.startup = 14; m.inv = { strike: [1, 14] }; m.hits[0] = Object.assign({}, m.hits[0], { kd: 'soft' }); });
+  // Winston: Machine Gun Blow EX com 6 socos e atravessa projéteis; Short Swing Blow EX acerta 2 vezes
+  ex('winston', 'mgb', m => { m.hits = multi(6, m.startup, 4, 2, { box: [14, 70, 70, 40], dmg: 2.6, lv: 'SP', hs: 16, bs: 8, snd: 'hitL', lastKd: 1 }); m.inv = { proj: [1, 24] }; });
+  ex('winston', 'ssb', m => { const h = m.hits[0]; m.hits = [Object.assign({}, h, { f: [12, 14], dmg: 7, kd: undefined, hs: 18, onBlock: undefined, bs: 10 }), Object.assign({}, h, { f: [16, 18], dmg: 7 })]; });
+  // Valerius: Violence Knee EX acerta 2 vezes e é invencível na subida
+  ex('valerius', 'knee', m => { const h = m.hits[0]; m.hits = [Object.assign({}, h, { f: [14, 26], dmg: 7 }), Object.assign({}, h, { f: [28, 60], dmg: 8 })]; m.inv = { strike: [1, 12] }; });
+  // Alek: Stamp EX acerta 2 vezes e é invencível na subida
+  ex('alek', 'stamp', m => { const h = m.hits[0]; m.hits = [Object.assign({}, h, { f: [14, 26], dmg: 7 }), Object.assign({}, h, { f: [28, 60], dmg: 7 })]; m.inv = { strike: [1, 12] }; });
+  // Yura: Senpusha EX com 4 acertos e lança mais alto; Shiku-sen EX mais rápido, mais dano e quica no oponente
+  ex('yura', 'pin', m => { m.hits = multi(4, 4, 4, 3, { box: [0, 40, 60, 100], dmg: 4, lv: 'SP', launch: { vy: 12 }, lastKd: 1 }); });
+  ex('yura', 'shiku', m => { m.vel = [[5, 99, 8.5, -10.5]]; m.hits[0] = Object.assign({}, m.hits[0], { dmg: 9 }); m.bounce = 1; });
+  // Sasori: teleporte EX mais rápido e derruba forte; Hellfire EX com 2 colunas; Take Down EX com armadura
+  ex('sasori', 'tele', m => { m.tele = Object.assign({}, m.tele, { f: 12 }); m.dur = 38; m.fade = [2, 12]; m.inv = invAll(2, 12); m.hits[0] = Object.assign({}, m.hits[0], { f: [16, 20], dmg: 12, kd: 'hard' }); });
+  ex('sasori', 'atele', m => { m.tele = Object.assign({}, m.tele, { f: 11 }); m.dur = 34; m.fade = [2, 11]; m.inv = { strike: [2, 11] }; m.hits[0] = Object.assign({}, m.hits[0], { f: [13, 19], dmg: 13, kd: 'hard' }); });
+  ex('sasori', 'hell', m => { m.proj = Object.assign({}, m.proj, { hits: 2, gap: 8, r: 52, dmg: 7, life: 36 }); });
+  ex('sasori', 'take', m => { m.armor = { f: [1, 12], hits: 1 }; });
+  // Xeno: Drop EX chega mais rápido e invencível; ácido EX acerta 2 vezes
+  ex('xeno', 'drop', m => { m.tele = Object.assign({}, m.tele, { f: 14 }); m.vel = [[15, 70, 0, -13]]; m.inv = invAll(2, 16); m.hits[0] = Object.assign({}, m.hits[0], { f: [16, 70] }); });
+  ex('xeno', 'acid', m => { m.proj = Object.assign({}, m.proj, { hits: 2, gap: 6, dmg: 5 }); });
+  // J-7: Hammer EX com armadura e mais dano; Cossack EX com 7 chutes
+  ex('j7', 'hammer', m => { m.armor = { f: [4, 22], hits: 1 }; m.hits = m.hits.map(h => Object.assign({}, h, { dmg: 8.5 })); });
+  ex('j7', 'cossack', m => { m.hits = multi(7, 8, 5, 2, { box: [10, 0, 80, 30], dmg: 3, lv: 'SP', low: 1, hs: 16, bs: 8, lastKd: 1 }); m.active = 36; m.vel = [[6, 42, 4.5, null]]; });
+  // Joe: Clacker EX acerta 3 vezes
+  ex('joe', 'clack', m => { m.proj = Object.assign({}, m.proj, { hits: 3, gap: 14 }); });
+  // Kori: Slide EX passa por baixo de golpes altos e derruba forte
+  ex('kori', 'slide', m => { m.upperInv = [1, 22]; m.hits[0] = Object.assign({}, m.hits[0], { kd: 'hard' }); });
+  // Taiho: Sumo Smash EX acerta 2 vezes
+  ex('taiho', 'splash', m => { const h = m.hits[0]; m.hits = [Object.assign({}, h, { f: [16, 30], dmg: 7 }), Object.assign({}, h, { f: [32, 76], dmg: 8 })]; m.inv = { strike: [1, 12] }; });
+  // Dario: Space Ripper EX atravessa 2 vezes
+  ex('dario', 'eyes', m => { m.proj = Object.assign({}, m.proj, { hits: 2, gap: 4, dmg: 5 }); });
+})();
 
 </script>
 <script>/* src/data/endings.js */
@@ -3828,6 +3930,11 @@ function drawProj(c, pr) {
     c.save(); c.strokeStyle = '#8a8a90'; c.lineWidth = 2.2; c.setLineDash([5, 3]); c.beginPath(); c.moveTo(hx, hy); c.quadraticCurveTo((hx + pr.x) / 2, (hy - pr.y) / 2 + 10, pr.x - d * 14, -pr.y); c.stroke(); c.restore();
   }
   c.save(); c.translate(pr.x, -pr.y); c.scale(d, 1);
+  if (pr.ex) {   // projétil EX: anel duplo girando em volta
+    c.save(); c.globalCompositeOperation = 'lighter'; const R = (p.r || 14) * 1.7;
+    for (let k = 0; k < 2; k++) { c.strokeStyle = EX_COL[k]; c.globalAlpha = k ? .8 : .95; c.lineWidth = k ? 4 : 2.5; c.beginPath(); c.arc(0, 0, R + k * 6, T * .35 + k * 3, T * .35 + k * 3 + 3.6); c.stroke(); }
+    c.restore();
+  }
   switch (p.shape) {
     case 'spear': {
       c.fillStyle = '#d8dce2'; c.strokeStyle = '#222'; c.lineWidth = 1.4; c.beginPath(); c.moveTo(18, 0); c.lineTo(2, -7); c.lineTo(6, 0); c.lineTo(2, 7); c.closePath(); c.fill(); c.stroke();
@@ -3838,6 +3945,14 @@ function drawProj(c, pr) {
       c.fillStyle = '#e8ecf0'; c.strokeStyle = '#333'; c.lineWidth = 1; c.beginPath(); c.moveTo(16, 0); c.lineTo(-2, -3.4); c.lineTo(-2, 3.4); c.closePath(); c.fill(); c.stroke();
       c.fillStyle = '#c8a040'; c.fillRect(-4, -4, 2.5, 8); c.fillStyle = '#3a2418'; c.fillRect(-12, -1.8, 8, 3.6);
       c.strokeStyle = 'rgba(255,255,255,.35)'; c.lineWidth = 1; c.beginPath(); c.moveTo(-14, 0); c.lineTo(-40, 0); c.stroke();
+      break;
+    }
+    case 'slash': {
+      // meia-lua de energia (Flash Chop / Corte Hamon)
+      c.globalCompositeOperation = 'lighter'; const k = Math.min(1, pr.life / 5), r = p.r * (1 + Math.min(1, T / 8) * .3);
+      const g = c.createRadialGradient(-r * .3, 0, 0, -r * .3, 0, r * 1.4); g.addColorStop(0, p.glow || '#fff'); g.addColorStop(1, 'rgba(0,0,0,0)');
+      c.globalAlpha = .35 * k; c.fillStyle = g; c.beginPath(); c.arc(-r * .3, 0, r * 1.4, 0, 7); c.fill();
+      for (let i = 2; i >= 0; i--) { c.globalAlpha = k * (i ? .55 - i * .15 : 1); c.strokeStyle = i ? p.col : '#fff'; c.lineWidth = i ? 12 - i * 3 : 4; c.beginPath(); c.arc(-r * .6 - i * 5, 0, r * 1.05, -1.15, 1.15); c.stroke(); }
       break;
     }
     case 'bullet': { c.fillStyle = '#ffd24a'; c.fillRect(-6, -1.5, 12, 3); c.strokeStyle = 'rgba(255,220,120,.5)'; c.beginPath(); c.moveTo(-6, 0); c.lineTo(-40, 0); c.stroke(); break; }
@@ -3930,6 +4045,7 @@ function drawProj(c, pr) {
   c.restore();
 }
 
+const EX_COL = ['#ffffff', '#7ff4ff'];   // EX: branco + ciano, diferente das auras dos lutadores
 const NO_TRAIL = { kunai: 1, spear: 1, knife: 1, bullet: 1, beam: 1, statue: 1, pillar: 1, clacker: 1, banana: 1, rose: 1, aegis: 1 };
 const FX = {
   parts: [], texts: [],
@@ -3972,6 +4088,15 @@ const FX = {
   banner(t, side, col = '#c82814') { if (!SIM.silent) this.banners.push({ t, side, col, l: 110 }); },
   slash(x, y, n) { this.add({ type: 'slash', x, y, l: 12, s: 150, rot: (n % 2 ? .7 : -.7) + rnd(-.3, .3), col: '#fff' }); },
   shock(x) { this.add({ type: 'shock', x, y: 0, l: 28, s: 20, grow: 16, col: '#ffd08a' }); this.dust(x - 60, 0, 12); this.dust(x + 60, 0, 12); },
+  // explosão do EX: anéis branco/ciano, faíscas em volta do corpo e "EX" em cima
+  exBurst(f) {
+    const cx = f.x, cy = f.y + 80 * f.sz;
+    this.add({ type: 'flash', x: cx, y: cy, l: 10, s: 90, col: '#dff' });
+    this.add({ type: 'ring', x: cx, y: cy, l: 14, s: 20, grow: 7, col: EX_COL[1] });
+    this.add({ type: 'ring', x: cx, y: cy, l: 18, s: 10, grow: 5, col: EX_COL[0] });
+    for (let i = 0; i < 20; i++) { const a = i / 20 * TAU; this.add({ type: 'spark', x: cx, y: cy, vx: Math.cos(a) * 8, vy: Math.sin(a) * 8, l: 16, col: EX_COL[i % 2] }); }
+    this.text('EX', cx, f.y + 175 * f.sz, EX_COL[1]);
+  },
   aura(f, n = 40) { for (let i = 0; i < n; i++) this.add({ type: 'glow', x: f.x + rnd(-45, 45), y: f.y + rnd(0, 140) * f.sz, vy: rnd(1, 3.5), l: rnd(24, 50), s: rnd(3, 8), col: f.ch.aura }); },
   update() {
     for (const p of this.parts) { p.x += p.vx; p.y += p.vy; p.vy += p.g; p.s += p.grow; p.l--; if (p.type == 'dust') { p.vx *= .92; p.vy *= .95; } if (p.type == 'fire') { p.vx *= .9; p.s *= .96; } }
@@ -3985,6 +4110,10 @@ const FX = {
       this.add({ type: fire ? 'fire' : 'glow', x: pr.x - Math.sign(pr.vx) * pr.p.r * .7 + rnd(-5, 5), y: pr.y + rnd(-.5, .5) * pr.p.r, vx: -pr.vx * .15, vy: fire ? rnd(.5, 2) : rnd(-.6, .6), l: 16, s: pr.p.r * .45, col: pr.p.col });
     }
     for (const f of M.f || []) if (f.st == 'cine' || (f.m && f.m.super)) this.add({ type: 'glow', x: f.x + rnd(-30, 30), y: f.y + rnd(0, 120), vy: rnd(1, 3), l: 24, s: rnd(2, 6), col: f.ch.aura });
+    for (const f of M.f || []) if ((f.st == 'atk' || f.st == 'air') && f.mv && f.mv.endsWith(':3') && f.t <= f.m.dur) {   // EX em andamento: faíscas brancas/cianas subindo
+      for (let i = 0; i < 2; i++) this.add({ type: i ? 'spark' : 'glow', x: f.x + rnd(-34, 34), y: f.y + rnd(0, 130) * f.sz, vx: rnd(-1, 1), vy: rnd(1.5, 4), l: rnd(12, 22), s: rnd(2, 5), col: EX_COL[i] });
+    }
+    for (const pr of M.projs) if (pr.ex && !pr.dead) this.add({ type: 'spark', x: pr.x + rnd(-8, 8), y: pr.y + rnd(-pr.p.r, pr.p.r), vx: -pr.vx * .3 + rnd(-1, 1), vy: rnd(-2, 2), l: 12, col: EX_COL[rnd(0, 1) < .5 ? 0 : 1] });
   },
   draw(c) {
     for (const p of this.parts) {
@@ -4185,7 +4314,7 @@ const AI = {
 <script>/* src/net/net.js */
 // ===== multiplayer online: sala com vários jogadores ("quem ganha fica"), rollback e espectadores =====
 // Topologia em estrela: todos se conectam ao anfitrião (PeerJS/WebRTC), que repassa as mensagens.
-const NET_VERSION = 6, PEER_PREFIX = 'minifighter3-', MAX_ROOM = 8;
+const NET_VERSION = 7, PEER_PREFIX = 'minifighter3-', MAX_ROOM = 8;
 const Room = { members: [], queue: [], fighters: [], phase: 'lobby', sel: [0, 1], ready: [false, false], simple: [false, false], last: null, chars: {} };
 const memberName = id => (Room.members.find(m => m.id == id) || {}).name || '?';
 
@@ -4573,7 +4702,10 @@ function notation(seq, btn) {
 const MOVE_NAMES = { fb: 'Hadouken', dp: 'Shoryuken', tatsu: 'Tatsumaki', atatsu: 'Tatsumaki Aéreo', kunai: 'Kunai', akunai: 'Kunai Aérea', step: 'Passo Sombrio', dive: 'Chute Mergulho', lariat: 'Lariat Duplo',
   spd: 'Giro Gigante', stomp: 'Pisão Sísmico', flat: 'Mão Espalmada', qi: 'Esfera de Qi', legs: 'Pernas Relâmpago', flip: 'Chute Garça', sbk: 'Chute Giratório', boom: 'Sonic Boom', flash: 'Flash Kick',
   fire: 'Fogo Iogue', flame: 'Chama Iogue', blast: 'Explosão Iogue', tele: 'Teleporte', elec: 'Choque Elétrico', roll: 'Rolamento', vroll: 'Rolamento Vertical', bstep: 'Passo Traseiro', slap: 'Cem Mãos',
-  head: 'Cabeçada Sumô', splash: 'Esmagada Sumô', oicho: 'Oicho Throw', psycho: 'Psycho Crusher', scissor: 'Chute Tesoura', press: 'Pisão na Cabeça' };
+  head: 'Cabeçada Sumô', splash: 'Esmagada Sumô', oicho: 'Oicho Throw', psycho: 'Psycho Crusher', scissor: 'Chute Tesoura', press: 'Pisão na Cabeça',
+  chop: 'Flash Chop', elbow: 'Slash Elbow', aks: 'Air Knee Smash', bomb: 'Power Bomb', over: 'Overdrive', hbeat: 'Hamon Beat', clack: 'Clacker Volley', mega: 'Megaton Blast', giga: 'Gigaton Punch',
+  greet: 'Dark Greeting', cossack: 'Cossack Kick', tk: 'Tiger Knee', tu: 'Tiger Uppercut', shot: 'Tiger Shot', gshot: 'Tiger Shot Baixo', sdb: 'Shootdown Backbreaker', palm: 'Giant Palm Bomber',
+  sphere: 'Metallic Sphere', chariot: 'Chariot Tackle', knee: 'Violence Knee Drop', khead: 'Killing Head', chain: 'Hanging Chain', bhead: 'Bull Head', lift: 'Levitação Forçada' };
 const CMD_NAMES = { elbow: 'Cotovelada', plexus: 'Solar Plexus', stepkick: 'Chute Avançado', axe: 'Chute Machado', slide: 'Rasteira Deslizante', knee: 'Knee Bazooka', backfist: 'Soco Giratório',
   headbutt: 'Cabeçada', rockcrush: 'Rock Crusher', sweep: 'Rasteira Longa', bodypress: 'Body Press', drill: 'Broca Aérea', dive: 'Mergulho', stomp2: 'Pisão Aéreo' };
 function moveName(ch, id) { let n = null; try { n = getMove(ch, id + ':1').name; } catch (e) {} return n || MOVE_NAMES[id] || id.toUpperCase(); }
@@ -4582,7 +4714,8 @@ function moveList(ch) {
   const su = ch.superCmd || { input: '236236', btn: 'P' }, L = [];
   L.push([getMove(ch, 'super').name || 'SUPER', notation(su.input, su.btn) + '  (2 barras)', 1]);
   for (const sp of ch.specials) L.push([moveName(ch, sp.id), (sp.air == 'only' ? '(no ar) ' : '') + notation(sp.input, sp.btn)]);
-  if (ch.vskill) L.push(['V-SKILL: ' + (ch.vskill.name || ''), 'Soco Médio + Soco Forte', 2]);
+  if (ch.airThrow) L.push(['Agarrão aéreo (sem escape)', '(no ar) Soco Fraco + Chute Fraco']);
+  if (ch.vskill) L.push(['V-SKILL: ' + (ch.vskill.name || ''), 'Soco Médio + Chute Médio' + (ch.vskill.airOk ? '  (também no ar)' : ''), 2]);
   for (const cn of ch.cmdNormals || []) L.push([cn.move.name || CMD_NAMES[cn.move.anim] || 'Golpe de comando', (cn.air ? '(no ar) ' : '') + cn.dir.map(d => ARROW[d]).join('/') + ' + ' + BTN_NAMES[cn.btn]]);
   return L;
 }
@@ -4606,6 +4739,7 @@ const HUD = {
       if (low) { const k = .5 + .5 * Math.sin(T * .25); hg.addColorStop(0, `rgb(255,${160 + 60 * k | 0},80)`); hg.addColorStop(1, '#b02a08'); }
       else { hg.addColorStop(0, '#fffbd0'); hg.addColorStop(.4, '#ffd21e'); hg.addColorStop(1, '#d07800'); }
       c.fillStyle = hg; c.fillRect(L ? x0 : x0 - wh, by, wh, bh);
+      if (f.grey > 0) { const wg = (bw + 24) * Math.min(f.grey, f.ch.hp - f.hp) / f.ch.hp, k = f.greyT > 0 ? 1 : .75 + .25 * Math.sin(T * .3); c.fillStyle = `rgba(196,200,214,${k})`; c.fillRect(L ? x0 + wh : x0 - wh - wg, by, wg, bh); }
       const hw = this.hpW[i]; if (hw) { const ww = (bw + 24) * (hw.from - f.hp) / f.ch.hp; c.fillStyle = `rgba(255,255,255,${hw.t / 8})`; c.fillRect(L ? x0 + wh : x0 - wh - ww, by, ww, bh); }
       c.fillStyle = 'rgba(255,255,255,.35)'; c.fillRect(bx - 20, by + 2, bw + 40, 5);
       c.fillStyle = 'rgba(0,0,0,.25)'; for (let k = 1; k < 10; k++) c.fillRect(bx + bw * k / 10, by, 2, bh);
@@ -4866,7 +5000,7 @@ const Menus = {
   },
   // ---------- remapeamento de controles ----------
   KB_ACTS: [['u', 'CIMA'], ['d', 'BAIXO'], ['l', 'ESQUERDA'], ['r', 'DIREITA'], ['lp', 'SOCO FRACO'], ['mp', 'SOCO MÉDIO'], ['hp', 'SOCO FORTE'], ['lk', 'CHUTE FRACO'], ['mk', 'CHUTE MÉDIO'], ['hk', 'CHUTE FORTE'], ['start', 'START / PAUSA']],
-  PAD_ACTS: [['lp', 'SOCO FRACO'], ['mp', 'SOCO MÉDIO'], ['hp', 'SOCO FORTE'], ['lk', 'CHUTE FRACO'], ['mk', 'CHUTE MÉDIO'], ['hk', 'CHUTE FORTE'], ['throw', 'ARREMESSO'], ['vskill', 'V-SKILL'], ['start', 'START']],
+  PAD_ACTS: [['lp', 'SOCO FRACO'], ['mp', 'SOCO MÉDIO'], ['hp', 'SOCO FORTE'], ['lk', 'CHUTE FRACO'], ['mk', 'CHUTE MÉDIO'], ['hk', 'CHUTE FORTE'], ['exP', 'EX SOCO (3 SOCOS)'], ['exK', 'EX CHUTE (3 CHUTES)'], ['throw', 'ARREMESSO'], ['vskill', 'V-SKILL'], ['start', 'START']],
   cc: null,
   ccRows(col) { return col == 0 ? this.KB_ACTS.length + 3 : this.PAD_ACTS.length; },   // col 0: [jogador, teclas..., restaurar, voltar]
   controlsUpdate(mi) {
@@ -5129,7 +5263,7 @@ Object.assign(Menus, {
   },
   drawControls(c) {
     const cc = this.cc, KN = code => ({ ArrowUp: '↑', ArrowDown: '↓', ArrowLeft: '←', ArrowRight: '→', Semicolon: 'Ç', Enter: 'ENTER', Backspace: 'BACKSPACE', Space: 'ESPAÇO', Escape: 'ESC' })[code] || (code || '—').replace(/^Key|^Digit/, '').replace(/Left$|Right$/, '');
-    const PN = i => ['A', 'B', 'X', 'Y', 'LB', 'RB', 'LT', 'RT', 'SELECT', 'START', 'L3', 'R3', '↑', '↓', '←', '→'][i] ?? ('B' + i);
+    const PN = i => i == null ? '—' : ['A', 'B', 'X', 'Y', 'LB', 'RB', 'LT', 'RT', 'SELECT', 'START', 'L3', 'R3', '↑', '↓', '←', '→'][i] ?? ('B' + i);
     this.bg(c, '#6cf'); this.header(c, 'CONTROLES', '#6cf');
     const row = (x, y, w, on, label, val, waiting) => {
       c.fillStyle = on ? 'rgba(120,200,255,.92)' : 'rgba(16,16,34,.85)'; slant(c, x, y, w, 26, 8); c.fill();
@@ -5271,7 +5405,7 @@ Object.assign(Menus, {
         moveList(f.ch).forEach(([n, how, su], k) => { ui(c, n, x, 146 + k * 26, 15, su == 1 ? '#f6c' : su == 2 ? '#6cf' : '#ffd21e', 'left', 3); ui(c, how, x + 190, 146 + k * 26, 14, '#fff', 'left', 3); });
       });
       c.fillStyle = 'rgba(0,0,0,.6)'; c.fillRect(0, H - 88, W, 60);
-      ui(c, 'EX: especial com 2 botões (1 barra) · SUPER: 2 barras (atalho Soco Forte + Chute Forte) · ARREMESSO: Soco Fraco + Chute Fraco', W / 2, H - 66, 14, '#ffd21e', 'center', 3);
+      ui(c, 'EX: especial com 2 botões ou L1/L2 no controle (1 barra) · SUPER: comando + 2 barras · ARREMESSO: Soco Fraco + Chute Fraco', W / 2, H - 66, 14, '#ffd21e', 'center', 3);
       ui(c, 'PARRY: toque → (↓ em golpe baixo) no instante do impacto · normais leves cancelam em especiais · 2: hitboxes', W / 2, H - 44, 14, '#ddd', 'center', 3);
       return;
     }
@@ -5307,12 +5441,12 @@ const Tutorial = {
     { t: 'Defesa baixa', d: 'Segure ↙ contra a rasteira (golpe baixo)', need: 'lowblock', dummy: 'sweep' },
     { t: 'Hadouken', d: '↓ ↘ → + Soco  (fraco = lento, forte = rápido)', need: 'fb' },
     { t: 'Shoryuken', d: '→ ↓ ↘ + Soco  (ou → ↓ →)', need: 'dp' },
-    { t: 'Golpe EX', d: 'Especial com 2 socos juntos · gasta 1 barra e fica mais forte', need: 'ex' },
+    { t: 'Golpe EX', d: 'Especial com 2 socos juntos (ou L1 no controle) · gasta 1 barra e fica mais forte', need: 'ex' },
     { t: 'Combo com cancelamento', d: 'Agachado + Soco Fraco e, antes de terminar, ↓ ↘ → + Soco', need: 'cancel' },
     { t: 'Arremesso', d: 'Perto do boneco: Soco Fraco + Chute Fraco', need: 'throw' },
     { t: 'Parry', d: 'Toque → no instante em que o golpe vai acertar (↓ para golpe baixo)', need: 'parry', dummy: 'poke' },
-    { t: 'V-Skill', d: 'Soco Médio + Soco Forte — cada lutador tem uma habilidade única', need: 'vskill' },
-    { t: 'Super', d: '↓ ↘ → ↓ ↘ → + Soco (2 barras) · atalho: Soco Forte + Chute Forte', need: 'super' },
+    { t: 'V-Skill', d: 'Soco Médio + Chute Médio — cada lutador tem uma habilidade única', need: 'vskill' },
+    { t: 'Super', d: '↓ ↘ → ↓ ↘ → + Soco (2 barras)', need: 'super' },
   ],
   start() { this.i = 0; this.t = 0; this.done = 0; this.cnt = {}; this.prev = {}; },
   // o boneco: parado, ou atacando de tempos em tempos
@@ -5686,7 +5820,7 @@ const Game = {
     }
     c.save(); Cam.apply(c);
     drawShadow(c, a); drawShadow(c, b);
-    for (const f of [a, b]) for (const t of f.trail) { c.globalAlpha = t.a * .6; drawFighter(c, Object.assign(Object.create(f), { x: t.x, y: t.y, face: t.face, flash: 0, shakeT: 0 }), t.pose, f.ch.aura); }
+    for (const f of [a, b]) for (const t of f.trail) { c.globalAlpha = t.a * .6; drawFighter(c, Object.assign(Object.create(f), { x: t.x, y: t.y, face: t.face, flash: 0, shakeT: 0 }), t.pose, t.ex ? EX_COL[0] : f.ch.aura); }
     c.globalAlpha = 1;
     const busy = f => f.st == 'atk' || f.st == 'cine' || f.st == 'throw' || (f.st == 'air' && f.mv);
     const order = busy(b) && !busy(a) ? [a, b] : [b, a];
