@@ -51,8 +51,13 @@ const easeBack = t => { t = clamp(t, 0, 1); const c = 1.7; return 1 + (c + 1) * 
 const rnd = (a, b) => a + Math.random() * (b - a);
 const pick = a => a[Math.random() * a.length | 0];
 
-const settings = { diff: 1, music: true, sfx: true, voice: true, shouts: true, hitboxes: false, crt: false, name: '' };
-try { Object.assign(settings, JSON.parse(localStorage.getItem('mf3_settings') || '{}')); } catch (e) {}
+const settings = { diff: 1, music: true, sfx: true, musicVol: 10, sfxVol: 10, voice: true, shouts: true, hitboxes: false, crt: false, name: '' };
+try {
+  const s = JSON.parse(localStorage.getItem('mf3_settings') || '{}') || {}; Object.assign(settings, s);
+  // saves antigos só tinham liga/desliga
+  if (s.musicVol == null && s.music === false) settings.musicVol = 0; if (s.sfxVol == null && s.sfx === false) settings.sfxVol = 0;
+} catch (e) {}
+settings.music = settings.musicVol > 0; settings.sfx = settings.sfxVol > 0;
 function saveSettings() { try { localStorage.setItem('mf3_settings', JSON.stringify(settings)); } catch (e) {} }
 
 // ---------- teclado ----------
@@ -159,13 +164,15 @@ const Audio = {
     } catch (e) { this.ac = null; }
   },
   get now() { return this.ac ? this.ac.currentTime : 0; },
+  // volume das opções (0–10, curva quadrática) aplicado na fonte, assim reverb/eco acompanham
+  vol(dest) { const v = (dest == this.musicBus ? settings.musicVol : settings.sfxVol) / 10; return v * v; },
   // ---- primitivas ----
   osc(type, f, t, d, o = {}) {
     const ac = this.ac, os = ac.createOscillator(), g = ac.createGain();
     os.type = type; os.frequency.setValueAtTime(f, t); if (o.detune) os.detune.value = o.detune;
     if (o.slide) os.frequency.exponentialRampToValueAtTime(Math.max(20, o.slide), t + (o.slideT || d));
     if (o.vib) { const l = ac.createOscillator(), lg = ac.createGain(); l.frequency.value = o.vib; lg.gain.value = o.vibD || 6; l.connect(lg).connect(os.frequency); l.start(t); l.stop(t + d + .1); }
-    const v = (o.vol ?? .2) * this.gainMul, a = o.a ?? .004, r = o.r ?? d;
+    const v = (o.vol ?? .2) * this.gainMul * this.vol(o.dest), a = o.a ?? .004, r = o.r ?? d;
     g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(v, t + a);
     if (o.sus) { g.gain.setValueAtTime(v, t + d - Math.min(r, d) * .3); g.gain.exponentialRampToValueAtTime(.0005, t + d + r * .3); }
     else g.gain.exponentialRampToValueAtTime(.0005, t + Math.max(a + .01, r));
@@ -180,7 +187,7 @@ const Audio = {
     s.buffer = this.noiseBuf; s.playbackRate.value = o.rate || 1;
     f.type = o.type || 'bandpass'; f.frequency.setValueAtTime(o.f || 1000, t); f.Q.value = o.q || 1;
     if (o.fTo) f.frequency.exponentialRampToValueAtTime(o.fTo, t + d);
-    const v = (o.vol ?? .3) * this.gainMul, a = o.a ?? .002;
+    const v = (o.vol ?? .3) * this.gainMul * this.vol(o.dest), a = o.a ?? .002;
     g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(v, t + a); g.gain.exponentialRampToValueAtTime(.0005, t + d);
     s.connect(f).connect(g); g.connect(o.dest || this.sfxBus); if (o.send) g.connect(o.send);
     s.start(t, Math.random() * .5); s.stop(t + d + .05);
@@ -664,6 +671,7 @@ class Fighter {
   motion(seq) {
     if (seq == 'PPP' || seq == 'KKK') { const a = seq[0] == 'P' ? this.mashP : this.mashK; return a.filter(t => M.frame - t <= 24).length >= 3; }
     if (seq[0] == '[') { const d = +seq[1], r = +seq[3], n = this.num; return this.charged(d) && (r == 6 ? n == 3 || n == 6 || n == 9 : n >= 7); }
+    if (seq == '623' && this.num == 6) return this.dpTap();
     const s = seq.split('').map(Number), win = s.length > 3 ? 40 : 22, h = this.hist; let i = 0;
     for (let j = 0; j < h.length && i < s.length; j++) {
       const end = j + 1 < h.length ? h[j + 1].t : M.frame; if (M.frame - end > win) continue;
@@ -671,6 +679,15 @@ class Fighter {
     }
     if (i >= s.length) return true;
     return i == s.length - 1 && DIAG[s[i]] && this.num <= 3;
+  }
+  // atalho do 623 terminando em frente: → ↓ → (↘ ou neutro no meio valem). Só conta se o primeiro →
+  // foi um toque; andando pra frente e fazendo ↓↘→ continua saindo o 236
+  dpTap() {
+    const h = this.hist, skip = n => n == 3 || n == 5; let j = h.length - 2;
+    if (j >= 0 && skip(h[j].n)) j--; if (j < 0 || h[j].n != 2) return false;
+    j--; if (j >= 0 && skip(h[j].n)) j--; if (j < 0 || h[j].n != 6) return false;
+    const tapEnd = h[j + 1].t;
+    return tapEnd - h[j].t <= 15 && M.frame - tapEnd <= 22;
   }
   decide(o) {
     const air = this.y > 0, m = this.mv;
@@ -684,7 +701,7 @@ class Fighter {
       if (this.meter >= 100 && this.pressed('hp', 6) && this.pressed('hk', 6) && !air) want = 'super';
       if (!want && (P || K)) for (const [seq, btn, key, where] of this.ch.specials) {
         if ((where == 'air') != air || (key == 'super' && this.meter < 100) || !(btn == 'P' ? P : K) || !this.motion(seq)) continue;
-        if (seq[0] == '6' && this.num > 3) continue;
+        if (seq[0] == '6' && this.num > 3 && this.num != 6) continue;
         const strong = btn == 'P' ? this.pressed('hp') : this.pressed('hk');
         want = key == 'super' || key == 'dive' ? key : key + ':' + (strong ? 1 : 0);
         if (seq[0] == '[') { this.chB = this.chBrel = this.chD = this.chDrel = 0; }
@@ -2371,7 +2388,7 @@ const Menus = {
   nav(mi, n) { const g = Game; if (mi.u) { g.idx = (g.idx + n - 1) % n; Audio.sfx('move'); } if (mi.d) { g.idx = (g.idx + 1) % n; Audio.sfx('move'); } },
   optItems() {
     const on = (v, a = 'LIGADO', b = 'DESLIGADO') => v ? a : b;
-    return [['DIFICULDADE DA CPU', DIFF[settings.diff].name, 'diff'], ['MÚSICA', on(settings.music, 'LIGADA', 'DESLIGADA'), 'music'], ['EFEITOS SONOROS', on(settings.sfx), 'sfx'],
+    return [['DIFICULDADE DA CPU', DIFF[settings.diff].name, 'diff'], ['MÚSICA', settings.musicVol, 'musicVol'], ['EFEITOS SONOROS', settings.sfxVol, 'sfxVol'],
       ['NARRADOR', on(settings.voice), 'voice'], ['GRITOS DOS LUTADORES', on(settings.shouts), 'shouts'], ['FILTRO CRT (RETRÔ)', on(settings.crt), 'crt'],
       ['HITBOXES', settings.hitboxes ? 'VISÍVEIS' : 'OCULTAS', 'hitboxes'], ['TESTAR CONTROLE', '', 'pad'], ['VOLTAR', '', 'back']];
   },
@@ -2400,8 +2417,12 @@ const Menus = {
         const it = this.optItems(); this.nav(mi, it.length); const k = it[g.idx][2];
         if (mi.ok && k == 'pad') { Audio.sfx('select'); g.go('padtest'); break; }
         if ((mi.l || mi.r || mi.ok) && k != 'back' && k != 'pad') {
-          if (k == 'diff') settings.diff = (settings.diff + (mi.l ? 2 : 1)) % 3; else settings[k] = !settings[k];
-          if (k == 'music') { if (settings.music) Music.play('select'); else Music.stop(); }
+          if (k == 'diff') settings.diff = (settings.diff + (mi.l ? 2 : 1)) % 3;
+          else if (k == 'musicVol' || k == 'sfxVol') {
+            const v = settings[k]; settings[k] = mi.l ? Math.max(0, v - 1) : mi.r ? Math.min(10, v + 1) : (v + 1) % 11;
+            settings.music = settings.musicVol > 0; settings.sfx = settings.sfxVol > 0;
+          } else settings[k] = !settings[k];
+          if (k == 'musicVol') { if (settings.music) Music.play('select'); else Music.stop(); }
           saveSettings(); Audio.sfx('move');
         }
         if ((mi.ok && k == 'back') || mi.back) { Audio.sfx('back'); g.go('mode'); }
@@ -2562,11 +2583,15 @@ Object.assign(Menus, {
       case 'options': {
         this.bg(c, '#c8f'); this.header(c, 'OPÇÕES', '#c8f');
         const it = this.optItems();
-        it.forEach(([n, v], i) => {
-          const on = i == g.idx, y = 100 + i * 44;
+        it.forEach(([n, v, k], i) => {
+          const on = i == g.idx, y = 100 + i * 44, col = on ? '#1a0a20' : '#ffd21e';
           c.fillStyle = on ? 'rgba(200,140,255,.9)' : 'rgba(16,16,34,.85)'; slant(c, 170, y, 620, 38, 12); c.fill();
           txt(c, n, 200, y + 28, 22, on ? '#1a0a20' : '#dde', 'left', on ? 0 : 3);
-          if (v) txt(c, (on ? '◄ ' : '') + v + (on ? ' ►' : ''), 760, y + 28, 22, on ? '#1a0a20' : '#ffd21e', 'right', on ? 0 : 3);
+          if (k == 'musicVol' || k == 'sfxVol') { // slider 0–10
+            txt(c, v ? v * 10 + '%' : 'MUDO', 540, y + 28, 22, col, 'right', on ? 0 : 3);
+            if (on) { txt(c, '◄', 574, y + 28, 22, col, 'right'); txt(c, '►', 760, y + 28, 22, col, 'right'); }
+            for (let s = 0; s < 10; s++) { c.fillStyle = s < v ? col : on ? 'rgba(26,10,32,.25)' : 'rgba(255,255,255,.15)'; c.fillRect(582 + s * 15, y + 11, 11, 17); }
+          } else if (v) txt(c, (on ? '◄ ' : '') + v + (on ? ' ►' : ''), 760, y + 28, 22, col, 'right', on ? 0 : 3);
         });
         this.hint(c, '←→ alterar · F / Enter confirmar · R / Esc voltar'); break;
       }
