@@ -23,15 +23,19 @@ body{background:var(--bg);color:var(--ink);font:15px var(--body);display:flex;fl
 .tools a:hover,.tools button:hover{border-color:var(--coin)}
 :focus-visible{outline:2px solid var(--coin);outline-offset:2px}
 iframe{flex:1;width:100%;border:0;display:block;background:#000}
+.ver{flex:none;display:flex;align-items:center;gap:6px;font:500 12px var(--mono);color:var(--dim)}
+.ver select{font:600 13px var(--body);color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:5px 8px;max-width:44vw;cursor:pointer}
+.ver select:hover{border-color:var(--coin)}
 .msg{margin:auto;max-width:44ch;padding:24px 16px;text-align:center;color:var(--dim)}
 .msg a{color:var(--coin)}
-@media (max-width:560px){.who span,.tools .opt{display:none}}
+@media (max-width:560px){.who span,.tools .opt,.ver span{display:none}}
 </style>
 </head>
 <body>
 <div class="top">
   <a class="back" href="./" aria-label="Voltar pro Fliperama">← Fliperama</a>
   <div class="who"><b id="title"></b><span id="by"></span></div>
+  <label class="ver" id="verBox" hidden><span>Versão</span><select id="ver"></select></label>
   <div class="tools">
     <button type="button" id="reload" class="opt">Reiniciar</button>
     <a id="code" class="opt" target="_blank" rel="noopener" hidden>Código</a>
@@ -42,7 +46,7 @@ iframe{flex:1;width:100%;border:0;display:block;background:#000}
 <script>
 (()=>{
 const $=id=>document.getElementById(id);
-const slug=new URLSearchParams(location.search).get('g');
+const qs=new URLSearchParams(location.search), slug=qs.get('g');
 const data=window.FLIPERAMA, g=data&&data.games.find(x=>x.slug===slug);
 if(!g){
   const m=document.createElement('p'); m.className='msg';
@@ -50,14 +54,31 @@ if(!g){
   document.body.append(m); $('title').textContent='Jogo não encontrado';
   document.querySelector('.tools').hidden=true; return;
 }
-document.title=g.title+' · Fliperama';
-$('title').textContent=g.title; $('by').textContent='@'+g.author+(g.controls?' · '+g.controls:'');
-if(data.repo){ $('code').href=data.repo+'/tree/main/games/'+g.slug; $('code').hidden=false; }
+$('by').textContent='@'+g.author+(g.controls?' · '+g.controls:'');
+// versões: ?v=<id> escolhe qual abrir; sem ?v= abre a primeira (a padrão do game.json)
+const vs=g.versions&&g.versions.length>1?g.versions:null;
+let cur=vs?(vs.find(v=>v.id===qs.get('v'))||vs[0]):null;
 const f=document.createElement('iframe');
-f.src='games/'+g.slug+'/'+g.entry+location.hash;
-f.title=g.title;
 f.allow='autoplay; fullscreen; gamepad; clipboard-write; screen-wake-lock';
 f.addEventListener('load',()=>{ try{ f.focus(); f.contentWindow.focus(); }catch(e){} });
+function showVersion(){
+  const entry=cur?cur.entry:g.entry, name=g.title+(cur&&cur!==vs[0]?' · '+cur.name:'');
+  document.title=name+' · Fliperama'; $('title').textContent=name; f.title=name;
+  if(data.repo){ const dir=entry.includes('/')?'/'+entry.slice(0,entry.lastIndexOf('/')):''; $('code').href=data.repo+'/tree/main/games/'+g.slug+dir; $('code').hidden=false; }
+  f.src='games/'+g.slug+'/'+entry+location.hash;
+}
+if(vs){
+  const sel=$('ver');
+  for(const v of vs){ const o=document.createElement('option'); o.value=v.id; o.textContent=v.name+(v.kind?' ('+v.kind+')':''); if(v.note) o.title=v.note; sel.append(o); }
+  sel.value=cur.id; $('verBox').hidden=false;
+  sel.addEventListener('change',()=>{
+    cur=vs.find(v=>v.id===sel.value)||vs[0];
+    const u=new URL(location.href); u.searchParams.set('v',cur.id); u.hash=''; history.replaceState(null,'',u);
+    try{ const k='fliperama:versoes', m=JSON.parse(localStorage.getItem(k)||'{}')||{}; m[g.slug]=cur.id; localStorage.setItem(k,JSON.stringify(m)); }catch(e){}
+    showVersion();
+  });
+}
+showVersion();
 document.body.append(f);
 $('reload').addEventListener('click',()=>{ f.src=f.src; });
 $('full').addEventListener('click',()=>{ const p=f.requestFullscreen?f.requestFullscreen():null; if(p&&p.catch) p.catch(()=>{}); try{ f.focus(); }catch(e){} });

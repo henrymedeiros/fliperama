@@ -58,15 +58,31 @@ select{font:500 13px var(--body);color:var(--ink);background:var(--panel);border
 /* grade */
 main{padding-block:28px 60px}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:18px}
-.card{display:flex;flex-direction:column;text-decoration:none;background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden;transition:transform .18s,border-color .18s,box-shadow .18s}
+.card{position:relative;display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden;transition:transform .18s,border-color .18s,box-shadow .18s}
 .card:hover{transform:translateY(-4px);border-color:rgba(255,176,0,.55);box-shadow:0 14px 40px rgba(0,0,0,.45),0 0 0 1px rgba(255,176,0,.25)}
+.card:has(.go:focus-visible){outline:2px solid var(--coin);outline-offset:3px}
+/* a ficha inteira é clicável pelo link do título; o seletor de versões fica por cima */
+.go{color:inherit;text-decoration:none}
+.go:focus-visible{outline:none}
+.go::after{content:"";position:absolute;inset:0;z-index:1}
 .thumb{position:relative;aspect-ratio:16/10;max-width:100%;background:var(--panel-2);overflow:hidden}
-.thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.thumb img{width:100%;height:100%;object-fit:cover;display:block;transition:opacity .18s}
+.thumb img.swap{opacity:.25}
+.vers{position:absolute;left:10px;top:10px;z-index:2;display:flex;gap:3px;max-width:calc(100% - 20px);overflow-x:auto;scrollbar-width:none;padding:3px;background:rgba(12,10,18,.84);border:1px solid var(--line);border-radius:10px;backdrop-filter:blur(6px)}
+.vers::-webkit-scrollbar{display:none}
+.multi .badges{top:52px}
+.ver{flex:none;display:flex;align-items:center;gap:6px;font:600 12px/1 var(--body);color:var(--dim);background:transparent;border:0;border-radius:7px;padding:7px 10px;cursor:pointer;white-space:nowrap}
+.ver:hover{color:var(--ink);background:rgba(255,255,255,.06)}
+.ver[aria-checked="true"]{color:var(--bg);background:var(--coin)}
+.ver small{font:500 10px/1 var(--mono);opacity:.7}
+.ver i{width:6px;height:6px;border-radius:50%;background:var(--pink)}
+.vnote{margin:0;font:500 12px/1.45 var(--mono);color:var(--dim)}
+.vnote b{color:var(--ink);font-weight:500}
 .gen{position:absolute;inset:0;display:grid;place-items:center;font-family:var(--display);font-size:56px;color:rgba(255,255,255,.9);text-shadow:0 4px 30px rgba(0,0,0,.4)}
 .play{position:absolute;right:12px;bottom:12px;font:600 12px/1 var(--body);letter-spacing:.12em;text-transform:uppercase;color:var(--bg);background:var(--coin);padding:8px 12px;border-radius:8px;opacity:0;translate:0 6px;transition:.18s}
-.card:hover .play,.card:focus-visible .play{opacity:1;translate:0 0}
-.badges{position:absolute;left:10px;top:10px;display:flex;gap:6px}
-.badge{font:500 11px/1 var(--mono);letter-spacing:.04em;background:rgba(12,10,18,.8);border:1px solid var(--line);border-radius:6px;padding:5px 7px;color:var(--ink)}
+.card:hover .play,.card:focus-within .play{opacity:1;translate:0 0}
+.badges{position:absolute;left:10px;right:10px;top:10px;display:flex;flex-wrap:wrap;gap:6px}
+.badge{white-space:nowrap;font:500 11px/1 var(--mono);letter-spacing:.04em;background:rgba(12,10,18,.8);border:1px solid var(--line);border-radius:6px;padding:5px 7px;color:var(--ink)}
 .badge.new{background:var(--pink);border-color:transparent;color:#fff}
 .body{display:grid;gap:8px;padding:14px 16px 16px;flex:1}
 .body h2{margin:0;font:600 19px/1.2 var(--body);text-wrap:balance}
@@ -116,6 +132,7 @@ main{padding-block:28px 60px}
     <li>No Claude Code, dentro da pasta do repositório, rode <code>/novo-jogo</code> e descreva a ideia.</li>
     <li>Quando estiver bom, rode <code>/publicar</code>. Em cerca de um minuto o jogo aparece nesta página.</li>
     <li>Pra mexer no jogo de outra pessoa, rode <code>/alterar</code>. A mudança vira um pedido pro autor aprovar.</li>
+    <li>Pra fazer uma variação de um jogo, ou guardar a versão atual antes de uma mudança grande, rode <code>/versao</code>. As versões aparecem no seletor da capa.</li>
   </ol>
 </section>
 
@@ -154,35 +171,73 @@ function chip(label,val,col){
 }
 function renderChips(){ const c=$('authors'); c.textContent=''; c.append(chip('Todos',null)); for(const a of authors) c.append(chip('@'+a,a,authorCol(a))); }
 
+// versões: o jogo pode ter várias (atual, antigas, alternativas). A escolha de cada um fica salva neste navegador.
+const VKEY='fliperama:versoes';
+let chosen={}; try{ chosen=JSON.parse(localStorage.getItem(VKEY)||'{}')||{}; }catch(e){}
+const versionsOf=g=>g.versions&&g.versions.length>1?g.versions:null;
+const isNew=iso=>!!iso&&Date.now()-new Date(iso)<7*864e5;
+const KIND={alternativa:'alternativa',antiga:'antiga'};
+function playUrl(g,v){ return 'play.html?g='+encodeURIComponent(g.slug)+(v?'&v='+encodeURIComponent(v.id):''); }
+
 function card(g){
-  const a=document.createElement('a'); a.className='card'; a.href='play.html?g='+encodeURIComponent(g.slug);
+  const vs=versionsOf(g); let cur=vs?(vs.find(v=>v.id===chosen[g.slug])||vs[0]):null;
+  const a=document.createElement('article'); a.className='card'+(vs?' multi':'');
   a.style.setProperty('--c',authorCol(g.author));
   const th=document.createElement('div'); th.className='thumb';
-  if(g.thumb){ const img=document.createElement('img'); img.src='games/'+g.slug+'/'+g.thumb; img.alt=''; img.loading='lazy'; th.append(img); }
+  const thumbOf=v=>(v&&v.thumb)||g.thumb;
+  let img=null;
+  if(thumbOf(cur)){ img=document.createElement('img'); img.src='games/'+g.slug+'/'+thumbOf(cur); img.alt=''; img.loading='lazy'; th.append(img); }
   else{ const h=hue(g.slug), gen=document.createElement('div'); gen.className='gen';
     th.style.background=`linear-gradient(135deg,hsl(${h} 70% 38%),hsl(${(h+60)%360} 75% 22%))`;
     gen.textContent=g.title.split(/\s+/).map(w=>w[0]).join('').slice(0,2).toUpperCase(); th.append(gen); }
   const bd=document.createElement('div'); bd.className='badges';
   const addBadge=(t,cls)=>{ const s=document.createElement('span'); s.className='badge'+(cls?' '+cls:''); s.textContent=t; bd.append(s); };
-  if(Date.now()-new Date(g.created)<7*864e5) addBadge('novo','new');
+  if(isNew(g.created)) addBadge('novo','new');
+  else if(vs&&vs.some(v=>isNew(v.created))) addBadge('versão nova','new');
   addBadge(g.players==='1'?'1 jogador':g.players+' jogadores');
   if(g.online) addBadge('online');
   th.append(bd);
   const pl=document.createElement('span'); pl.className='play'; pl.textContent='Jogar'; th.append(pl);
   const body=document.createElement('div'); body.className='body';
-  const h=document.createElement('h2'); h.textContent=g.title;
+  const h=document.createElement('h2'), go=document.createElement('a'); go.className='go'; go.href=playUrl(g,cur); go.textContent=g.title; h.append(go);
   const by=document.createElement('span'); by.className='by'; by.textContent='@'+g.author;
   const d=document.createElement('p'); d.className='desc'; d.textContent=g.description;
+  body.append(h,by,d);
+  if(vs){
+    const note=document.createElement('p'); note.className='vnote'; body.append(note);
+    const box=document.createElement('div'); box.className='vers'; box.setAttribute('role','radiogroup'); box.setAttribute('aria-label','Versão de '+g.title);
+    const btns=vs.map(v=>{
+      const b=document.createElement('button'); b.type='button'; b.className='ver'; b.setAttribute('role','radio'); b.textContent=v.name;
+      if(v.kind==='antiga'){ const k=document.createElement('small'); k.textContent='antiga'; b.append(k); }
+      if(isNew(v.created)){ const i=document.createElement('i'); i.title='versão nova'; b.append(i); }
+      b.title=[v.name+(v.kind?' ('+KIND[v.kind]+')':''),v.note].filter(Boolean).join(': ');
+      b.addEventListener('click',()=>select(v,true));
+      return b;
+    });
+    box.addEventListener('keydown',e=>{
+      const dir=e.key==='ArrowRight'||e.key==='ArrowDown'?1:e.key==='ArrowLeft'||e.key==='ArrowUp'?-1:0; if(!dir) return;
+      e.preventDefault(); const i=(vs.indexOf(cur)+dir+vs.length)%vs.length; select(vs[i],true); btns[i].focus();
+    });
+    const select=(v,save)=>{
+      cur=v; go.href=playUrl(g,v);
+      btns.forEach((b,i)=>{ const on=vs[i]===v; b.setAttribute('aria-checked',String(on)); b.tabIndex=on?0:-1; });
+      note.textContent=''; const nb=document.createElement('b'); nb.textContent=v.name; note.append('Versão ',nb,(v.kind?' · '+KIND[v.kind]:'')+(v.note?' · '+v.note:''));
+      const src=thumbOf(v)?'games/'+g.slug+'/'+thumbOf(v):null;
+      if(img&&src&&img.getAttribute('src')!==src){ img.classList.add('swap'); const pre=new Image(); pre.onload=pre.onerror=()=>{ img.src=src; img.classList.remove('swap'); }; pre.src=src; }
+      if(save){ chosen[g.slug]=v.id; try{ localStorage.setItem(VKEY,JSON.stringify(chosen)); }catch(e){} }
+    };
+    box.append(...btns); th.append(box); select(cur,false);
+  }
   const ft=document.createElement('div'); ft.className='foot';
   for(const t of g.tags.slice(0,3)){ const s=document.createElement('span'); s.className='tag'; s.textContent=t; ft.append(s); }
   const w=document.createElement('span'); w.className='when'; w.textContent=ago(g.updated); w.title='Última mudança: '+new Date(g.updated).toLocaleString('pt-BR'); ft.append(w);
-  body.append(h,by,d,ft); a.append(th,body);
+  body.append(ft); a.append(th,body);
   return a;
 }
 function render(){
   renderChips();
   const q=state.q.trim().toLowerCase();
-  let list=games.filter(g=>(!state.author||g.author===state.author)&&(!q||[g.title,g.description,g.author,...g.tags].join(' ').toLowerCase().includes(q)));
+  let list=games.filter(g=>(!state.author||g.author===state.author)&&(!q||[g.title,g.description,g.author,...g.tags,...(g.versions||[]).map(v=>v.name)].join(' ').toLowerCase().includes(q)));
   if(state.sort==='title') list.sort((a,b)=>a.title.localeCompare(b.title,'pt-BR'));
   else list.sort((a,b)=>b[state.sort].localeCompare(a[state.sort]));
   const grid=$('grid'); grid.textContent=''; for(const g of list) grid.append(card(g));

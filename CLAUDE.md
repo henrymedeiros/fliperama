@@ -13,6 +13,7 @@ games/<slug>/         um jogo por pasta
   thumb.svg|png|jpg   capa 16:10, até 400 KB (opcional, mas recomendada)
 scripts/build.mjs     valida as fichas e gera games.json + games.js (arquivos gerados, fora do git)
 scripts/new-game.mjs  cria a pasta de um jogo novo
+scripts/new-version.mjs  cria uma versão de um jogo (alternativa ou antiga) numa subpasta
 scripts/dev.mjs       servidor local: http://localhost:5173
 ```
 
@@ -34,6 +35,25 @@ scripts/dev.mjs       servidor local: http://localhost:5173
 ```
 
 Obrigatórios: `title`, `author`, `description`. O `author` é o login do GitHub de quem criou (`gh api user --jq .login`). As datas de atualização vêm do git, não edite à mão.
+
+## Versões
+
+Um jogo pode ter várias versões jogáveis: a atual, versões antigas guardadas e versões alternativas (outra câmera, outras regras). No catálogo, a capa da ficha ganha um seletor que troca a capa e a versão que abre; no player, a barra de cima tem o mesmo seletor. O link de uma versão é `play.html?g=<slug>&v=<id>`.
+
+```json
+"versions": [
+  { "id": "classico", "name": "Clássico", "entry": "index.html", "thumb": "thumb.svg", "note": "A pista isométrica original." },
+  { "id": "vista-de-cima", "name": "Vista de cima", "kind": "alternativa", "entry": "vista-de-cima/index.html", "thumb": "vista-de-cima/thumb.svg", "note": "A mesma partida vista de cima.", "created": "2026-09-30" }
+]
+```
+
+- A primeira da lista é a padrão: é a que abre sem `?v=` e a que vem marcada no catálogo.
+- Cada versão tem `id` (minúsculo com hífen, vira parte do link), `name` e `entry`. Opcionais: `thumb` (sem ela, usa a capa do jogo), `note` (uma frase), `kind` (`"alternativa"` ou `"antiga"`) e `created` (AAAA-MM-DD; versão com menos de 7 dias ganha um ponto de "nova" no seletor).
+- Cada versão fica na própria subpasta (`games/<slug>/<id>/`), autossuficiente como um jogo. A principal pode continuar na raiz da pasta.
+- Crie com `node scripts/new-version.mjs <slug> <id> "<Nome>" [--antiga | --alternativa] [--de <id>]`: ele copia a versão base pra subpasta e registra no `game.json`.
+- **Versão antiga é congelada.** Antes de uma mudança grande, guarde a atual com `--antiga` e continue mexendo na principal. Não edite a pasta de uma versão antiga.
+- **Não mude o `id` nem a pasta de uma versão publicada**: o link dela quebra.
+- Versão alternativa que joga diferente deve ter recorde próprio: troque o prefixo das chaves de localStorage na cópia (ex.: `meu-jogo-noturno:recorde`). Se tiver modo online, use também um prefixo de sala próprio, pra não cair na sala de outra versão.
 
 ## Regras para os jogos
 
@@ -62,3 +82,4 @@ Obrigatórios: `title`, `author`, `description`. O `author` é o login do GitHub
 - `/novo-jogo <ideia>`: cria a pasta, a ficha e o jogo.
 - `/publicar [slug]`: valida e publica o seu jogo.
 - `/alterar <slug> <o que mudar>`: altera o jogo de outra pessoa e abre um pull request.
+- `/versao <slug> <ideia ou "guardar">`: cria uma versão alternativa de um jogo, ou guarda a atual como versão antiga.

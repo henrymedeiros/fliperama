@@ -12,6 +12,7 @@ const CHECK = process.argv.includes('--check');
 const SLUG_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 const REQUIRED = ['title', 'author', 'description'];
 const MAX_THUMB = 400 * 1024;
+const KINDS = ['alternativa', 'antiga'];
 
 function git(args) {
   try { return execFileSync('git', args, { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim(); }
@@ -52,6 +53,7 @@ for (const slug of existsSync(GAMES) ? readdirSync(GAMES).sort() : []) {
     warnings.push(`${where}: sem capa (campo "thumb"); o catálogo usa uma capa gerada`);
   }
   if (meta.tags && !Array.isArray(meta.tags)) errors.push(`${where}/game.json: "tags" deve ser uma lista`);
+  const versions = readVersions(meta, dir, where);
 
   const updated = git(['log', '-1', '--format=%cI', '--', `games/${slug}`]) || statSync(metaPath).mtime.toISOString();
   const created = meta.created || git(['log', '--diff-filter=A', '--format=%cI', '--', `games/${slug}/game.json`]).split('\n').pop() || updated;
@@ -65,11 +67,51 @@ for (const slug of existsSync(GAMES) ? readdirSync(GAMES).sort() : []) {
     players: meta.players ? String(meta.players) : '1',
     controls: meta.controls ? String(meta.controls) : '',
     online: !!meta.online,
-    entry,
-    thumb: meta.thumb || null,
+    // com versões, a ficha abre a primeira da lista
+    entry: versions ? versions[0].entry : entry,
+    thumb: versions ? versions[0].thumb : meta.thumb || null,
     created,
     updated,
+    ...(versions ? { versions } : {}),
   });
+}
+
+// "versions" no game.json: lista de versões jogáveis do mesmo jogo (atual, antigas, alternativas).
+// A primeira é a padrão. Cada uma: { id, name, entry, thumb?, note?, kind?, created? }.
+function readVersions(meta, dir, where) {
+  if (meta.versions === undefined) return null;
+  const at = `${where}/game.json`;
+  if (!Array.isArray(meta.versions) || !meta.versions.length) { errors.push(`${at}: "versions" deve ser uma lista com pelo menos uma versão`); return null; }
+  const seen = new Set();
+  const safe = p => typeof p === 'string' && p.trim() && !p.startsWith('/') && !p.split(/[\\/]/).includes('..');
+  const out = [];
+  meta.versions.forEach((v, i) => {
+    const vw = `${at}: versão ${i + 1}`;
+    if (!v || typeof v !== 'object') { errors.push(`${vw} deve ser um objeto`); return; }
+    if (typeof v.id !== 'string' || !SLUG_RE.test(v.id)) errors.push(`${vw}: "id" deve ser minúsculo com hífens (ex.: vista-de-cima)`);
+    else if (seen.has(v.id)) errors.push(`${vw}: id "${v.id}" repetido`);
+    else seen.add(v.id);
+    if (typeof v.name !== 'string' || !v.name.trim()) errors.push(`${vw}: "name" é obrigatório`);
+    if (!safe(v.entry)) errors.push(`${vw}: "entry" deve ser um caminho relativo dentro da pasta do jogo`);
+    else if (!existsSync(join(dir, v.entry))) errors.push(`${vw}: arquivo de entrada "${v.entry}" não existe`);
+    if (v.thumb !== undefined) {
+      if (!safe(v.thumb)) errors.push(`${vw}: "thumb" deve ser um caminho relativo dentro da pasta do jogo`);
+      else if (!existsSync(join(dir, v.thumb))) errors.push(`${vw}: capa "${v.thumb}" não existe`);
+      else if (statSync(join(dir, v.thumb)).size > MAX_THUMB) warnings.push(`${vw}: capa tem ${(statSync(join(dir, v.thumb)).size / 1024).toFixed(0)} KB (ideal até 400 KB)`);
+    }
+    if (v.kind !== undefined && !KINDS.includes(v.kind)) errors.push(`${vw}: "kind" deve ser ${KINDS.map(k => `"${k}"`).join(' ou ')}`);
+    if (v.created !== undefined && !/^\d{4}-\d{2}-\d{2}$/.test(String(v.created))) errors.push(`${vw}: "created" deve ser AAAA-MM-DD`);
+    out.push({
+      id: String(v.id),
+      name: String(v.name || v.id).trim(),
+      note: v.note ? String(v.note).trim() : '',
+      kind: v.kind || null,
+      entry: String(v.entry),
+      thumb: v.thumb || meta.thumb || null,
+      created: v.created ? String(v.created) : null,
+    });
+  });
+  return out.length === meta.versions.length ? out : null;
 }
 
 for (const w of warnings) console.log('  aviso: ' + w);
