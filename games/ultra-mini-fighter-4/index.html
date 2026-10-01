@@ -227,7 +227,8 @@ const Audio = {
     // música: bateria · baixo/pads/arpejo (com "pump" do bumbo) · melodia → filtro (abafa no super e no K.O.) → ducking
     this.duckG = ac.createGain(); this.duckG.connect(this.out);
     this.muffleF = ac.createBiquadFilter(); this.muffleF.type = 'lowpass'; this.muffleF.frequency.value = 20000; this.muffleF.Q.value = .8; this.muffleF.connect(this.duckG);
-    this.musicBus = ac.createGain(); this.musicBus.connect(this.muffleF);
+    this.synthG = ac.createGain(); this.synthG.connect(this.muffleF);     // some/volta a música sintetizada quando entra uma faixa gravada
+    this.musicBus = ac.createGain(); this.musicBus.connect(this.synthG);
     this.trackG = ac.createGain(); this.trackG.connect(this.muffleF);   // faixas gravadas (abertura, seleção)
     this.drumBus = ac.createGain(); this.drumBus.connect(this.musicBus);
     this.pumpG = ac.createGain(); this.pumpG.connect(this.musicBus);
@@ -358,6 +359,7 @@ const Audio = {
     if (!this.ac || SIM.silent) return; const t = this.ac.currentTime, q = this.muffleF.frequency;
     q.cancelScheduledValues(t); q.setValueAtTime(Math.max(f, Math.min(20000, q.value)), t); q.exponentialRampToValueAtTime(f, t + .07); q.setValueAtTime(f, t + hold); q.exponentialRampToValueAtTime(20000, t + hold + .6);
   },
+  synthFade(v, dur) { if (!this.ac || !this.synthG) return; const t = this.now, g = this.synthG.gain; g.cancelScheduledValues(t); g.setValueAtTime(g.value, t); g.linearRampToValueAtTime(v, t + dur); },
   // "pump": baixo, pads e arpejo abaixam a cada bumbo e voltam (respiração da música)
   pump(t, len) { const g = this.pumpG.gain; g.cancelScheduledValues(t); g.setValueAtTime(.45, t); g.linearRampToValueAtTime(1, t + len); },
   get now() { return this.ac ? this.ac.currentTime : 0; },
@@ -490,6 +492,8 @@ const Audio = {
       case 'back': this.osc('triangle', 1318, t, .06, { vol: .06 }); this.osc('triangle', 880, t + .05, .12, { vol: .06 }); break;
       case 'heart': this.thump(t, 62, 42, .12, .5, { lp: 300 }); this.thump(t + .17, 56, 40, .1, .34, { lp: 300 }); break;   // vida no fim: batimento
       case 'combo': { const n = Math.min(k, 14), f0 = 1046 * Math.pow(2, [0, 2, 4, 7, 9, 12, 14, 16, 19, 21, 24, 26][(n - 3) % 12] / 12); this.osc('triangle', f0, t, .1, { vol: .035 }); this.osc('sine', f0 * 2, t, .06, { vol: .014 }); break; }
+      case 'swoosh':   // passagem para o tema da seleção: ar subindo + brilho suave
+        this.whoosh(t, .55, 300, 2600, 1800, .12, { send: R }); this.noise(t + .25, .7, { type: 'highpass', f: 6000, vol: .05, a: .25, send: R }); break;
       // abertura do narrador: estrondo grave + prato com reverb (segundo golpe no "FOUR!")
       case 'titlehit':
         for (const d of [0, 2.08]) { this.osc('sine', 55, t + d, 1.6, { slide: 30, vol: .9, send: R }); this.noise(t + d, 1.4, { type: 'lowpass', f: 900, fTo: 120, vol: .55, send: R }); this.noise(t + d, 1.1, { f: 6000, fTo: 2500, q: .7, vol: .22, send: R }); }
@@ -719,13 +723,24 @@ const Music = {
       Tracks.load(T.src).then(bb => { if (bb && this.name == name && !this.trk && !this.hold) { this.cur = null; this.startTrack(T, bb); } });
     }
     this.cur = SONGS[name] || (T && SONGS[T.alt]) || null;
+    Audio.synthFade(1, .08);                                                           // música sintetizada de volta (se tinha saído para uma faixa)
   },
   stop() { this.cur = null; this.name = ''; this.stopTrack(); },
+  // entrada da faixa: a música anterior sai abafando enquanto esta sobe com o filtro abrindo, mais um "swoosh" de passagem
   startTrack(T, b) {
-    const A = Audio, src = A.ac.createBufferSource(), g = A.ac.createGain(); src.buffer = b; src.loop = true; src.loopStart = T.loopStart; src.loopEnd = Math.min(T.loopEnd, b.duration);
-    g.gain.setValueAtTime(0, A.now); g.gain.setTargetAtTime(T.gain, A.now, .04); src.connect(g).connect(A.trackG); src.start(A.now + .02); this.trk = { src, g };
+    const A = Audio, ac = A.ac, t = A.now + .03, src = ac.createBufferSource(), lp = ac.createBiquadFilter(), g = ac.createGain();
+    src.buffer = b; src.loop = true; src.loopStart = T.loopStart; src.loopEnd = Math.min(T.loopEnd, b.duration);
+    lp.type = 'lowpass'; lp.Q.value = .9; lp.frequency.setValueAtTime(350, t); lp.frequency.exponentialRampToValueAtTime(20000, t + 1.1);
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(T.gain * .55, t + .35); g.gain.linearRampToValueAtTime(T.gain, t + 1.1);
+    src.connect(lp).connect(g).connect(A.trackG); src.start(t); this.trk = { src, g, lp };
+    A.synthFade(0, .7); A.sfx('swoosh');
   },
-  stopTrack() { const k = this.trk; if (!k) return; const t = Audio.now; try { k.g.gain.setTargetAtTime(0, t, .12); k.src.stop(t + .7); } catch (e) {} this.trk = null; },
+  // saída da faixa: abafa e some em meio segundo
+  stopTrack() {
+    const k = this.trk; if (!k) return; const t = Audio.now;
+    try { k.g.gain.cancelScheduledValues(t); k.g.gain.setValueAtTime(k.g.gain.value, t); k.g.gain.linearRampToValueAtTime(0, t + .55); k.lp.frequency.cancelScheduledValues(t); k.lp.frequency.setValueAtTime(Math.min(20000, k.lp.frequency.value), t); k.lp.frequency.exponentialRampToValueAtTime(500, t + .55); k.src.stop(t + .6); } catch (e) {}
+    this.trk = null;
+  },
   tick() {
     const A = Audio; if (!A.ac || !this.cur || !settings.music) return;
     const s = this.cur, dt = 60 / (s.bpm * (this.hot ? 1.07 : 1)) / 4;          // round decisivo / vida baixa: acelera
