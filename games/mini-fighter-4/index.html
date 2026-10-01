@@ -1005,6 +1005,32 @@ const ANIM = {
   hook:     { W: [54, -6, -4, 100, 18, 94, 14, 0, -20, 0, 0], A: [52, 20, 56, 104, 8, 90, 22, 0, -24, 0, .08], A2: [52, 20, 20, 92, 60, 100, 22, 0, -24, 0, .08] },
   pose:     { W: [56, 0, 30, 120, 10, 110, 14, 0, -18, 0, 0], A: [58, -6, 40, 150, -30, 150, 18, 0, -20, 0, 0] },
   spit:     { W: [40, 10, 24, 80, 14, 74, 22, 0, -20, 0, 0], A: [44, 26, 40, 84, 20, 76, 26, 0, -24, 0, 0] },
+  // --- NERVO (membros elásticos: mãos e pés chegam a ~200 à frente) ---
+  nervo_lp: { W: [52, -6, -2, 92, 12, 76, 16, 0, -20, 0, 0], A: [52, 14, 108, 98, 12, 72, 18, 0, -18, 0, 0] },
+  nervo_mp: { W: [52, -6, -2, 92, 12, 76, 16, 0, -20, 0, 0], A: [50, 16, 148, 96, 10, 72, 20, 0, -20, 0, 0] },
+  nervo_hp: { W: [52, -6, -2, 92, 12, 76, 16, 0, -20, 0, 0], A: [48, 20, 194, 98, 6, 74, 22, 0, -22, 0, 0] },
+  nervo_lk: { W: [54, -8, 14, 88, 4, 78, 22, 30, -18, 0, 0], A: [54, -4, 20, 90, 6, 80, 106, 28, -16, 0, 0] },
+  nervo_mk: { W: [54, -8, 14, 88, 4, 78, 22, 30, -18, 0, 0], A: [54, -10, 18, 94, 4, 84, 158, 52, -14, 0, 0] },
+  nervo_hk: { W: [54, -8, 14, 88, 4, 78, 22, 30, -18, 0, 0], A: [56, -16, 14, 98, 0, 88, 178, 84, -12, 0, 0] },
+  nervo_clp: { W: [32, 8, 2, 64, 12, 58, 22, 0, -18, 0, 0], A: [30, 14, 100, 60, 12, 56, 22, 0, -18, 0, 0] },
+  nervo_cmp: { W: [32, 8, 2, 64, 12, 58, 22, 0, -18, 0, 0], A: [30, 16, 142, 62, 10, 56, 22, 0, -18, 0, 0] },
+  nervo_chp: { W: [32, 8, 2, 64, 12, 58, 22, 0, -18, 0, 0], A: [36, 4, 40, 196, 10, 64, 22, 0, -18, 0, 0] },
+  nervo_clk: { W: [30, 4, 20, 66, 10, 58, 30, 8, -18, 0, 0], A: [28, 4, 24, 66, 12, 58, 106, 6, -20, 0, 0] },
+  nervo_cmk: { W: [30, 4, 20, 66, 10, 58, 30, 8, -18, 0, 0], A: [26, 0, 22, 62, 10, 54, 158, 6, -22, 0, 0] },
+  nervo_chk: { W: [30, 4, 20, 66, 10, 58, 30, 8, -18, 0, 0], A: [22, -8, 20, 56, 4, 48, 190, 8, -24, 0, 0] },
+  nervo_cabeca: { W: [54, -14, 0, 86, -6, 80, 14, 0, -20, 0, 0], A: [50, 36, 22, 86, 6, 80, 26, 0, -28, 0, 0] },
+  nervo_cobra: { W: [46, 6, 62, 92, -60, 98, 26, 0, -26, 0, 0], A: [48, 0, 52, 132, -50, 128, 24, 0, -24, 0, 0], A2: [46, 6, 62, 92, -60, 98, 26, 0, -26, 0, 0] },
+  nervo_vibora: { W: [34, 12, 4, 70, 10, 62, 20, 0, -18, 0, 0], A: [66, 22, 168, 58, -10, 100, 10, 40, -22, 52, 0] },
+  nervo_tornado: { W: [52, -12, -62, 102, 10, 90, 16, 0, -20, 0, 0], A: [50, 14, 150, 84, 10, 96, 18, 0, -20, 0, 0], A2: [50, 10, 96, 150, 10, 96, 18, 0, -20, 0, 0] },
+  nervo_presa: { W: [40, 14, -20, 70, 10, 64, 24, 0, -24, 0, 0], A: [34, 26, 176, 22, 10, 62, 24, 0, -26, 0, 0] },
+  nervo_chicote: { W: [30, 4, 20, 66, 10, 58, 30, 8, -18, 0, 0], A: [24, -12, 18, 58, 4, 50, 204, 6, -24, 0, 0] },
+  nervo_recolher: { W: [40, -18, -10, 70, -22, 62, 8, 0, -30, 0, 0], A: [40, -18, -10, 70, -22, 62, 8, 0, -30, 0, 0] },
+  nervo_tempestade: { W: [44, 8, 20, 70, -20, 66, 24, 0, -24, 0, 0], A: [50, 0, 70, 162, -70, 158, 30, 0, -30, 0, 0] },
+  nervo_bomba: { W: [44, 8, 20, 70, -20, 66, 24, 0, -24, 0, 0], A: [50, 16, 64, 108, 56, 94, 18, 0, -20, 0, 0] },
+  nervo_jp: { W: [70, 2, 10, 106, 12, 100, 18, 46, -10, 54, 0], A: [70, 12, 96, 70, 10, 102, 20, 46, -8, 54, 0] },
+  nervo_jhp: { W: [70, -2, 0, 118, 12, 100, 18, 46, -10, 54, 0], A: [68, 18, 126, 14, 8, 100, 20, 44, -8, 54, 0] },
+  nervo_jk: { W: [68, 0, 20, 110, 8, 100, 24, 50, -6, 52, 0], A: [68, -6, 20, 108, 8, 100, 96, 26, -6, 52, 0] },
+  nervo_jhk: { W: [68, -4, 16, 110, 6, 100, 14, 56, -8, 46, 0], A: [66, -12, 14, 110, 4, 102, 142, 18, -10, 50, 0.1] },
 };
 const P_CRAWL = [40, 22, 36, 70, 24, 64, 24, 0, -22, 0, 0];
 
@@ -1230,6 +1256,7 @@ function getMove(ch, key) {
   } else if (key == 'vskill') src = ch.vskill;
   else if (ch.extraMoves && ch.extraMoves[key]) src = ch.extraMoves[key];
   else if (key == 'super') src = ch.moves.super(0);
+  else if (key == 'super2') src = ch.moves.super2(0);   // Critical Art (só quem tem super2)
   else { const [k, s] = key.split(':'); const fn = ch.moves[k]; if (!fn) throw new Error('golpe inexistente ' + ch.id + ' ' + key); src = fn(+s || 0); }
   return ch._c[key] = compileMove(src, key, ch);
 }
@@ -1280,7 +1307,7 @@ class Fighter {
     if (!(free || airFree || airCancel || cancel || conv || convAir)) return null;
     if (this.want) {
       // golpes pedidos direto (IA/desafios) obedecem às MESMAS regras de cancelamento do jogador
-      const w = this.want, isSu = w == 'super', isSp = w.includes(':');
+      const w = this.want, isSu = w == 'super' || w == 'super2', isSp = w.includes(':');
       if (cancel || airCancel) {
         if (isSu) { if (!m.cancel.su || m.super) return null; }
         else if (isSp) { if (!m.cancel.sp || m.special) return null; }
@@ -1293,6 +1320,10 @@ class Fighter {
     if (!P && !K) return dashF ? 'dashF' : dashB ? 'dashB' : null;
     // super: só pelo comando (sem atalho de botões)
     const canSu = !air && this.meter >= SUPER_COST && (!m || !m.super) && (!cancel || m.cancel.su);
+    if (canSu && ch.super2 && this.meter >= (ch.super2.cost || METER_MAX)) {      // Critical Art: comando próprio, custa 3 barras
+      const s2 = ch.super2, b = s2.btn == 'P' ? P : K;
+      if (b && Cmd.motion(this, s2.input, this.in.bt[b]) != null) return 'super2';
+    }
     if (canSu) {
       const su = ch.superCmd || { input: '236236', btn: 'P' }, b = su.btn == 'P' ? P : K;
       if (b && Cmd.motion(this, su.input, this.in.bt[b]) != null) return 'super';
@@ -1334,7 +1365,7 @@ class Fighter {
     const air = this.y > 0;
     if (!!mv.air != air && !mv.airOk) { this.want = null; return; }
     if (key.endsWith(':3') && this.meter < EX_COST) key = key.slice(0, -1) + '2';
-    if (mv.super && this.meter < SUPER_COST) return;
+    if (mv.super && this.meter < (mv.cost || SUPER_COST)) return;
     mv = getMove(this.ch, key);
     if (mv.proj && !mv.multiProj && M.projs.some(p => p.o === this.i && !p.dead)) return;
     this.want = null; this.wantBufT = 0;
@@ -1349,7 +1380,7 @@ class Fighter {
     this.crouch = !!m.crouch;
     if (key == 'throw') this.throwBack = this.holdBack;
     if (key == 'vskill') this.airVs = true;             // uma V-Skill por pulo (a do chão também conta se decolar)
-    if (m.super) { this.meter -= SUPER_COST; Combat.superFlash(this, m); }
+    if (m.super) { this.meter -= m.cost || SUPER_COST; Combat.superFlash(this, m); }
     else if (key.endsWith(':3')) { this.meter -= EX_COST; Combat.exFlash(this, m); }
     else if (m.special) this.meter = Math.min(METER_MAX, this.meter + 3);
     if (m.shout && !m.super) Audio.shout(this.ch, m.shout, this);
@@ -1681,7 +1712,7 @@ const Combat = {
     a.grabDone = true; a.contact = 1;
     if (g.normal && o.in.ic - o.in.throwT <= 7) { this.tech(a, o); return; }
     if (g.cine) return this.startCine(a, o, g.cine, g);
-    o.setSt('thrown'); o.mv = null; a.setSt('throw'); a.thr = { dmg: g.dmg, type: g.type || 'throw', normal: !!g.normal, t: 0, back: !!(g.normal && a.throwBack) };
+    o.setSt('thrown'); o.mv = null; a.setSt('throw'); a.thr = { dmg: g.dmg, type: g.type || 'throw', normal: !!g.normal, t: 0, back: !!(g.normal && a.throwBack), shock: g.shock || null, sn: 0 };
     Audio.sfx('throw', 1, a.x);
   },
   throwStep(a, o) {
@@ -1696,6 +1727,11 @@ const Combat = {
       o.y = T.t < 16 ? T.t * 9 : Math.max(0, 144 - (T.t - 16) * 36); o.cineRot = T.t < 16 ? -T.t * .08 : 0;
       if (T.t % 4 == 0) FX.aura(o, 3);
       if (T.t >= 20) { FX.shock(o.x); M.trauma = Math.min(1, (M.trauma || 0) + .45); this.release(a, o, T.dmg, 2, 5); a.face = o.x >= a.x ? 1 : -1; }
+    } else if (T.type == 'pull') {
+      // puxa o oponente 25% da distância por quadro até ficar na frente, com descargas no caminho; solta no quadro 38
+      const tx = clamp(a.x + a.face * 62 * s, 30, STAGE_W - 30); o.x += (tx - o.x) * .25; o.y = 0; o.cineRot = 0;
+      if (T.shock && T.sn < T.shock[0] && T.t >= 12 && T.t % 9 == 3) { T.sn++; const d = T.shock[1]; o.hp = Math.max(0, o.hp - d); o.grey = 0; a.stats.dmg += d; o.flash = 2; FX.hit(o.x, o.y + 80, a.face, 1, '#9ef'); Audio.sfx('elec', 1, o.x); }
+      if (T.t >= 38) this.release(a, o, T.dmg, 3, 6, 'soft');
     } else if (T.type == 'air') {
       // agarrão aéreo: leva o oponente junto na queda e o crava no chão
       if (T.t == 1) a.vy = Math.max(a.vy, 2);
@@ -1710,9 +1746,9 @@ const Combat = {
       if (T.t >= 16) { if (T.back) a.face = -a.face; this.release(a, o, T.dmg, 5, 7); }
     }
   },
-  release(a, o, dmg, vx, vy) {
+  release(a, o, dmg, vx, vy, kd = 'hard') {
     a.combo = 1; a.comboDmg = dmg; a.starterL = false; o.hp = Math.max(0, o.hp - dmg); o.grey = 0; o.greyT = 0; o.lastDmg = 'V'; o.cineRot = 0; a.stats.dmg += dmg;
-    o.kdType = 'hard'; o.setSt('knock'); o.juggle = 9; o.vy = vy; o.vx = a.face * vx; o.y = Math.max(o.y, 5); o.flash = 2;
+    o.kdType = kd; o.setSt('knock'); o.juggle = 9; o.vy = vy; o.vx = a.face * vx; o.y = Math.max(o.y, 5); o.flash = 2;
     a.thr = null; a.setSt('land'); a.landT = 10; a.meter = Math.min(METER_MAX, a.meter + 8);
     FX.hit(o.x, o.y + 50, a.face, 1.5, 'H'); Audio.sfx('slam', 1, o.x); M.trauma = Math.min(1, (M.trauma || 0) + .3); M.stop = Math.max(M.stop, 8);
   },
@@ -2104,6 +2140,12 @@ Object.assign(CINE_SCRIPTS, {
     else if (c.t < 54) { a.y = lerp(a.y, 140, .2); o.x = a.x; o.y = a.y + 130 * s; o.cineRot = Math.PI; }
     else if (c.t < 62) { a.y = Math.max(0, a.y - 24); o.y = Math.max(0, a.y + 30); }
     if (c.t == 62) { a.y = 0; o.y = 0; FX.shock(o.x); FX.dust(o.x, 0, 30); K.cineHit(a, o, 42, 1); Audio.sfx('slam', 1, o.x); return true; }
+  },
+  // NERVO: Bomba de Choque — ergue o oponente a 80 com os braços esticados, 6 descargas e a explosão final
+  shockbomb: (c, a, o, s, K) => {
+    o.x = clamp(a.x + a.face * 66 * s, 30, STAGE_W - 30); o.y = Math.min(80, c.t * 4); o.cineRot = Math.sin(c.t * .9) * .15;
+    if (c.t % 11 == 0 && c.n < 6) { c.n++; K.cineHit(a, o, 3); Audio.sfx('elec', 1, o.x); FX.aura(o, 6); }
+    if (c.t == 84) { o.y = 0; FX.shock(o.x); K.cineHit(a, o, 15, 1); Audio.sfx('elec', 1.4, o.x); return true; }
   },
   hamonbeat: cineFlurry({ every: 6, n: 8, dmg: 3, fin: 54, finDmg: 12, dist: 56, fx: (a, o) => FX.add({ type: 'glow', x: o.x + rnd(-20, 20), y: o.y + rnd(40, 110), l: 16, s: 10, col: '#ffe04a' }) }),
 });
@@ -2839,6 +2881,98 @@ defChar({
   ai: { grab: 'greet', aa: 'mega', enders: ['giga', 'hammer'], rush: 1, poke: 'smp', bnb: ['clp', 'cmp'] }
 });
 
+// ===== NERVO (inspiração: Necro, SF3): membros elásticos e eletricidade, sem projétil — controla a distância com os próprios braços e pernas =====
+// Valores da ficha convertidos para a escala do IV (vida 960 → 96, dano ÷ 10). Hurtbox: os normais já expõem o membro esticado (motor);
+// nos especiais esticados a área do membro entra em "hurt" (limb), então um golpe longo que erra pode ser punido acertando o braço.
+const NERVO_LIMB = b => ({ box: [b[0] - 10, b[1] - 2, Math.round(b[2] * .95) + 10, b[3] + 4] });
+defChar({
+  id: 'nervo', name: 'NERVO', title: 'Cobra de Cobre', style: 'Alcance / Elétrico', stats: [3, 2, 3], stage: 'station', aura: '#3ad0e0',
+  quote: 'Meu braço chega antes do seu medo.', voice: { spk: 'nervo', pitch: .95 },
+  look: { gloveType: 'bare', skin: '#a9b6bc', hair: 'flattop', hairC: '#1e2224', band: '#2a2e30', eyeGlow: '#9ff4ff', torso: 'bare', pants: '#4a5040', sleeve: 'none', glove: '#a9b6bc', feet: 'bare', belt: '#2a2a24', bracelets: 1, thin: 1 },
+  palettes: [{}, { pants: '#2a3a5a', band: '#8a1e2a', skin: '#b8a89a', glove: '#b8a89a', eyeGlow: '#fff2c4' }, { pants: '#3a3a3a', band: '#d0d0d0', eyeGlow: '#e0b0ff' }, { pants: '#6a4a2a', band: '#1a1a1a', eyeGlow: '#c8ffc0' }],
+  sz: 1.04, hp: 96, walkF: 3.0, walkB: 2.5, jumpV: 14, jumpX: 3.9, grav: .85, stretch: 1,
+  stance: [50, 18, 34, 72, 16, 64, 20, 0, -22, 0, 0], winPose: [54, -6, 40, 170, -34, 160, 20, 0, -22, 0, 0],
+  normals: {
+    slp: { anim: 'nervo_lp', startup: 5, active: 2, recovery: 9, hits: [{ box: [20, 90, 92, 16], dmg: 3, lv: 'L', onHit: 2, onBlock: 0 }] },
+    smp: { anim: 'nervo_mp', startup: 8, active: 3, recovery: 15, cancel: { sp: 1, su: 1 }, hits: [{ box: [24, 88, 130, 18], dmg: 5.5, lv: 'M', onHit: 2, onBlock: -2 }] },
+    shp: { anim: 'nervo_hp', startup: 12, active: 3, recovery: 21, cancel: { sp: 1, su: 1 }, hits: [{ box: [28, 88, 172, 22], dmg: 8, lv: 'H', onHit: 1, onBlock: -5 }] },
+    slk: { anim: 'nervo_lk', startup: 5, active: 3, recovery: 10, cancel: { sp: 1, su: 1 }, hits: [{ box: [20, 20, 92, 20], dmg: 3, lv: 'L', onHit: 1, onBlock: -2 }] },
+    smk: { anim: 'nervo_mk', startup: 10, active: 3, recovery: 18, cancel: {}, hits: [{ box: [22, 42, 132, 22], dmg: 6, lv: 'M', onHit: 1, onBlock: -4 }] },
+    shk: { anim: 'nervo_hk', startup: 14, active: 3, recovery: 22, cancel: {}, hits: [{ box: [24, 72, 160, 26], dmg: 9, lv: 'H', onHit: 2, onBlock: -5 }] },
+    clp: { anim: 'nervo_clp', startup: 5, active: 2, recovery: 8, hits: [{ box: [20, 54, 86, 16], dmg: 2.5, lv: 'L', onHit: 2, onBlock: 0 }] },
+    cmp: { anim: 'nervo_cmp', startup: 8, active: 3, recovery: 13, cancel: { sp: 1, su: 1 }, hits: [{ box: [24, 56, 124, 18], dmg: 5.5, lv: 'M', onHit: 3, onBlock: -1 }] },
+    chp: { anim: 'nervo_chp', startup: 10, active: 4, recovery: 22, upperInv: undefined, cancel: { sp: 1, su: 1 }, hits: [{ box: [18, 90, 48, 110], dmg: 7.5, lv: 'H', onHit: 0, onBlock: -9 }] },   // "Mola Vertical": anti-aéreo sem invencibilidade
+    clk: { anim: 'nervo_clk', startup: 5, active: 2, recovery: 10, hits: [{ box: [20, 0, 90, 16], dmg: 2, lv: 'L', low: 1, onHit: 1, onBlock: -2 }] },
+    cmk: { anim: 'nervo_cmk', startup: 11, active: 3, recovery: 19, cancel: { sp: 1, su: 1 }, hits: [{ box: [24, 0, 130, 18], dmg: 5, lv: 'M', low: 1, onHit: 0, onBlock: -5 }] },
+    chk: { anim: 'nervo_chk', startup: 11, active: 3, recovery: 26, hits: [{ box: [24, 0, 172, 20], dmg: 9, lv: 'H', low: 1, kd: 'hard', onBlock: -14 }] },   // "Rasteira Elástica"
+    jlp: { anim: 'nervo_jp', startup: 5, active: 7, hits: [{ box: [14, 50, 82, 24], dmg: 4, lv: 'L', high: 1, hs: 14, bs: 12 }] },
+    jmp: { anim: 'nervo_jp', startup: 7, active: 5, hits: [{ box: [14, 30, 104, 34], dmg: 6, lv: 'M', high: 1, hs: 17, bs: 14 }] },
+    jhp: { anim: 'nervo_jhp', startup: 9, active: 5, hits: [{ box: [14, 0, 118, 40], dmg: 8, lv: 'H', high: 1, hs: 20, bs: 16 }] },
+    jlk: { anim: 'nervo_jk', startup: 5, active: 8, hits: [{ box: [10, 18, 84, 26], dmg: 4, lv: 'L', high: 1, hs: 14, bs: 12 }] },
+    jmk: { anim: 'nervo_jk', startup: 7, active: 6, hits: [{ box: [-16, 10, 110, 30], dmg: 6, lv: 'M', high: 1, hs: 17, bs: 14, crossup: 1 }] },
+    jhk: { anim: 'nervo_jhk', startup: 9, active: 5, hits: [{ box: [12, 10, 136, 30], dmg: 8, lv: 'H', high: 1, hs: 20, bs: 16 }] },
+    dashF: { dur: 20, vel: [[1, 17, 6, null]] },
+    dashB: { dur: 24, vel: [[1, 19, -5.5, null]], inv: { strike: [1, 7], throw: [1, 20] } },
+  },
+  cmdNormals: [
+    // Cabeçada Elétrica: ferramenta de curta distância
+    { key: '6hp', dir: [6], btn: 'hp', move: { anim: 'nervo_cabeca', name: 'Cabeçada Elétrica', startup: 7, active: 3, recovery: 15, fx: 'elec', vel: [[4, 8, 2, null]], cancel: { sp: 1, su: 1 }, hits: [{ box: [14, 96, 44, 30], dmg: 7, lv: 'H', snd: 'elec', onHit: 3, onBlock: -1 }] } },
+  ],
+  specials: [{ id: 'presa', input: '63214', btn: 'P' }, { id: 'vibora', input: '236', btn: 'P' }, { id: 'tornado', input: '214', btn: 'P' }, { id: 'chicote', input: '236', btn: 'K' }, { id: 'cobra', input: 'P3', btn: 'P', fixed: 1 }],
+  moves: {
+    // Cobra Elétrica (3 socos juntos): descarga em volta do corpo, 5 acertos, pega na frente e um pouco atrás
+    cobra: () => {
+      const hits = multi(5, 7, 5, 2, { box: [-60, 10, 150, 136], dmg: 2.2, lv: 'SP', hs: 16, bs: 10, snd: 'elec', push: 1.5 });
+      Object.assign(hits[4], { dmg: 4, kd: 'soft', launch: { vx: 3, vy: 7 } });
+      return { anim: 'nervo_cobra', alt: 1, name: 'Cobra Elétrica', fx: 'elec', startup: 7, active: 23, recovery: 21, cancel: { su: 1 }, hits };
+    },
+    // Víbora Voadora (236P): salta e estica o soco na diagonal; acerta alto, termina ao tocar o chão
+    vibora: s => {
+      const st = S3(s, [12, 13, 14, 11]), box = [20, 30, 150, 40];
+      const hits = s == 3 ? [{ f: [11, 15], box, dmg: 6, lv: 'SP', high: 1, hs: 20, bs: 14 }, { f: [16, 40], box, dmg: 6, lv: 'SP', high: 1, kd: 'soft', hs: 20, bs: 14 }]
+        : [{ f: [st, st + 26], box, dmg: S3(s, [7, 8, 9]), lv: 'SP', high: 1, hs: 20, bs: 14 }];
+      return { anim: 'nervo_vibora', name: 'Víbora Voadora', startup: st, active: 30, recovery: 0, vel: [[4, 4, S3(s, [3, 4.5, 6, 5]), 7.5]], landEnd: 12, cancel: { su: 1 }, hits, hurt: [Object.assign({ f: [st, 60] }, NERVO_LIMB(box))] };
+    },
+    // Soco Tornado (214P): gancho em arco longo; L fica +1 na defesa, H gira e derruba, EX é invencível no começo
+    tornado: s => {
+      const st = S3(s, [9, 11, 13, 8]), n = S3(s, [1, 2, 3, 4]), dmg = S3(s, [8.5, 5.5, 4.5, 4]), box = [20, 56, 134, 60], act = (n - 1) * 6 + 3, dur = S3(s, [27, 39, 51, 50]);
+      const hits = multi(n, st, 6, 2, { box, dmg, lv: 'SP', hs: 16, bs: 12, push: 2.5 }), last = hits[n - 1]; last.push = 6;   // empurrão 3 por acerto e 6 no último (ficha)
+      if (s == 0) Object.assign(last, { onHit: 5, onBlock: 1 });
+      if (s == 1) Object.assign(last, { onHit: 1, onBlock: -3 });
+      if (s == 2) Object.assign(last, { kd: 'soft', launch: { vx: 3, vy: 6 }, onBlock: -6 });
+      if (s == 3) Object.assign(last, { kd: 'soft', onBlock: -2 });
+      return { anim: 'nervo_tornado', alt: n > 1 ? 1 : 0, name: 'Soco Tornado', fx: 'elec', startup: st, active: act, recovery: dur - (st + act - 1), cancel: { su: 1 },
+        inv: s == 3 ? { strike: [1, 7], throw: [1, 7] } : {}, hits, hurt: [Object.assign({ f: [st, dur] }, NERVO_LIMB(box))] };
+    },
+    // Presa de Serpente (63214P): agarrão à distância, rente ao chão; puxa com descargas. Não pega no ar
+    presa: s => {
+      const st = S3(s, [15, 17, 19, 11]), dur = S3(s, [47, 51, 55, 46]);
+      return { anim: 'nervo_presa', name: 'Presa de Serpente', startup: st, active: 3, recovery: dur - (st + 2) + 8, inv: s == 3 ? { strike: [1, 5], throw: [1, 5] } : {},
+        hurt: [Object.assign({ f: [st, st + 10] }, NERVO_LIMB([20, 10, S3(s, [154, 184, 214, 234]), 30]))],
+        grab: { range: S3(s, [148, 177, 206, 225]), dmg: s == 3 ? 11 : 8.5, type: 'pull', shock: s == 3 ? [3, 2.5] : [2, 2] } };
+    },
+    // Chicote (236K): chute baixo que estica pelo chão
+    chicote: s => {
+      const st = S3(s, [11, 13, 17, 10]), reach = S3(s, [150, 175, 200, 200]), box = [24, 0, reach - 24, 22];
+      const hits = s == 3 ? [{ f: [10, 11], box, dmg: 6, lv: 'SP', low: 1, hs: 16, bs: 10 }, { f: [14, 16], box, dmg: 6, lv: 'SP', low: 1, kd: 'hard' }]
+        : [Object.assign({ box, dmg: S3(s, [6, 7, 7.5]), lv: 'SP', low: 1 }, s == 2 ? { kd: 'soft', onBlock: -10 } : { onHit: 2, onBlock: -10 })];
+      return { anim: 'nervo_chicote', name: 'Chicote', crouch: 1, startup: st, active: s == 3 ? 7 : 3, recovery: S3(s, [19, 22, 25, 22]), cancel: { su: 1 }, hits, hurt: [Object.assign({ f: [st, st + 20] }, NERVO_LIMB(box))] };
+    },
+    // TEMPESTADE MAGNÉTICA (236236P, 2 barras): reversal e anti-aéreo, 6 acertos numa área enorme, juggle ilimitado
+    super: () => {
+      const hits = multi(6, 3, 5, 2, { box: [-80, 0, 210, 190], dmg: 4.5, lv: 'SA', hs: 20, bs: 10, jLimit: 99, snd: 'elec', push: 1 });
+      Object.assign(hits[5], { dmg: 10, kd: 'hard', launch: { vx: 3, vy: 10 } });
+      return { anim: 'nervo_tempestade', super: 1, name: 'TEMPESTADE MAGNÉTICA', fx: 'elec', startup: 3, active: 28, recovery: 36, inv: { strike: [1, 8], throw: [1, 8], proj: [1, 8] }, hits };
+    },
+    // BOMBA DE CHOQUE (236236K, 3 barras): agarrão elétrico; invencível a golpes e projéteis, mas dá pra escapar com arremesso
+    super2: () => ({ anim: 'nervo_bomba', super: 1, cost: 300, name: 'BOMBA DE CHOQUE', startup: 5, active: 5, recovery: 40, inv: { strike: [1, 7], proj: [1, 7] }, grab: { range: 135, dmg: 0, cine: 'shockbomb' } }),
+  },
+  super2: { input: '236236', btn: 'K', cost: 300 },
+  // V-Skill Recolher: esquiva elástica para trás (sem ataque, recuperação punível)
+  vskill: { anim: 'nervo_recolher', startup: 99, dur: 28, move: 1, vel: [[2, 12, -7.5, null]], inv: { strike: [2, 12], throw: [1, 16], proj: [1, 16] }, name: 'RECOLHER' },
+  ai: { aa: 'chp', grab: 'presa', enders: ['chicote', 'tornado', 'vibora'], rush: 1, poke: 'cmk', bnb: ['clp', 'clp'] }
+});
+
 </script>
 <script>/* src/data/exfix.js */
 // ===== EX revisados: todo EX muda alguma propriedade do golpe em relação ao forte (mais acertos, armadura, invencibilidade, alcance, derrubada...) =====
@@ -2894,6 +3028,7 @@ defChar({
 <script>/* src/data/endings.js */
 // ===== finais do modo arcade (um por lutador) =====
 const ENDINGS = {
+  nervo: 'Nervo destrói o laboratório que o criou. Entre faíscas e fios desencapados, sussurra: "Eles me fizeram assim... agora ninguém mais vai passar por isso."',
   kai: 'Com o torneio vencido, Kai recusa o troféu e volta à estrada. "A vitória não é o fim. A verdadeira luta continua." Ao longe, uma nova montanha espera por ele.',
   akio: 'Akio ergue o troféu diante das câmeras e liga para a esposa: "Ganhei de novo, amor!". Depois, manda uma mensagem ao velho rival: "Da próxima vez, venha com tudo."',
   mei: 'Com as provas contra a organização de Kaiser, Mei desmonta a rede de contrabando. Em frente ao túmulo do pai, deixa uma flor de lótus: "Está feito, pai."',
@@ -3000,6 +3135,7 @@ const Anim = {
           case 'buffalo': case 'rolling': case 'kaisen': case 'hamonbeat': p = (c.t >> 2) % 2 ? ANIM.hook.A : ANIM.hook.A2; break;
           case 'jackhammer': p = (c.t >> 2) % 2 ? ANIM.chop.A : ANIM.slap.A2; break;
           case 'bloody': p = ANIM.rush.A; flip = ((c.t >> 2) % 2) == 1; break;
+          case 'shockbomb': p = (c.t >> 1) % 2 ? ANIM.nervo_bomba.A : ANIM.nervo_tempestade.A; break;
           default: p = ANIM.rush.A;
         }
         break;
@@ -4760,6 +4896,7 @@ function moveName(ch, id) { let n = null; try { n = getMove(ch, id + ':1').name;
 function moveList(ch) {
   const su = ch.superCmd || { input: '236236', btn: 'P' }, L = [];
   L.push([getMove(ch, 'super').name || 'SUPER', notation(su.input, su.btn) + '  (2 barras)', 1]);
+  if (ch.super2) L.push([getMove(ch, 'super2').name || 'CRITICAL ART', notation(ch.super2.input, ch.super2.btn) + '  (3 barras)', 1]);
   for (const sp of ch.specials) L.push([moveName(ch, sp.id), (sp.air == 'only' ? '(no ar) ' : '') + notation(sp.input, sp.btn)]);
   if (ch.airThrow) L.push(['Agarrão aéreo (sem escape)', '(no ar) Soco Fraco + Chute Fraco']);
   if (ch.vskill) L.push(['V-SKILL: ' + (ch.vskill.name || ''), 'Soco Médio + Chute Médio' + (ch.vskill.airOk ? '  (também no ar)' : ''), 2]);
