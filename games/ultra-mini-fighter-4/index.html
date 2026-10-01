@@ -1538,6 +1538,10 @@ function compileMove(src, key, ch) {
     return h;
   });
   m.cancel = m.cancel || {};
+  for (const h of m.hits) { if (h.dmg != null) h.dmg *= HPK; if (h.chip != null) h.chip *= HPK; }
+  for (const p of m.projs || (m.proj ? [m.proj] : [])) { if (p.dmg != null) p.dmg *= HPK; if (p.chip != null) p.chip *= HPK; }
+  if (m.grab) { if (m.grab.dmg) m.grab.dmg *= HPK; if (m.grab.shock) m.grab.shock = [m.grab.shock[0], m.grab.shock[1] * HPK]; }
+  if (m.onLand && m.onLand.dmg != null) m.onLand.dmg *= HPK;
   // Soco Médio no chão cancela em especial e em super, pra todo mundo (Soco Médio → Hadouken)
   if (/^(m_)?[sc]mp$/.test(key) && m.hits.length && !m.grab) { m.cancel.sp = 1; m.cancel.su = 1; }
   // normal que cancela em especial também cancela em super
@@ -1569,6 +1573,7 @@ function validateMove(m) {
 <script>/* src/sim/fighter.js */
 // ===== lutador: estado, decisão (input → golpe), execução de golpes, física =====
 const GRAV = 0.75, METER_MAX = 300, EX_COST = 100, SUPER_COST = 200;
+const HPK = 10;   // escala de vida/dano: os dados dos lutadores ficam em ~100, o jogo roda em ~1000 (arredondamento fino no scaling)
 const GREY_DELAY = 120, GREY_STEP = 3;   // vida cinza: espera 2 s sem apanhar, depois volta 1 de vida a cada 3 quadros
 const PREJUMP = 4, JUMP_LAND = 3;
 
@@ -1800,9 +1805,9 @@ class Fighter {
     if (this.st == 'idle') this.groundMove(o);
     const flags = this.runMove(o);
     this.physics(o, flags);
-    if (this.hpS > this.hp && this.st != 'hit' && this.st != 'knock') this.hpS = Math.max(this.hp, this.hpS - .6);
+    if (this.hpS > this.hp && this.st != 'hit' && this.st != 'knock') this.hpS = Math.max(this.hp, this.hpS - .6 * HPK);
     if (this.modeT > 0 && M.phase == 'fight' && --this.modeT <= 0) { this.mode = 0; FX.aura(this, 16); }   // o modo temporário acaba sozinho
-    if (this.grey > 0) { if (this.greyT > 0) this.greyT--; else if (this.hp > 0 && M.phase == 'fight' && M.frame % GREY_STEP == 0) { this.hp = Math.min(this.ch.hp, this.hp + 1); this.grey--; } }
+    if (this.grey > 0) { if (this.greyT > 0) this.greyT--; else if (this.hp > 0 && M.phase == 'fight' && M.frame % GREY_STEP == 0) { const g = Math.min(this.grey, HPK); this.hp = Math.min(this.ch.hp, this.hp + g); this.grey -= g; } }
     for (const t of this.trail) t.a -= .06; this.trail = this.trail.filter(t => t.a > 0);
   }
   frozenInput(inp) { if (!inp) return; const r = this.simple ? this.simpleIn(inp) : inp; if (r.want) { this.wantBuf = r.want; this.wantBufT = 6; } Cmd.record(this, r, true); }
@@ -2014,7 +2019,7 @@ const Combat = {
       return;
     }
     // --- acerto ---
-    if (h.cine && !proj) { touch(1); if (!(a.combo > 0 && (o.st == 'hit' || o.st == 'knock' || o.st == 'crumple'))) { a.combo = 0; a.comboDmg = 0; } this.startCine(a, o, h.cine); this.cineHit(a, o, h.dmg || 2); return; }
+    if (h.cine && !proj) { touch(1); if (!(a.combo > 0 && (o.st == 'hit' || o.st == 'knock' || o.st == 'crumple'))) { a.combo = 0; a.comboDmg = 0; } this.startCine(a, o, h.cine); this.cineHit(a, o, h.dmg ? h.dmg / HPK : 2); return; }
     const juggled = o.st == 'hit' || o.st == 'knock' || o.st == 'crumple';
     if (juggled && a.combo > 0) a.combo++; else { a.combo = 1; a.comboDmg = 0; a.starterL = h.lv == 'L'; }
     let sc = this.scaleFor(a, h); if (out.ctr) sc *= 1.2;
@@ -2022,7 +2027,7 @@ const Combat = {
     if (a.simple && ((m && m.special) || proj)) sc *= .85;                  // controle simplificado: especiais um pouco mais fracos
     const dmg = Math.max(1, Math.round(h.dmg * sc));
     const gPrev = o.grey; o.hp = Math.max(0, o.hp - dmg); o.grey = 0; o.greyT = 0; o.lastDmg = h.lv == 'SA' ? 'S' : 'V';
-    if (o.ch.heal && o.hp > 0) { o.grey = Math.min(o.ch.healMax || 25, gPrev + Math.round(dmg * o.ch.heal)); o.greyT = GREY_DELAY; }   // fator de cura
+    if (o.ch.heal && o.hp > 0) { o.grey = Math.min(o.ch.healMax || 25 * HPK, gPrev + Math.round(dmg * o.ch.heal)); o.greyT = GREY_DELAY; }   // fator de cura
     if (h.drain && !proj && a.hp > 0) { a.hp = Math.min(a.ch.hp, a.hp + Math.max(1, Math.round(dmg * h.drain))); a.hpS = Math.max(a.hpS, a.hp); FX.aura(a, 10); }   // absorção
     a.comboDmg += dmg; a.stats.dmg += dmg; a.stats.hits++; a.stats.maxCombo = Math.max(a.stats.maxCombo, a.combo);
     o.mv = null; o.combo = 0; o.cine = null; o.flash = 2; o.flashCol = out.ctr ? 2 : 1;
@@ -2130,7 +2135,7 @@ const Combat = {
   },
   cineHit(a, o, d, big) {
     a.combo++; if (a.combo == 1) a.starterL = false;
-    const dmg = Math.max(1, Math.round(d * Math.max(.5, SCALE[Math.min(a.combo - 1 - ((a.cine && a.cine.c0) || 0), 9)])));
+    const dmg = Math.max(1, Math.round(d * HPK * Math.max(.5, SCALE[Math.min(a.combo - 1 - ((a.cine && a.cine.c0) || 0), 9)])));
     o.hp = Math.max(0, o.hp - dmg); o.grey = 0; o.greyT = 0; o.lastDmg = 'S'; a.comboDmg += dmg; a.stats.dmg += dmg; a.stats.maxCombo = Math.max(a.stats.maxCombo, a.combo); o.flash = 2; o.shakeT = 4;
     M.comboShow = { f: a.i, n: a.combo, dmg: a.comboDmg, t: 90 };
     FX.hit(o.x + rnd(-20, 20), o.y + rnd(40, 110) * o.sz, a.face, big ? 2 : 1, big ? 'SA' : 'H'); Audio.sfx(big ? 'hitS' : 'hitM', 1, o.x);
@@ -2359,6 +2364,7 @@ const CH_DEFAULTS = { sz: 1, hp: 100, walkF: 3.6, walkB: 2.8, jumpV: 15, jumpX: 
 function defChar(c) {
   const ch = Object.assign({}, JSON.parse(JSON.stringify(Object.assign({}, CH_DEFAULTS, { moves: undefined }))), c);
   ch.cmdNormals = (ch.cmdNormals || []).map(n => Object.assign({ dir: [6] }, n));
+  ch.hp = Math.round(ch.hp * HPK); if (ch.healMax) ch.healMax *= HPK;
   CHARS.push(ch); return ch;
 }
 // paleta aplicada por cima do visual base
@@ -5723,7 +5729,7 @@ const AI = {
 <script>/* src/net/net.js */
 // ===== multiplayer online: sala com vários jogadores ("quem ganha fica"), rollback e espectadores =====
 // Topologia em estrela: todos se conectam ao anfitrião (PeerJS/WebRTC), que repassa as mensagens.
-const NET_VERSION = 3, PEER_PREFIX = 'ultraminifighter4-', MAX_ROOM = 8;   // Ultra: salas, servidores e versão separados do Mini Fighter IV
+const NET_VERSION = 4, PEER_PREFIX = 'ultraminifighter4-', MAX_ROOM = 8;   // Ultra: salas, servidores e versão separados do Mini Fighter IV
 const Room = { members: [], queue: [], fighters: [], phase: 'lobby', sel: [0, 1], ready: [false, false], simple: [false, false], last: null, chars: {} };
 const memberName = id => (Room.members.find(m => m.id == id) || {}).name || '?';
 
