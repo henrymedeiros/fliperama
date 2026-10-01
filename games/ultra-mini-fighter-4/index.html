@@ -2356,7 +2356,7 @@ const Kit = {
   // "corte pra fora": golpe que solta uma onda curta de energia (é um projétil de vida curta: bate em outros projéteis e os anula)
   wave(o) {
     return { anim: o.anim || 'chop', startup: o.startup, active: 1, recovery: o.recovery ?? 18, vel: o.vel, shout: o.shout, fx: o.fx, inv: o.inv || {}, name: o.name, multiProj: 1,
-      proj: { f: o.startup, vx: o.vx, r: o.r || 30, life: o.life, dmg: o.dmg, hits: o.ex ? 2 : 1, gap: 5, hs: o.hs || 22, bs: o.bs || 16, shape: 'slash', col: o.col, glow: o.glow,
+      proj: { f: o.startup, vx: o.vx, r: o.r || 30, life: o.life, dmg: o.dmg, hits: o.ex ? 2 : 1, gap: 5, hs: o.hs || 22, bs: o.bs || 16, shape: 'slash', look: o.look, col: o.col, glow: o.glow,
         lv: 'SP', yOff: o.yOff || 80, ahead: o.ahead ?? 4, ex: !!o.ex, kd: o.kd ? 1 : 0 } };
   },
   // feixe de energia: a ponta corre rápido e, ao encostar, gruda e acerta várias vezes (perde para nada que tenha menos acertos)
@@ -2959,7 +2959,7 @@ defChar({
   moves: {
     // Flash Chop: o tapa solta uma onda amarela curta; anula projéteis de 1 acerto (EX: de 2 acertos e derruba)
     chop: s => Kit.wave({ anim: 'chop', startup: S3(s, [12, 14, 16, 12]), recovery: 18, vel: [[4, 12, S3(s, [3, 4, 5, 5]), null]], inv: s == 3 ? { proj: [1, 14] } : {}, shout: 'flashchop',
-      col: '#ffd84a', glow: '#fff6c0', vx: S3(s, [5, 5.5, 6, 6.5]), life: S3(s, [9, 12, 15, 17]), r: 30, dmg: S3(s, [10, 11, 12, 7]), ex: s == 3, kd: s == 3, hs: 24, bs: 18 }),
+      look: 'streak', col: '#ffd84a', glow: '#fff6c0', vx: S3(s, [5, 5.5, 6, 6.5]), life: S3(s, [9, 12, 15, 17]), r: 30, dmg: S3(s, [10, 11, 12, 7]), ex: s == 3, kd: s == 3, hs: 24, bs: 18 }),
     elbow: Kit.rush({ anim: 'elbow', vx: [6, 7, 8, 9], dmg: [10, 11, 12, 13], onBlock: -4, shout: 'slashelbow' }),
     aks: s => ({ anim: 'knee', startup: 5, active: 10, recovery: 22, vel: [[4, 4, 2, S3(s, [11, 12, 13, 13])]], landEnd: 10, inv: { strike: [1, S3(s, [3, 5, 7, 9])] }, shout: 'airknee',
       grab: { range: S3(s, [80, 90, 100, 110]), dmg: S3(s, [15, 17, 19, 21]), type: 'slam', air: 1 } }),
@@ -3168,7 +3168,7 @@ defChar({
       hits: multi(S3(s, [2, 2, 3, 3]), S3(s, [10, 12, 14, 10]), 6, 3, { box: [16, 60, 76, 40], dmg: 5, lv: 'SP', hs: 18, bs: 10, snd: 'elec', lastKd: 1 }) }),
     // Corte Hamon: respira fundo e corta o ar com a mão carregada de Hamon (onda curta, bom alcance)
     hslash: s => Kit.wave({ anim: 'chop', fx: 'hamon', name: 'CORTE HAMON', startup: S3(s, [12, 12, 13, 10]), recovery: S3(s, [23, 25, 25, 22]), shout: 'hamon',
-      col: '#ffe04a', glow: '#fff8c0', vx: S3(s, [6, 7, 8, 8]), life: S3(s, [14, 17, 20, 22]), r: 28, dmg: S3(s, [9, 10, 11, 6]), ex: s == 3, hs: 24, bs: 16 }),
+      look: 'streak', col: '#ffe04a', glow: '#fff8c0', vx: S3(s, [6, 7, 8, 8]), life: S3(s, [14, 17, 20, 22]), r: 28, dmg: S3(s, [9, 10, 11, 6]), ex: s == 3, hs: 24, bs: 16 }),
     hbeat: s => { const m = Kit.dp({ shout: 'hamon', vy: [11.5, 13, 14.5, 14.5], d1: [0, 6, 7, 6], d2: [0, 5, 7, 5] })(s); m.fx = 'hamon'; return m; },
     super: () => ({ anim: 'fireball', super: 1, startup: 12, active: 40, recovery: 24, inv: { strike: [1, 12], proj: [1, 12] }, name: 'TOMMY GUN', shout: 'tommygun', multiProj: 1,
       projs: Array.from({ length: 12 }, (_, i) => ({ f: 12 + i * 3, vx: 16, r: 8, life: 70, dmg: 2.4, hs: 16, bs: 8, shape: 'bullet', lv: 'SA', snd: 'hitL', yOff: 96, kd: i == 11 ? 1 : 0 })) }),
@@ -5201,6 +5201,33 @@ function drawProj(c, pr) {
     for (const [w, col, al] of [[r * 2.6 * wob, p.col, .35], [r * 1.7 * wob, p.col, .75], [r * .6, p.glow || '#fff', .7], [r * .24, '#fff', .9]]) { c.globalAlpha = al * k; c.strokeStyle = col; c.lineWidth = w; c.beginPath(); c.moveTo(x0, ys); c.lineTo(x1, y0); c.stroke(); }
     for (const [x, yy, rr] of [[x1, y0, r * 2.2 * wob], [x0, ys, r * 1.3]]) { const g = c.createRadialGradient(x, yy, 0, x, yy, rr); g.addColorStop(0, '#fff'); g.addColorStop(.45, p.glow || p.col); g.addColorStop(1, 'rgba(0,0,0,0)'); c.globalAlpha = k; c.fillStyle = g; c.beginPath(); c.arc(x, yy, rr, 0, 7); c.fill(); }
     if (pr.ex) { c.strokeStyle = EX_COL[1]; c.lineWidth = 2; c.globalAlpha = .8 * k; c.beginPath(); c.arc(x1, y0, r * 2.6, pr.t * .35, pr.t * .35 + 3.6); c.stroke(); }
+    c.restore(); return;
+  }
+  if (p.look == 'streak') {
+    // onda cortante (Corte Hamon / Flash Chop): rastro que sai da mão e engrossa numa cabeça de energia esfarrapada, com labaredas pra trás e gotas soltas
+    const k = Math.min(1, pr.life / 5), y = -pr.y, R = p.r * .8, hx = pr.x + d * p.r * .95, len = Math.min(175, Math.abs(hx - pr.sx) + 46), bx = hx - d * len, N = 26;
+    const prof = u => (u < .78 ? .1 + .9 * Math.pow(u / .78, 1.7) : Math.sqrt(Math.max(0, 1 - ((u - .78) / .22) ** 2))) * R;
+    const jag = (i, sd) => 1 + (.18 + .3 * i / N) * Math.sin(i * 2.7 + T * 1.9 + sd) * Math.sin(i * 1.3 - T * .8 + sd * 2);
+    const shapeAt = sc => { c.beginPath();
+      for (let i = 0; i <= N; i++) { const u = i / N, w = prof(u) * sc * jag(i, 0), wy = Math.sin(u * 7 - T * .9) * 2.2 * (1 - u); c.lineTo(bx + d * len * u, y - w + wy); }
+      for (let i = N; i >= 0; i--) { const u = i / N, w = prof(u) * sc * jag(i, 4), wy = Math.sin(u * 7 - T * .9) * 2.2 * (1 - u); c.lineTo(bx + d * len * u, y + w * .85 + wy); }
+      c.closePath(); };
+    c.save(); c.globalCompositeOperation = 'lighter';
+    const g = c.createRadialGradient(hx - d * R * .5, y, 0, hx - d * R * .5, y, R * 2.6); g.addColorStop(0, p.glow || '#fff'); g.addColorStop(1, 'rgba(0,0,0,0)');
+    c.globalAlpha = .4 * k; c.fillStyle = g; c.beginPath(); c.arc(hx - d * R * .5, y, R * 2.6, 0, 7); c.fill();
+    c.globalCompositeOperation = 'source-over';
+    // labaredas: pontas que saem da cabeça e varrem pra trás
+    c.fillStyle = p.col;
+    for (let j = 0; j < 6; j++) { const sg = j % 2 ? 1 : -1, b = j >> 1, fl = 1 + .25 * Math.sin(T * 1.7 + j * 2.1), x0 = hx - d * R * (.35 + .45 * b);
+      c.globalAlpha = .9 * k; c.beginPath(); c.moveTo(x0 + d * R * .3, y + sg * R * .45); c.lineTo(x0 - d * R * (1.1 + .35 * b) * fl, y + sg * R * (1.25 - .2 * b) * fl); c.lineTo(x0 - d * R * .25, y + sg * R * .2); c.fill(); }
+    c.globalAlpha = .4 * k; c.fillStyle = p.col; shapeAt(1.3); c.fill();
+    c.globalAlpha = k; shapeAt(1); c.fill(); c.strokeStyle = 'rgba(0,0,0,.28)'; c.lineWidth = 2; c.stroke();
+    for (const [sc, col] of [[.62, p.glow || '#fff'], [.26, '#fff']]) { c.fillStyle = col; shapeAt(sc); c.fill(); }
+    // gotas de energia que se soltam do rastro
+    c.fillStyle = p.glow || '#fff';
+    for (let j = 0; j < 6; j++) { const u = ((j * .17 + T * .045) % 1) * .7, gx = bx + d * len * u - d * 8 * Math.sin(T * .3 + j), gy = y + Math.sin(j * 2.4 + T * .4) * R * (1.1 + .3 * (1 - u)), gr = 1.6 + 2.2 * (1 - u) * (.6 + .4 * Math.sin(T + j * 1.7));
+      c.globalAlpha = .8 * k; c.beginPath(); c.arc(gx, gy, gr, 0, 7); c.fill(); }
+    if (pr.ex) { for (let q = 0; q < 2; q++) { c.strokeStyle = EX_COL[q]; c.globalAlpha = (q ? .8 : .95) * k; c.lineWidth = q ? 4 : 2.5; c.beginPath(); c.arc(hx - d * R * .4, y, R * 1.9 + q * 6, T * .35 + q * 3, T * .35 + q * 3 + 3.6); c.stroke(); } }
     c.restore(); return;
   }
   c.save(); c.translate(pr.x, -pr.y); c.scale(d, 1);
