@@ -1355,7 +1355,7 @@ const LEG_ANIMS = { lk: 1, hk: 1, clk: 1, sweep: 1, jk: 1, jhk: 1, smk: 1, cmk: 
 <script>/* src/sim/cmd.js */
 // ===== leitor de comandos: histórico por "relógio de input", motions com janela por passo, carga, mash, parry =====
 // O relógio `ic` do lutador NÃO avança durante hitstop/superfreeze: inputs feitos no congelamento entram como "recentes".
-const CHARGE_TIME = 30, CHARGE_KEEP = 14, STEP_WIN = 10, FINAL_WIN = 8, BTN_BUF = 5, PAIR_WIN = 3;
+const CHARGE_TIME = 30, CHARGE_KEEP = 14, CHARGE_REL = 10, STEP_WIN = 10, FINAL_WIN = 8, BTN_BUF = 5, PAIR_WIN = 3;
 const PARRY_WIN = 10, PARRY_AIR_WIN = 7, PARRY_LOCK = 20, RED_PARRY_WIN = 3;
 // variações aceitas por motion (inclui atalhos oficiais do SF e o 6-2-6 sem diagonal)
 const MOTIONS = {
@@ -1440,8 +1440,10 @@ const Cmd = {
     if (code == 'P3' || code == 'K3') { const ts = (code[0] == 'P' ? ['lp', 'mp', 'hp'] : ['lk', 'mk', 'hk']).map(b => s.bt[b]); return ts.every(t => now - t <= BTN_BUF) && Math.max(...ts) - Math.min(...ts) <= PAIR_WIN ? now : null; }
     if (code == 'PPP' || code == 'KKK') { const a = code[0] == 'P' ? s.pP : s.pK; return a.filter(t => now - t <= 20).length >= 3 ? now : null; }
     if (code[0] == '[') {
-      const d = +code[1], r = +code[3], n = s.dir;
-      const rel = r == 6 ? n == 3 || n == 6 || n == 9 : n >= 7;
+      const d = +code[1], r = +code[3], ok = n => r == 6 ? n == 3 || n == 6 || n == 9 : n >= 7;
+      // a direção de soltura vale se passou por ela nos últimos CHARGE_REL quadros antes do botão (como no SF: ↑ e depois o chute também sai)
+      let rel = ok(s.dir);
+      if (!rel) { const from = Math.min(now, pressT ?? now) - CHARGE_REL; for (let i = cnt - 1; i >= 0; i--) { const end = i < cnt - 1 ? h[2 * i + 3] : now; if (end < from) break; if (ok(h[2 * i])) { rel = true; break; } } }
       return this.charged(f, d) && rel ? now : null;
     }
     if (code == '360') {
