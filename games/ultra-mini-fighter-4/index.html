@@ -6402,6 +6402,7 @@ const Menus = {
     const it = [['CONTINUAR', 'resume'], ['LISTA DE GOLPES', 'moves']];
     if (Game.mode == 'training') it.push(['BONECO: ' + Training.modes[Training.mode], 'dummy'], [Training.recState == 'rec' ? 'PARAR GRAVAÇÃO' : 'GRAVAR BONECO', 'rec'], [Training.recState == 'play' ? 'PARAR REPRODUÇÃO' : 'REPRODUZIR GRAVAÇÃO', 'play']);
     it.push(['MEDIDOR DE QUADROS: ' + (Training.shown('fm') ? 'SIM' : 'NÃO'), 'fmeter'], ['HISTÓRICO DE COMANDOS: ' + (Training.shown('ih') ? 'SIM' : 'NÃO'), 'idisp']);
+    if (Game.mode == 'trials') it.splice(1, 0, ['PULAR DESAFIO', 'tskip'], ['DESAFIO ANTERIOR', 'tprev']);
     it.push(['OPÇÕES (VOLUME)', 'opts']);
     if (Game.mode == 'tourney') return it.concat([['ABANDONAR TORNEIO', 'menu']]);
     return it.concat([['REINICIAR', 'restart'], ['TROCAR PERSONAGEM', 'select'], ['MENU PRINCIPAL', 'menu']]);
@@ -6646,6 +6647,7 @@ const Menus = {
       case 'resume': g.scene = 'fight'; break;
       case 'moves': g.showMoves = true; break;
       case 'opts': g.pauseOpt = true; g.pauseIdx = g.idx; g.idx = 0; break;
+      case 'tskip': case 'tprev': Trials.jump(id == 'tskip' ? 1 : -1); g.scene = 'fight'; break;
       case 'dummy': Training.mode = (Training.mode + 1) % TM; break;
       case 'rec': Training.toggleRec(); g.scene = 'fight'; break;
       case 'play': Training.togglePlay(); g.scene = 'fight'; break;
@@ -7518,6 +7520,8 @@ const Trials = {
     for (const c of TRIAL_COMBOS[ch.id] || []) { const q = c.s.slice(); q.combo = c; this.list.push(q); }
     this.reset();
   },
+  // pular (+1) ou voltar (-1) um desafio; dá a volta na lista
+  jump(d) { const n = this.list.length; if (!n) return; this.i = (this.i + d + n) % n; this.done = 0; this.t = 0; this.reset(); },
   reset() { this.hits = []; this.lastMv = ''; this.lastT = 0; this.lastId = -1; this.lastHits = M.f.length ? M.f[0].stats.hits : 0; },
   update() {
     const a = M.f[0], seq = this.list[this.i]; if (!seq) return;
@@ -7550,6 +7554,7 @@ const Trials = {
     if (this.done) txt(c, 'CONCLUÍDO!', x0 + 328, 118, 20, '#6f6', 'right', 3);
     seq.forEach((k, j) => { const ok = j < pr; ui(c, (ok ? '✔ ' : (j + 1) + '. ') + this.label(this.ch, k, !!seq.combo), x0 + 16, 142 + j * 26, 17, ok ? '#6f6' : '#fff', 'left', 3); });
     if (seq.combo) ui(c, seq.combo.h + ' hits · cerca de ' + seq.combo.d + ' de dano', x0 + 16, 142 + seq.length * 26, 14, '#ffd21e', 'left', 3);
+    if (!this.done) ui(c, 'Pausa: pular desafio', x0 + 328, 116, 12, '#889', 'right', 2);
   }
 };
 
