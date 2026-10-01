@@ -342,12 +342,20 @@ const Audio = {
     const fallback = () => { if (settings.voice) { this.say('title'); this.duck(.3, 3.6); this.sfx('titlehit'); } };
     if (!settings.music) { fallback(); return; }
     Music.pending = Music.name || 'title'; Music.stop(); Music.hold = true;
-    const resume = () => { Music.hold = false; const p = Music.pending; Music.pending = null; Music.play(p || 'title'); };
+    let done = false; const resume = () => { if (done) return; done = true; this.introSrc = null; Music.hold = false; const p = Music.pending; Music.pending = null; Music.play(p || 'title'); };
+    const k = this.introSrc = { resume };
     Tracks.load('intro.mp3').then(b => {
-      if (!b) { resume(); fallback(); return; }
+      if (done) return;
+      if (!b || Game.scene != 'title') { resume(); if (!b) fallback(); return; }
       const src = this.ac.createBufferSource(), g = this.ac.createGain(); src.buffer = b; g.gain.value = 1.5;
-      src.connect(g).connect(this.trackG); src.onended = resume; src.start(this.now + .05);
+      src.connect(g).connect(this.trackG); src.onended = resume; src.start(this.now + .05); k.src = src; k.g = g;
     });
+  },
+  // saiu da tela inicial: a abertura some rápido (fade curto) e a música da tela nova entra
+  stopIntro() {
+    const k = this.introSrc; if (!k) return;
+    if (k.src) { const t = this.now; try { k.src.onended = null; k.g.gain.cancelScheduledValues(t); k.g.gain.setValueAtTime(k.g.gain.value, t); k.g.gain.linearRampToValueAtTime(0, t + .25); k.src.stop(t + .3); } catch (e) {} }
+    k.resume();
   },
   // cursor da seleção de lutador (som de arcade gravado): cada movimento corta o anterior; 1P um pouco à esquerda, 2P à direita
   cursor(slot) {
@@ -362,6 +370,7 @@ const Audio = {
   duck(level = .4, hold = .8) {
     if (!this.ac || SIM.silent) return; const t = this.ac.currentTime, g = this.duckG.gain;
     g.cancelScheduledValues(t); g.setTargetAtTime(level, t, .03); g.setTargetAtTime(1, t + hold, .25);
+    if (typeof YTM != 'undefined') YTM.duck(level, hold);
   },
   // abafa a música (filtro passa-baixa): congelamento do super, K.O. em câmera lenta
   muffle(f = 650, hold = .5) {
@@ -1346,7 +1355,7 @@ const LEG_ANIMS = { lk: 1, hk: 1, clk: 1, sweep: 1, jk: 1, jhk: 1, smk: 1, cmk: 
 <script>/* src/sim/cmd.js */
 // ===== leitor de comandos: histórico por "relógio de input", motions com janela por passo, carga, mash, parry =====
 // O relógio `ic` do lutador NÃO avança durante hitstop/superfreeze: inputs feitos no congelamento entram como "recentes".
-const CHARGE_TIME = 40, CHARGE_KEEP = 10, STEP_WIN = 10, FINAL_WIN = 8, BTN_BUF = 5, PAIR_WIN = 3;
+const CHARGE_TIME = 40, CHARGE_KEEP = 14, STEP_WIN = 10, FINAL_WIN = 8, BTN_BUF = 5, PAIR_WIN = 3;
 const PARRY_WIN = 10, PARRY_AIR_WIN = 7, PARRY_LOCK = 20, RED_PARRY_WIN = 3;
 // variações aceitas por motion (inclui atalhos oficiais do SF e o 6-2-6 sem diagonal)
 const MOTIONS = {
@@ -1525,6 +1534,16 @@ function compileMove(src, key, ch) {
     return h;
   });
   m.cancel = m.cancel || {};
+  // Soco Médio no chão cancela em especial e em super, pra todo mundo (Soco Médio → Hadouken)
+  if (/^(m_)?[sc]mp$/.test(key) && m.hits.length && !m.grab) { m.cancel.sp = 1; m.cancel.su = 1; }
+  // normal que cancela em especial também cancela em super
+  if (!m.special && !m.super && m.cancel.sp) m.cancel.su = 1;
+  // especiais que cancelam em super: projéteis (logo depois que o projétil sai) e avanços pra frente (no acerto ou na defesa)
+  if (m.special && !m.super && !m.air && !m.grab && key != 'vskill' && m.cancel.su == null) {
+    const pf = m.proj ? m.proj.f : m.projs && m.projs.length ? Math.min(...m.projs.map(p => p.f)) : null;
+    if (pf != null) { m.cancel.su = 'proj'; m.projF = pf; }
+    else if (m.hits.length && m.vel && m.vel.length && m.vel.every(v => v[3] == null) && m.vel.some(v => typeof v[2] == 'number' && v[2] > 0)) m.cancel.su = 1;
+  }
   return m;
 }
 // valida regras de design (roda nos testes): especial que acerta não pode ser punível
@@ -1562,6 +1581,7 @@ function getMove(ch, key) {
   else if (ch.extraMoves && ch.extraMoves[key]) src = ch.extraMoves[key];
   else if (key == 'super') src = ch.moves.super(0);
   else if (key == 'super2') src = ch.moves.super2(0);   // Critical Art (só quem tem super2)
+  else if (TRAIN_MOVES[key]) src = TRAIN_MOVES[key];
   else { const [k, s] = key.split(':'); const fn = ch.moves[k]; if (!fn) throw new Error('golpe inexistente ' + ch.id + ' ' + key); src = fn(+s || 0); }
   return ch._c[key] = compileMove(src, key, ch);
 }
@@ -1579,7 +1599,7 @@ class Fighter {
       combo: 0, comboDmg: 0, comboScale: 1, starterL: false, juggle: 0, airReset: false, airUsed: false,
       hitMask: 0, contact: 0, cancelUntil: -1, grabDone: false, armorLeft: 0, projMask: 0, throwInv: 0, throwBack: false,
       flash: 0, flashCol: 0, shakeT: 0, cine: null, thr: null, cineRot: 0, parryFx: 0, want: null, in: Cmd.fresh(),
-      mode: 0, modeT: 0, tStop: 0, frozen: 0, sPrev: 0, sStep: 0, wantBuf: null, wantBufT: 0, bounced: 0, lastDmg: 'V', grey: 0, greyT: 0, airVs: false });
+      mode: 0, modeT: 0, tStop: 0, frozen: 0, sPrev: 0, sStep: 0, wantBuf: null, wantBufT: 0, bounced: 0, lastDmg: 'V', grey: 0, greyT: 0, airVs: false, mvId: 0, lastSrc: '' });
     this.trail = [];
   }
   get m() { return this.mv ? getMove(this.ch, this.mv) : null; }
@@ -1604,15 +1624,18 @@ class Fighter {
     const conv = st == 'atk' && m && !m.special && !m.move && !this.contact && this.t <= 2;
     // normal aéreo de 1 botão que acabou de sair pode virar agarrão aéreo / V-Skill aérea (os 2 botões nunca chegam no mesmo quadro)
     const convAir = st == 'air' && m && !m.special && !this.contact && this.t <= 2 && /^j[lm][pk]$/.test(this.mv);
+    // bola de fogo → super: janela curta logo depois que o projétil sai (acertando ou não)
+    const suProj = st == 'atk' && m && m.cancel.su == 'proj' && !this.contact && this.t >= m.projF && this.t <= m.projF + 12;
     if ((st == 'atk' || st == 'air') && m && m.follow && !this.want) for (const fo of m.follow) {
       if (this.t < fo.from || this.t > fo.to || (fo.onHit && this.contact != 1)) continue;
       const b = fo.btn == 'P' ? Cmd.latest(this, 'P', 2) : fo.btn == 'K' ? Cmd.latest(this, 'K', 2) : Cmd.pressed(this, fo.btn, 2) ? fo.btn : null;
       if (b && (!fo.dir || fo.dir.includes(this.in.dir))) return fo.key;
     }
-    if (!(free || airFree || airCancel || cancel || conv || convAir)) return null;
+    if (!(free || airFree || airCancel || cancel || conv || convAir || suProj)) return null;
     if (this.want) {
       // golpes pedidos direto (IA/desafios) obedecem às MESMAS regras de cancelamento do jogador
       const w = this.want, isSu = w == 'super' || w == 'super2', isSp = w.includes(':');
+      if (suProj && !cancel) return isSu ? w : null;
       if (cancel || airCancel) {
         if (isSu) { if (!m.cancel.su || m.super) return null; }
         else if (isSp) { if (!m.cancel.sp || m.special) return null; }
@@ -1633,6 +1656,7 @@ class Fighter {
       const su = ch.superCmd || { input: '236236', btn: 'P' }, b = su.btn == 'P' ? P : K;
       if (b && Cmd.motion(this, su.input, this.in.bt[b]) != null) return 'super';
     }
+    if (suProj && !cancel) return null;
     // especiais: o comando mais complexo vence; empate → o último passo mais recente
     const canSp = !cancel || m.cancel.sp || m.special;
     if (canSp && !(cancel && m.special)) {
@@ -1672,7 +1696,7 @@ class Fighter {
     if (key.endsWith(':3') && this.meter < EX_COST) key = key.slice(0, -1) + '2';
     if (mv.super && this.meter < (mv.cost || SUPER_COST)) return;
     mv = getMove(this.ch, key);
-    if (mv.proj && !mv.multiProj && M.projs.filter(p => p.o === this.i && !p.dead).length >= (mv.maxProj || 1)) return;
+    if (mv.proj && !mv.multiProj && !mv.super && M.projs.filter(p => p.o === this.i && !p.dead).length >= (mv.maxProj || 1)) return;
     this.want = null; this.wantBufT = 0;
     this.in.cbt = !mv.special && !mv.super && !mv.grab ? Object.assign({}, this.in.bt) : null;
     Cmd.consume(this);
@@ -1681,7 +1705,7 @@ class Fighter {
   startMove(key, o) {
     const m = getMove(this.ch, key), air = this.y > 0;
     if (air) { this.st = 'air'; this.airUsed = true; } else this.setSt('atk');
-    Object.assign(this, { mv: key, t: 0, hitMask: 0, contact: 0, cancelUntil: -1, grabDone: false, armorLeft: m.armor ? (m.armor.hits || 1) : 0, projMask: 0 });
+    Object.assign(this, { mv: key, t: 0, hitMask: 0, contact: 0, cancelUntil: -1, grabDone: false, armorLeft: m.armor ? (m.armor.hits || 1) : 0, projMask: 0, mvId: (this.mvId || 0) + 1 });
     this.crouch = !!m.crouch;
     if (key == 'throw') this.throwBack = this.holdBack;
     if (key == 'vskill') this.airVs = true;             // uma V-Skill por pulo (a do chão também conta se decolar)
@@ -1813,6 +1837,7 @@ class Fighter {
       if (vy != null) { this.vy = vy; if (this.y <= 0 && vy > 0) this.y = .01; }
     }
     fl.hover = !!(m.hover && this.t >= m.hover[0] && this.t <= m.hover[1]);
+    if (m.drift && this.y > 0 && this.t > 2) this.vx = (this.fx || 0) * m.drift;   // levitação: ← → movem no ar
     if (m.ki && this.t >= m.ki[0] && this.t <= m.ki[1]) { this.meter = Math.min(METER_MAX, this.meter + m.ki[2]); if (this.t % 4 == 0) FX.aura(this, 4); }
     if (m.tele && this.t == m.tele.f) {
       this.x = clamp(m.tele.wall ? (this.x <= o.x ? 30 : STAGE_W - 30) : m.tele.behind ? o.x - o.face * 80 : m.tele.front ? o.x + o.face * 90 : this.x - this.face * 260, 30, STAGE_W - 30);
@@ -1866,6 +1891,7 @@ class Fighter {
 const SCALE = [1, 1, .8, .7, .6, .5, .4, .3, .2, .1];
 const overlap = (a, b) => a.x1 < b.x2 && a.x2 > b.x1 && a.y1 < b.y2 && a.y2 > b.y1;
 const PARRY_STOP = 16;
+const MULTI_STOP = 3;   // congelamento dos acertos seguidos do MESMO golpe (super de feixe, rajada de tiros, golpes de vários hits)
 
 // som de lançamento por formato de projétil
 const PROJ_SND = { boom: 'boom', clacker: 'boom', fire: 'fire', flame: 'fire', kame: 'beam', shieldp: 'shield', bone: 'bone', leaf: 'leaf', molotov: 'molotov', spray: 'spray', quake: 'quake', knife: 'whiff', spear: 'spear', acid: 'acid', ice: 'ice' };
@@ -1936,6 +1962,8 @@ const Combat = {
   apply(a, o, h, out, px, py, proj, m) {
     const dir = proj ? Math.sign(h.vx) || 1 : (a.x <= o.x ? 1 : -1), L = LEVEL[h.lv] || LEVEL.M;
     if (!proj) a.hitMask |= 1 << h.idx;
+    // acerto seguido do mesmo golpe/projétil (o último, que derruba, mantém o impacto cheio)
+    const src = proj ? h.src : a.i + ':' + a.mvId, rep = !!src && o.lastSrc === src && !h.kd && !h.launch; o.lastSrc = src || '';
     const touch = kind => { if (!proj) { a.contact = a.contact || kind; a.cancelUntil = a.t + 14; } };
     if (out.r == 'parry') {
       touch(2); Cmd.parrySucceeded(o);
@@ -1953,7 +1981,7 @@ const Combat = {
       if (o.grey > 0) o.greyT = GREY_DELAY;
       o.vx = dir * L.push * (proj ? .6 : 1); if (!proj && (o.x < 45 || o.x > STAGE_W - 45)) a.vx = -dir * L.push * .8;
       a.meter = Math.min(METER_MAX, a.meter + (L.meter >> 1)); o.meter = Math.min(METER_MAX, o.meter + 2);
-      M.stop = Math.max(M.stop, L.stop - 2); o.shakeT = M.stop;
+      M.stop = Math.max(M.stop, rep ? MULTI_STOP : L.stop - 2); o.shakeT = M.stop;
       FX.block(px, py, dir, h.lv); Audio.sfx(h.lv == 'H' || h.lv == 'SA' ? 'blockH' : 'block', 1, px);
       return;
     }
@@ -1972,7 +2000,7 @@ const Combat = {
       return;
     }
     // --- acerto ---
-    if (h.cine && !proj) { touch(1); a.combo = 0; this.startCine(a, o, h.cine); this.cineHit(a, o, h.dmg || 2); return; }
+    if (h.cine && !proj) { touch(1); if (!(a.combo > 0 && (o.st == 'hit' || o.st == 'knock' || o.st == 'crumple'))) { a.combo = 0; a.comboDmg = 0; } this.startCine(a, o, h.cine); this.cineHit(a, o, h.dmg || 2); return; }
     const juggled = o.st == 'hit' || o.st == 'knock' || o.st == 'crumple';
     if (juggled && a.combo > 0) a.combo++; else { a.combo = 1; a.comboDmg = 0; a.starterL = h.lv == 'L'; }
     let sc = this.scaleFor(a, h); if (out.ctr) sc *= 1.2;
@@ -1981,7 +2009,8 @@ const Combat = {
     const dmg = Math.max(1, Math.round(h.dmg * sc));
     const gPrev = o.grey; o.hp = Math.max(0, o.hp - dmg); o.grey = 0; o.greyT = 0; o.lastDmg = h.lv == 'SA' ? 'S' : 'V';
     if (o.ch.heal && o.hp > 0) { o.grey = Math.min(o.ch.healMax || 25, gPrev + Math.round(dmg * o.ch.heal)); o.greyT = GREY_DELAY; }   // fator de cura
-    if (h.drain && !proj && a.hp > 0) { a.hp = Math.min(a.ch.hp, a.hp + Math.max(1, Math.round(dmg * h.drain))); a.hpS = Math.max(a.hpS, a.hp); FX.aura(a, 10); }   // absorção a.comboDmg += dmg; a.stats.dmg += dmg; a.stats.hits++; a.stats.maxCombo = Math.max(a.stats.maxCombo, a.combo);
+    if (h.drain && !proj && a.hp > 0) { a.hp = Math.min(a.ch.hp, a.hp + Math.max(1, Math.round(dmg * h.drain))); a.hpS = Math.max(a.hpS, a.hp); FX.aura(a, 10); }   // absorção
+    a.comboDmg += dmg; a.stats.dmg += dmg; a.stats.hits++; a.stats.maxCombo = Math.max(a.stats.maxCombo, a.combo);
     o.mv = null; o.combo = 0; o.cine = null; o.flash = 2; o.flashCol = out.ctr ? 2 : 1;
     const air = o.y > 0 || o.st == 'knock';
     o.hitKind = py > o.y + 90 * o.sz ? 'head' : 'gut'; o.hitLv = h.lv;
@@ -2011,7 +2040,7 @@ const Combat = {
     Audio.sfx(hs, out.ctr ? 1.25 : 1, px); if (h.snd && h.snd != hs) Audio.sfx(h.snd, .8, px);
     if (a.combo >= 3) Audio.sfx('combo', a.combo, px);
     if (o.hp > 0 && (lvl >= 2 || Math.random() < .3)) Audio.grunt(o, 'h');
-    M.stop = Math.max(M.stop, L.stop + (out.ctr == 'counter' ? 2 : out.ctr == 'punish' ? 4 : 0)); o.shakeT = M.stop;
+    M.stop = Math.max(M.stop, rep && o.hp > 0 ? MULTI_STOP : L.stop + (out.ctr == 'counter' ? 2 : out.ctr == 'punish' ? 4 : 0)); o.shakeT = M.stop;
     M.trauma = Math.min(1, (M.trauma || 0) + [.08, .14, .26, .4][lvl] + (out.ctr ? .1 : 0));
     Stage.cheer && Stage.cheer(.2 + lvl * .12);
     if (!proj && m && m.bounce) this.bounce(a);
@@ -2074,13 +2103,13 @@ const Combat = {
   },
   // ---------- cinemáticas de super ----------
   startCine(a, o, type, g) {
-    a.setSt('cine'); a.mv = null; a.cine = { type, t: 0, n: 0, dmg: (g && g.dmg) || 0 }; o.setSt('cineD'); o.mv = null; o.vx = o.vy = 0;
+    a.setSt('cine'); a.mv = null; a.cine = { type, t: 0, n: 0, dmg: (g && g.dmg) || 0, c0: a.combo || 0 }; o.setSt('cineD'); o.mv = null; o.vx = o.vy = 0;
     a.combo = a.combo || 0; M.dim = 90; M.shake = 6; Audio.sfx('hitH', 1, o.x);
   },
   cineHit(a, o, d, big) {
     a.combo++; if (a.combo == 1) a.starterL = false;
-    const dmg = Math.max(1, Math.round(d * Math.max(.5, SCALE[Math.min(a.combo - 1, 9)])));
-    o.hp = Math.max(0, o.hp - dmg); o.grey = 0; o.greyT = 0; o.lastDmg = 'S'; a.comboDmg += dmg; a.stats.dmg += dmg; o.flash = 2; o.shakeT = 4;
+    const dmg = Math.max(1, Math.round(d * Math.max(.5, SCALE[Math.min(a.combo - 1 - ((a.cine && a.cine.c0) || 0), 9)])));
+    o.hp = Math.max(0, o.hp - dmg); o.grey = 0; o.greyT = 0; o.lastDmg = 'S'; a.comboDmg += dmg; a.stats.dmg += dmg; a.stats.maxCombo = Math.max(a.stats.maxCombo, a.combo); o.flash = 2; o.shakeT = 4;
     M.comboShow = { f: a.i, n: a.combo, dmg: a.comboDmg, t: 90 };
     FX.hit(o.x + rnd(-20, 20), o.y + rnd(40, 110) * o.sz, a.face, big ? 2 : 1, big ? 'SA' : 'H'); Audio.sfx(big ? 'hitS' : 'hitM', 1, o.x);
     M.trauma = Math.min(1, (M.trauma || 0) + (big ? .5 : .1));
@@ -2112,7 +2141,7 @@ const Combat = {
   spawnProj(f, p) {
     const opp = M.f[1 - f.i];
     M.projs.push({ ex: !!(f.mv && f.mv.endsWith(':3')), id: M.projSeq = (M.projSeq || 0) + 1, x: p.atOpp ? opp.x : f.x + f.face * (52 + (p.ahead || 0)) * f.sz, y: p.atOpp ? (p.yOff || 0) : f.y + (p.yOff || (p.shape == 'kunai' ? 92 : 84)) * f.sz,
-      vx: f.face * p.vx, vy: p.vy || 0, ax: p.accel ? -f.face * p.accel : 0, o: f.i, p: JSON.parse(JSON.stringify(p)), left: p.hits || 1, gapT: p.delay || 0, life: p.life || 200, t: 0, dead: 0 });
+      vx: f.face * p.vx, vy: p.vy || 0, ax: p.accel ? -f.face * p.accel : 0, o: f.i, p: JSON.parse(JSON.stringify(p)), left: p.hits || 1, gapT: p.delay || 0, life: p.life || 200, t: 0, dead: 0, src: f.i + ':' + (f.mvId || 0) });
     const np = M.projs[M.projs.length - 1]; np.sx = np.x; np.sy = np.y;
     Audio.sfx(p.snd || PROJ_SND[p.shape] || (p.big ? 'projBig' : 'proj'), 1, f.x);
   },
@@ -2142,7 +2171,7 @@ const Combat = {
       if (pr.gapT <= 0 && !o.invulTo('proj') && !(o.st == 'knock' && !(pr.p.jLimit > o.juggle))) {
         const box = { x1: pr.x - r, x2: pr.x + r, y1: pr.y - r, y2: pr.y + r };
         if (o.hurt().some(h => overlap(h, box))) {
-          const h = Object.assign({ lv: 'SP', idx: 31 }, pr.p, { vx: pr.vx, kd: pr.left <= 1 && pr.p.kd ? 'soft' : null });
+          const h = Object.assign({ lv: 'SP', idx: 31 }, pr.p, { vx: pr.vx, src: pr.src, kd: pr.left <= 1 && pr.p.kd ? 'soft' : null });
           const out = this.judge(owner, o, h, true, pr.x);
           this.apply(owner, o, h, out, pr.x, pr.y, true, null);
           pr.left--; pr.gapT = pr.p.gap || 0; if (pr.p.beam) pr.lock = 1;
@@ -2374,6 +2403,12 @@ const Kit = {
     return s => ({ anim: o.anim || 'grab', startup: S3(s, [5, 5, 5, 3]), active: 3, recovery: 34, inv: s == 3 ? { strike: [1, 5], throw: [1, 5] } : {}, shout: o.shout,
       grab: { range: S3(s, o.range || [72, 80, 88, 92]), dmg: S3(s, o.dmg || [18, 20, 22, 25]), type: o.type || 'swing' } });
   }
+};
+
+// golpes do boneco do treino (qualquer lutador consegue soltar)
+const TRAIN_MOVES = {
+  tr_fb: Object.assign(Kit.fireball({ vx: [6, 6, 6, 6], dmg: 6 })(1), { name: 'BOLA DE FOGO (TREINO)' }),
+  tr_multi: Object.assign(Kit.fireball({ vx: [4.5, 4.5, 4.5, 4.5], r: 22, projExtra: { hits: 5, gap: 8, dmg: 2, hs: 18, bs: 10, big: 1 } })(1), { name: 'PROJÉTIL MULTI-HIT (TREINO)' })
 };
 
 // ---- roteiros de cinemática (supers que "prendem" o oponente) ----
@@ -2669,7 +2704,7 @@ defChar({
     super: () => ({ anim: 'flame', super: 1, startup: 20, active: 40, recovery: 22, inv: { strike: [1, 20], proj: [1, 20] }, name: 'INFERNO IOGUE', shout: 'yogainferno',
       proj: { f: 20, vx: 3.5, r: 44, life: 100, dmg: 6, hits: 6, gap: 6, shape: 'flame', big: 1, col: '#ff3a0a', glow: '#fff0a0', kd: 1, yOff: 96, ahead: 50, lv: 'SA' } }),
   },
-  vskill: { anim: 'float', air: 0, airOk: 1, startup: 99, dur: 60, move: 1, vel: [[2, 2, 0, 9]], hover: [14, 50], landEnd: 4, name: 'LEVITAÇÃO', airActs: 1 },
+  vskill: { anim: 'float', air: 0, airOk: 1, startup: 99, dur: 60, move: 1, vel: [[2, 2, 0, 9]], hover: [14, 50], landEnd: 4, drift: 3.4, name: 'LEVITAÇÃO', airActs: 1 },
   ai: { proj: 'fire', aa: 'blast', enders: ['flame'], zoner: 1, tele: 'tele', poke: 'smp', bnb: ['clp', 'cmp'] }
 });
 
@@ -3092,7 +3127,7 @@ defChar({
     super: () => ({ anim: 'reflect', super: 1, startup: 8, active: 8, recovery: 40, fx: 'tk', inv: { strike: [1, 12], throw: [1, 12], proj: [1, 12] }, name: 'ESMAGA-ALMAS', shout: 'soulcrusher',
       grab: { range: 300, dmg: 0, cine: 'soulcrush' } }),
   },
-  vskill: { anim: 'float', air: 0, airOk: 1, startup: 99, dur: 60, move: 1, vel: [[2, 2, 0, 9]], hover: [14, 50], landEnd: 4, name: 'LEVITAÇÃO MÍSTICA', airActs: 1 },
+  vskill: { anim: 'float', air: 0, airOk: 1, startup: 99, dur: 60, move: 1, vel: [[2, 2, 0, 9]], hover: [14, 50], landEnd: 4, drift: 3.4, name: 'LEVITAÇÃO MÍSTICA', airActs: 1 },
   ai: { proj: 'soul', aa: 'chp', enders: ['lift'], zoner: 1, tele: 'tele', poke: 'cmk', bnb: ['clp', 'cmp'] }
 });
 
@@ -3781,7 +3816,7 @@ defChar({
     win: ['Grove Street for life!', 'Ah, that was easy, homie.', 'Grove Street. Home.'],
     intro: ['Ah shit, here we go again.'] } },
   look: { gloveType: 'bare', skin: '#6a4028', hair: 'buzz', hairC: '#141010', mustache: '#1a1010', torso: 'tank', top: '#f2f2f2', goldchain: 1, pants: '#4a6aa0', sleeve: 'none', glove: '#6a4028', feet: '#f2f2f2' },
-  palettes: [{}, { top: '#2a8a3a' }, { top: '#1a1a1a', pants: '#c8a878', feet: '#1a1a1a' }, { top: '#6a2a8a', pants: '#4a6aa0' }],
+  palettes: [{}, { pants: '#26262c', feet: '#f2f2f2' }, { top: '#1a1a1a', pants: '#c8a878', feet: '#1a1a1a' }, { top: '#6a2a8a', pants: '#4a6aa0' }],
   sz: 1.02, hp: 102, walkF: 3.6, walkB: 2.9, jumpV: 14.5, jumpX: 4.2, stance: [55, 6, 30, 100, 20, 92, 16, 0, -20, 0, 0],
   cmdNormals: [
     { key: '6hp', dir: [6], btn: 'hp', move: { anim: 'chop', name: 'Soco de Cima', startup: 18, active: 3, recovery: 15, hits: [{ box: [14, 60, 70, 60], dmg: 8, lv: 'H', high: 1, onHit: 2, onBlock: -2 }] } },
@@ -4761,7 +4796,7 @@ function drawFighter(c, f, pz, tint) {
   const shieldOut = L.shield && M.projs && M.projs.some(q => q.o === f.i && q.p.shape == 'shieldp' && !q.dead);   // escudo arremessado: some do braço
   const fade = m && m.fade && f.t >= m.fade[0] && f.t <= m.fade[1] ? .15 + .85 * Math.abs(Math.cos((f.t - m.fade[0]) / (m.fade[1] - m.fade[0]) * Math.PI)) : 1;
   const elec = m && (m.fx == 'elec' || m.fx == 'hamon') && f.t >= m.s && f.t <= m.e;
-  const white = f.tStop > 0 ? 'rgba(70,50,120,.45)' : f.frozen > 0 ? 'rgba(150,220,255,.55)' : f.flash > 0 && f.flash % 2 == 0 ? FLASH_COLS[f.flashCol || 0] : null, zap = elec && T % 4 < 2;
+  const white = f.tStop > 0 ? 'rgba(70,50,120,.45)' : f.frozen > 0 ? 'rgba(150,220,255,.55)' : f.flash > 0 && f.flash % 2 == 0 ? FLASH_COLS[f.flashCol || 0] : f.mv && f.mv.endsWith(':3') && (f.st == 'atk' || f.st == 'air') ? 'rgba(255,214,60,.26)' : null, zap = elec && T % 4 < 2;
   const skin = L.skin, torsoC = L.torso == 'bare' || L.torso == 'vest' || L.torso == 'alien' ? skin : L.top, pants = L.pants, dk = x => shade(x, .78);
   const legStyle = L.legs || (L.shorts ? 'shorts' : 'baggy'), bare = legStyle == 'shorts' || legStyle == 'bare';
   const parts = [];
@@ -6308,11 +6343,16 @@ const Menus = {
       ['TREMOR DE TELA', ['DESLIGADO', 'SUAVE', 'NORMAL'][Math.round((settings.shake ?? 1) * 2)], 'shake'], ['REDUZIR FLASHES', on(settings.reduceFlash, 'SIM', 'NÃO'), 'reduceFlash'],
       ['FILTRO CRT (RETRÔ)', on(settings.crt), 'crt'], ['MÚSICA DO YOUTUBE', YTM.label(), 'yt'], ['REPETIR (YOUTUBE)', on(settings.ytLoop, 'SIM', 'NÃO'), 'ytLoop'], ['MÚSICA DA SALA ONLINE', settings.ytRoom === false ? 'DESLIGADA' : 'LIGADA', 'ytRoom'], ['HITBOXES', settings.hitboxes ? 'VISÍVEIS' : 'OCULTAS', 'hitboxes'], ['CONTROLES (REMAPEAR)', '', 'controls'], ['TESTAR CONTROLE', '', 'pad'], ['VOLTAR', '', 'back']];
   },
+  pauseOptItems() {
+    const keep = ['volMaster', 'volMusic', 'volSfx', 'volVoice', 'voice', 'shouts', 'shake', 'reduceFlash', 'crt', 'hitboxes'];
+    return this.optItems().filter(i => keep.includes(i[2])).concat([['VOLTAR', '', 'back']]);
+  },
   resultItems() { return [['REVANCHE', 'rematch'], ['REPLAY DA LUTA', 'replay'], ['TROCAR PERSONAGEM', 'select'], ['TROCAR CENÁRIO', 'stage'], ['MENU PRINCIPAL', 'menu']].filter(i => i[1] != 'replay' || Game.rec); },
   pauseItems() {
     const it = [['CONTINUAR', 'resume'], ['LISTA DE GOLPES', 'moves']];
     if (Game.mode == 'training') it.push(['BONECO: ' + Training.modes[Training.mode], 'dummy'], [Training.recState == 'rec' ? 'PARAR GRAVAÇÃO' : 'GRAVAR BONECO', 'rec'], [Training.recState == 'play' ? 'PARAR REPRODUÇÃO' : 'REPRODUZIR GRAVAÇÃO', 'play']);
     it.push(['MEDIDOR DE QUADROS: ' + (Training.shown('fm') ? 'SIM' : 'NÃO'), 'fmeter'], ['HISTÓRICO DE COMANDOS: ' + (Training.shown('ih') ? 'SIM' : 'NÃO'), 'idisp']);
+    it.push(['OPÇÕES (VOLUME)', 'opts']);
     if (Game.mode == 'tourney') return it.concat([['ABANDONAR TORNEIO', 'menu']]);
     return it.concat([['REINICIAR', 'restart'], ['TROCAR PERSONAGEM', 'select'], ['MENU PRINCIPAL', 'menu']]);
   },
@@ -6343,18 +6383,7 @@ const Menus = {
         if (mi.ok && k == 'pad') { Audio.sfx('select'); g.go('padtest'); break; }
         if (mi.ok && k == 'controls') { Audio.sfx('select'); this.cc = { col: 0, row: 1, p: 0, wait: null }; g.go('controls'); break; }
         if ((mi.l || mi.r || mi.ok) && k != 'back' && k != 'pad' && k != 'controls') {
-          const d = mi.l ? -1 : 1;
-          if (k == 'diff') settings.diff = (settings.diff + (mi.l ? DIFF.length - 1 : 1)) % DIFF.length;
-          else if (k.startsWith('vol')) {
-            settings[k] = clamp(Math.round(((settings[k] ?? 1) + d * .1) * 10) / 10, 0, 1);
-            if (k == 'volMusic') { const was = settings.music; settings.music = settings[k] > 0; if (settings.music && !was) Music.play('select'); if (!settings.music) Music.stop(); }
-            if (k == 'volSfx') settings.sfx = settings[k] > 0;
-          }
-          else if (k == 'ctl0' || k == 'ctl1') { const c = settings.controls = (settings.controls || ['classic', 'classic']).slice(), i = +k[3]; c[i] = c[i] == 'simple' ? 'classic' : 'simple'; }
-          else if (k == 'shake') settings.shake = ((Math.round((settings.shake ?? 1) * 2) + (mi.l ? 2 : 1)) % 3) / 2;
-          else settings[k] = !settings[k];
-          Audio.applyVolumes();
-          saveSettings(); Audio.sfx('move');
+          this.changeOpt(k, mi, 'select');
         }
         if ((mi.ok && k == 'back') || mi.back) { Audio.sfx('back'); g.go('mode'); }
         break;
@@ -6532,9 +6561,29 @@ const Menus = {
     }
   },
   netSel(i, c, r) { const s = (settings.controls || [])[0] == 'simple'; Room.sel[i] = c; Room.ready[i] = r; (Room.simple = Room.simple || [false, false])[i] = s; Net.send('all', { t: 'sel', i, c, r, s }); if (Net.role == 'host') { Net.broadcastRoom(); Net.startIfReady(); } },
+  changeOpt(k, mi, mus) {
+    const d = mi.l ? -1 : 1;
+    if (k == 'diff') settings.diff = (settings.diff + (mi.l ? DIFF.length - 1 : 1)) % DIFF.length;
+    else if (k.startsWith('vol')) {
+      settings[k] = clamp(Math.round(((settings[k] ?? 1) + d * .1) * 10) / 10, 0, 1);
+      if (k == 'volMusic') { const was = settings.music; settings.music = settings[k] > 0; if (settings.music && !was) Music.play(mus || 'select'); if (!settings.music) Music.stop(); }
+      if (k == 'volSfx') settings.sfx = settings[k] > 0;
+    }
+    else if (k == 'ctl0' || k == 'ctl1') { const c = settings.controls = (settings.controls || ['classic', 'classic']).slice(), i = +k[3]; c[i] = c[i] == 'simple' ? 'classic' : 'simple'; }
+    else if (k == 'shake') settings.shake = ((Math.round((settings.shake ?? 1) * 2) + (mi.l ? 2 : 1)) % 3) / 2;
+    else settings[k] = !settings[k];
+    Audio.applyVolumes();
+    saveSettings(); Audio.sfx('move');
+  },
   pauseUpdate(mi) {
     const g = Game, it = this.pauseItems();
     if (g.showMoves) { if (mi.ok || mi.back || mi.start) g.showMoves = false; return; }
+    if (g.pauseOpt) {
+      const oi = this.pauseOptItems(); this.nav(mi, oi.length); const k = oi[g.idx][2];
+      if ((mi.ok && k == 'back') || mi.back || mi.start) { Audio.sfx('back'); g.pauseOpt = false; g.idx = g.pauseIdx || 0; return; }
+      if (k != 'back' && (mi.l || mi.r || mi.ok)) this.changeOpt(k, mi, Stage.def && Stage.def.music);
+      return;
+    }
     this.nav(mi, it.length);
     const id = it[g.idx][1];
     const TM = Training.modes.length;
@@ -6545,6 +6594,7 @@ const Menus = {
     switch (id) {
       case 'resume': g.scene = 'fight'; break;
       case 'moves': g.showMoves = true; break;
+      case 'opts': g.pauseOpt = true; g.pauseIdx = g.idx; g.idx = 0; break;
       case 'dummy': Training.mode = (Training.mode + 1) % TM; break;
       case 'rec': Training.toggleRec(); g.scene = 'fight'; break;
       case 'play': Training.togglePlay(); g.scene = 'fight'; break;
@@ -6724,11 +6774,26 @@ const YTM = {
   tick() {
     if (this.gesture && !TextInput.active) this.keys();
     if (!this.gesture) return;
+    if (this.player && this.active) this.duckTick();
     const d = this.desired(), k = d ? d.key : '';
     if (k != this.curKey) { this.curKey = k; this.skipSeen = d ? d.skip : 0; this.ended = false; if (d) this.start(d); else this.stop(); }
     else if (d && d.skip != this.skipSeen) { this.skipSeen = d.skip; this.skipNow(d); }
   },
-  vol() { return Math.round(100 * (settings.volMaster ?? 1) * (settings.music ? (settings.volMusic ?? 1) : 0)); },
+  // mesmo nível da trilha do jogo (as músicas do YouTube vêm masterizadas mais altas) e abaixa junto com ela nos supers/K.O.
+  vol() { return Math.round(100 * .8 * (settings.volMaster ?? 1) * (settings.music ? (settings.volMusic ?? 1) : 0) * (this.dk ?? 1)); },
+  duck(level, hold) { this.dLv = Math.min(this.dLv ?? 1, level); this.dUntil = performance.now() + hold * 1000; },
+  duckTick() {
+    const now = performance.now(), on = now < (this.dUntil || 0), tgt = on ? this.dLv : 1, k = this.dk ?? 1;
+    this.dk = Math.abs(tgt - k) < .02 ? tgt : k + (tgt - k) * (tgt < k ? .5 : .08); if (!on) this.dLv = 1;
+    const v = this.vol(); if (v != this.lastVol) { this.lastVol = v; this.syncVolume(); }
+  },
+  // apaga o link: na sala só o anfitrião, e para pra todos
+  purge() {
+    if (this.inRoom() && Net.role != 'host') { if (Room.yt && Room.yt.url) this.toast('Só o anfitrião apaga a música da sala'); return; }
+    const had = !!(settings.yt || (this.inRoom() && Room.yt && Room.yt.url));
+    settings.yt = ''; saveSettings(); this.hostSet(); this.curKey = null; Audio.sfx('back');
+    this.toast(!had ? 'Nenhuma música do YouTube' : this.inRoom() ? 'Música da sala apagada pra todos' : 'Link do YouTube apagado');
+  },
   syncVolume() { try { if (this.player && this.player.setVolume) this.player.setVolume(this.vol()); } catch (e) {} },
   toast(msg) { padToast = { t: 260, msg }; },
   api(cb) {
@@ -6809,6 +6874,7 @@ const YTM = {
         else if (Room.yt && Room.yt.url) this.toast('Só o anfitrião pula a música da sala');
       } else if (this.player) { this.skipNow({ loop: settings.ytLoop }); this.toast('Música pulada'); }
     }
+    if (keys.KeyX && free('KeyX')) { keys.KeyX = false; this.purge(); }
     if (keys.KeyM && free('KeyM') && this.inRoom()) {
       keys.KeyM = false; settings.ytRoom = settings.ytRoom === false; saveSettings(); Audio.sfx('move');
       this.toast(settings.ytRoom ? 'Música da sala ligada' : 'Música da sala desligada (só pra você)');
@@ -6965,7 +7031,7 @@ Object.assign(Menus, {
       if (!ch) { txt(c, '?', x, 300, 200, 'rgba(255,255,255,.2)', 'center', 0); txt(c, 'ALEATÓRIO', x, 330, 34, '#fff', 'center', 6); return; }
       const k = 2.35 / Math.max(1, ch.sz);
       c.save(); c.beginPath(); c.rect(x - 200, 70, 400, 272); c.clip();
-      puppet(c, ch, x, 520, k, face, rd ? P.win : undefined, { st: rd ? 'win' : 'idle', look: lookOf(ch, g.pal[slot] || 0) }); c.restore();
+      puppet(c, ch, x, 520, k, face, rd ? P.win : undefined, { st: rd ? 'win' : 'idle', look: lookOf(ch, rd ? g.pal[slot] || 0 : 0) }); c.restore();
       const ng = c.createLinearGradient(0, 286, 0, 342); ng.addColorStop(0, 'rgba(0,0,0,0)'); ng.addColorStop(1, 'rgba(0,0,0,.7)'); c.fillStyle = ng; c.fillRect(x - 140, 286, 280, 56);
       txt(c, ch.name, x, 324, 38, rd ? '#ffd21e' : '#fff', 'center', 6);
       ui(c, online ? memberName(Room.fighters[slot]) + (Room.fighters[slot] == Net.id ? ' (você)' : '') : ch.title, x, 340, 14, online ? '#ffd21e' : '#bcd', 'center', 3);
@@ -7185,7 +7251,7 @@ Object.assign(Menus, {
     if (Net.error || Game.netMsg) { c.fillStyle = 'rgba(160,20,20,.9)'; c.fillRect(W / 2 - 280, 420, 560, 34); ui(c, Net.error || Game.netMsg, W / 2, 443, 17, '#fff', 'center'); }
     if (!joining) {
       ui(c, 'MÚSICA DA SALA (YOUTUBE): ' + YTM.roomLabel(), W / 2, 486, 15, '#ff8a8a', 'center', 3);
-      ui(c, (host ? 'Y troca o link · L repete · N pula a música (pra todos) · ' : 'Quem escolhe é o anfitrião · ') + 'M ' + (settings.ytRoom === false ? 'liga' : 'desliga') + ' a música só pra você', W / 2, 506, 13, '#c9a0a0', 'center', 3);
+      ui(c, (host ? 'Y troca o link · L repete · N pula · X apaga (pra todos) · ' : 'Quem escolhe é o anfitrião · ') + 'M ' + (settings.ytRoom === false ? 'liga' : 'desliga') + ' a música só pra você', W / 2, 506, 13, '#c9a0a0', 'center', 3);
     }
     this.hint(c, 'Esc para sair da sala');
     YTM.drawEdit(c);
@@ -7213,6 +7279,17 @@ Object.assign(Menus, {
   drawPause(c) {
     const g = Game;
     c.fillStyle = 'rgba(0,0,10,.72)'; c.fillRect(0, 0, W, H);
+    if (g.pauseOpt) {
+      gradText(c, 'OPÇÕES', W / 2, 96, 56, '#fff', '#c8f');
+      const it = this.pauseOptItems(), rh = Math.min(42, Math.floor((H - 170) / it.length)), fs = Math.min(21, Math.round(rh * .52));
+      it.forEach(([n, v], i) => {
+        const on = i == g.idx, y = 126 + i * rh;
+        c.fillStyle = on ? 'rgba(200,140,255,.9)' : 'rgba(16,16,34,.85)'; slant(c, 170, y, 620, rh - 6, 12); c.fill();
+        txt(c, n, 200, y + rh * .5 + fs * .3, fs, on ? '#1a0a20' : '#dde', 'left', on ? 0 : 3);
+        if (v) txt(c, (on ? '◄ ' : '') + v + (on ? ' ►' : ''), 760, y + rh * .5 + fs * .3, fs, on ? '#1a0a20' : '#ffd21e', 'right', on ? 0 : 3);
+      });
+      this.hint(c, '←→ alterar · Soco Médio / Esc voltar'); return;
+    }
     if (g.showMoves) {
       this.header(c, 'LISTA DE GOLPES');
       M.f.forEach((f, i) => {
@@ -7413,7 +7490,7 @@ function fitCanvas() {
 addEventListener('resize', fitCanvas);
 
 const Training = {
-  modes: ['PARADO', 'AGACHADO', 'DEFESA', 'DEFESA APÓS 1º HIT', 'PULANDO', 'PARRY', 'CPU'], mode: 0, last: { n: 0, dmg: 0 }, calm: 0, wasHit: 0,
+  modes: ['PARADO', 'AGACHADO', 'DEFESA', 'DEFESA APÓS 1º HIT', 'PULANDO', 'PARRY', 'BOLA DE FOGO', 'PROJÉTIL MULTI-HIT', 'CPU'], mode: 0, last: { n: 0, dmg: 0 }, calm: 0, wasHit: 0,
   input(f, o) {
     const bk = f.face > 0 ? 'l' : 'r', fw = f.face > 0 ? 'r' : 'l', om = o.m, low = !!(om && om.hits.some(h => h.low));
     if (f.st == 'hit' || f.st == 'knock') this.wasHit = 20; else if (this.wasHit > 0 && f.st != 'block') this.wasHit--;
@@ -7428,6 +7505,11 @@ const Training = {
         const pr = M.projs.find(p => p.o == o.i && Math.abs(p.x - f.x) < 110 && Math.sign(p.vx) == -f.face);
         const soon = (om && (o.st == 'atk' || o.st == 'air') && om.hits.length && o.t >= om.s - 3 && o.t < om.s) || (pr && Math.abs(pr.x - f.x) > 70);
         return soon ? (low ? { d: 1 } : { [fw]: 1 }) : {};
+      }
+      case 'BOLA DE FOGO': case 'PROJÉTIL MULTI-HIT': {
+        // solta de novo quando o anterior some e passa um respiro
+        if (f.st == 'idle' && !M.projs.some(p => p.o == f.i && !p.dead) && (M.frame - (this.fbT || 0) > 45 || M.frame < (this.fbT || 0))) { this.fbT = M.frame; return { want: this.modes[this.mode] == 'BOLA DE FOGO' ? 'tr_fb' : 'tr_multi' }; }
+        return {};
       }
       default: return AI.think(f, o);
     }
@@ -7478,7 +7560,7 @@ const Game = {
   stageSel: 0, trans: null, idle: 0, attract: false, quitAsk: false, netMsg: '', rematch: [false, false], lastStage: 'temple', kPrev: {}, introFx: {}, vShake: 0,
   get online() { return this.mode == 'online'; },
   go(s, cb) { if (this.trans) return; this.trans = { to: s, t: 0, dur: 13, cb }; },
-  goNow(s) { this.scene = s; this.t = 0; this.idx = 0; if (s != 'fight' && s != 'pause') Audio.stopAmbience(); },
+  goNow(s) { this.scene = s; this.t = 0; this.idx = 0; this.pauseOpt = false; if (s != 'title') Audio.stopIntro(); if (s != 'fight' && s != 'pause') Audio.stopAmbience(); },
   musicFor(s) { return { title: 'title', mode: 'select', options: 'select', padtest: 'select', select: 'charselect', stagesel: 'charselect', tsetup: 'select', bracket: 'select', champion: 'title', online: 'select', lobby: 'select', vs: 'charselect', continue: 'select', ending: 'title', gameover: 'title', howto: 'select' }[s]; },
 
   startMatch(c1, c2, stageId) {
@@ -7609,7 +7691,7 @@ const Game = {
   },
   update() {
     this.escEdge = Input.held('Escape') && !this.escPrev; this.escPrev = Input.held('Escape'); UIF++;
-    if (!this.titleSaid && Audio.ac && Audio.ac.state == 'running' && (this.scene == 'title' || this.scene == 'mode') && settings.voice) {
+    if (!this.titleSaid && Audio.ac && Audio.ac.state == 'running' && this.scene == 'title' && settings.voice) {
       this.titleSaid = true; Audio.playIntro();
     }
     YTM.tick();
@@ -7656,6 +7738,12 @@ const Game = {
         const k = f.parryFx / (PARRY_STOP + 6), pz = f.rp || Anim.pose(f), col = FX.parryRed[f.i] ? '#ff5a5a' : '#6ac8ff';
         c.save(); c.globalCompositeOperation = 'lighter';
         for (const [d, al] of [[8, .3], [4, .75]]) { c.globalAlpha = al * k; for (const [dx, dy] of [[-d, 0], [d, 0], [0, -d], [0, d]]) { c.save(); c.translate(dx, dy); drawFighter(c, f, pz, col); c.restore(); } }
+        c.restore();
+      }
+      if (f.mv && f.mv.endsWith(':3') && (f.st == 'atk' || f.st == 'air')) {   // EX: contorno amarelo pulsando enquanto o golpe dura
+        const pz = f.rp || Anim.pose(f), k = .75 + .25 * Math.sin(UIF * .45);
+        c.save(); c.globalCompositeOperation = 'lighter';
+        for (const [d, al] of [[7, .22], [3.5, .55]]) { c.globalAlpha = al * k; for (const [dx, dy] of [[-d, 0], [d, 0], [0, -d], [0, d]]) { c.save(); c.translate(dx, dy); drawFighter(c, f, pz, '#ffd21e'); c.restore(); } }
         c.restore();
       }
       if (f.st == 'intro' && INTRO_OF(f.ch) != 'bow') this.drawIntro(c, f); else { drawFighter(c, f, f.rp || Anim.pose(f)); drawSmear(c, f); }
