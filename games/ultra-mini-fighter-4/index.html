@@ -2226,12 +2226,12 @@ const Match = {
     const ctl = opts.ctrl || ['human', 'human'], pal = opts.pal || [0, c0 == c1 ? 1 : 0];
     const sim = opts.simple || [false, false];
     M.f = [new Fighter(0, CHARS[c0], ctl[0], pal[0], sim[0]), new Fighter(1, CHARS[c1], ctl[1], pal[1], sim[1])];
-    M.training = opts.mode == 'training'; M.stageId = stageId; M.round = 1; M.frame = 0; M.projSeq = 0;
+    M.training = opts.mode == 'training'; M.stageId = stageId; M.round = 1; M.frame = 0; M.projSeq = 0; M.tcfg = opts.tcfg || null; M.tcalm = 0;
     this.newRound();
   },
   newRound() {
     const [a, b] = M.f; a.resetRound(STAGE_W / 2 - 150); b.resetRound(STAGE_W / 2 + 150); a.rp = b.rp = null;
-    Object.assign(M, { projs: [], stop: 0, shake: 0, trauma: 0, dim: 0, comboShow: null, superF: null, firstHit: 0, timer: ROUND_TIME, phaseT: 0, slow: 0, winner: -1, koMsg: '', flash: 0, perfect: false, posed: 0, matchOver: false, draw: false });
+    Object.assign(M, { tcalm: 0, projs: [], stop: 0, shake: 0, trauma: 0, dim: 0, comboShow: null, superF: null, firstHit: 0, timer: ROUND_TIME, phaseT: 0, slow: 0, winner: -1, koMsg: '', flash: 0, perfect: false, posed: 0, matchOver: false, draw: false });
     if (!SIM.silent && typeof FX != 'undefined') { FX.parts = []; FX.texts = []; FX.banners = []; }
     M.phase = M.training ? 'fight' : 'intro';
     if (M.training) { a.setSt('idle'); b.setSt('idle'); a.meter = b.meter = METER_MAX; M.firstHit = 3; }
@@ -2311,7 +2311,7 @@ const Match = {
 // ===== snapshot / restauração do estado da luta (rollback, replays, resync) =====
 const State = {
   SKIP: { ch: 1, trail: 1, ai: 1, rp: 1, look: 1, rdy: 1, netName: 1 },   // campos só visuais/locais: fora do snapshot e do hash
-  M_KEYS: ['frame', 'projSeq', 'stop', 'shake', 'trauma', 'dim', 'phase', 'phaseT', 'timer', 'round', 'slow', 'koMsg', 'flash', 'perfect', 'posed', 'matchOver', 'draw', 'winner', 'firstHit'],
+  M_KEYS: ['frame', 'projSeq', 'stop', 'shake', 'trauma', 'dim', 'phase', 'phaseT', 'timer', 'round', 'slow', 'koMsg', 'flash', 'perfect', 'posed', 'matchOver', 'draw', 'winner', 'firstHit', 'tcfg', 'tcalm'],
   clone(v) { return v && typeof v == 'object' ? JSON.parse(JSON.stringify(v)) : v; },
   save() {
     const fs = M.f.map(f => { const o = {}; for (const k in f) if (!this.SKIP[k]) o[k] = this.clone(f[k]); return o; });
@@ -5706,7 +5706,7 @@ const AI = {
 <script>/* src/net/net.js */
 // ===== multiplayer online: sala com vários jogadores ("quem ganha fica"), rollback e espectadores =====
 // Topologia em estrela: todos se conectam ao anfitrião (PeerJS/WebRTC), que repassa as mensagens.
-const NET_VERSION = 2, PEER_PREFIX = 'ultraminifighter4-', MAX_ROOM = 8;   // Ultra: salas, servidores e versão separados do Mini Fighter IV
+const NET_VERSION = 3, PEER_PREFIX = 'ultraminifighter4-', MAX_ROOM = 8;   // Ultra: salas, servidores e versão separados do Mini Fighter IV
 const Room = { members: [], queue: [], fighters: [], phase: 'lobby', sel: [0, 1], ready: [false, false], simple: [false, false], last: null, chars: {} };
 const memberName = id => (Room.members.find(m => m.id == id) || {}).name || '?';
 
@@ -5727,11 +5727,11 @@ const Net = {
   get remoteName() { return Room.members.length > 1 ? 'ok' : ''; },
 
   // ---------- conexão ----------
-  host(pub = this.pub) {
-    this.close(true); this.role = 'host'; this.id = 'h'; this.pub = !!pub;
+  host(pub = this.pub, train = this.train) {
+    this.close(true); this.role = 'host'; this.id = 'h'; this.pub = !!pub; this.train = !!train;
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
     this.code = Array.from({ length: 5 }, () => chars[Math.random() * chars.length | 0]).join('');
-    Object.assign(Room, { members: [{ id: 'h', name: this.myName, wins: 0 }], queue: ['h'], fighters: [], phase: 'lobby', sel: [0, 1], ready: [false, false], simple: [false, false], last: null, chars: {},
+    Object.assign(Room, { members: [{ id: 'h', name: this.myName, wins: 0 }], queue: ['h'], fighters: [], phase: 'lobby', sel: [0, 1], ready: [false, false], simple: [false, false], last: null, chars: {}, train: this.train, tcfg: { hp: true, meter: true },
       yt: settings.yt ? { url: settings.yt, loop: !!settings.ytLoop, n: 1, skip: 0, idx: 0, time: 0 } : null });
     this.status = 'Criando sala...';
     this.makePeer(PEER_PREFIX + this.code, () => { this.status = 'Sala aberta! Aguardando jogadores...'; this.ready = true; });
@@ -5838,6 +5838,12 @@ const Net = {
       case 'sel': if (!(d.i === 0 || d.i === 1) || !Number.isInteger(d.c) || d.c < 0 || d.c > CHARS.length) break; Room.sel[d.i] = d.c; Room.ready[d.i] = !!d.r; Room.simple = Room.simple || [false, false]; Room.simple[d.i] = !!d.s; if (this.role == 'host') { this.broadcastRoom(); this.startIfReady(); } break;
       case 'start': Game.startOnline(d.c[0], d.c[1], d.st); break;
       case 'goSelect': Game.onGoSelect(); break;
+      case 'tcfg': {
+        if (!Number.isInteger(d.f) || d.f < 0 || !d.c || typeof d.c != 'object') break;
+        (this.tcfgAt = this.tcfgAt || {})[d.f] = this.normT(d.c);
+        if (this.active && !this.spectating && d.f < this.frame && this.snaps[d.f]) this.rbFrom = this.rbFrom == null ? d.f : Math.min(this.rbFrom, d.f);
+        break;
+      }
       case 'goLobby': Game.onGoLobby(d.msg); break;
       case 'forfeit': Game.onForfeit(d.w, d.who); break;
       case 'i': if (this.spectating) this.specRecv(d); else if (this.active && d.slot != this.slot) this.recvInputs(d); break;
@@ -5871,7 +5877,7 @@ const Net = {
 
   // ---------- rollback (lutadores) ----------
   begin(slot) {
-    Object.assign(this, { active: true, spectating: false, slot, endFrame: null, frame: 0, waitT: null, rbFrom: null, local: [], remote: [], predicted: [], snaps: [], adv: 0, remoteAdv: 0, stalls: 0, rollbacks: 0, desyncs: 0, myHashes: {}, theirHashes: {} });
+    Object.assign(this, { tcfgAt: {}, active: true, spectating: false, slot, endFrame: null, frame: 0, waitT: null, rbFrom: null, local: [], remote: [], predicted: [], snaps: [], adv: 0, remoteAdv: 0, stalls: 0, rollbacks: 0, desyncs: 0, myHashes: {}, theirHashes: {} });
     const ep = this.effPing(); this.delay = clamp(Math.round(ep / 2 / 16.7) + 1, 1, 8); this.maxRb = ep > 200 ? 18 : 12;
     for (let f = 0; f < 8; f++) { this.local[f] = 0; this.remote[f] = 0; }
     this.lastRemote = 7;
@@ -5893,12 +5899,22 @@ const Net = {
   step(f) {
     this.snaps[f] = State.save();
     if (f % 60 == 0 && f - 1 <= this.lastRemote && !SIM.silent) { const h = State.hash(); this.myHashes[f] = h; this.send('opp', { t: 'h', f, h }); this.checkHash(f); }
+    this.applyT(f);
     const mine = this.local[f] ?? 0, theirs = this.remoteAt(f);
     if (f > this.lastRemote) this.predicted[f] = theirs; else delete this.predicted[f];
     const ins = this.slot == 0 ? [mine, theirs] : [theirs, mine];
     Game.simStep(decIn(ins[0]), decIn(ins[1]));
     if (M.matchOver) { if (this.endFrame == null) this.endFrame = f; } else this.endFrame = null;
-    delete this.snaps[f - 120]; delete this.local[f - 200]; delete this.remote[f - 200]; delete this.predicted[f - 200];
+    delete this.snaps[f - 120]; if (this.tcfgAt) delete this.tcfgAt[f - 300]; delete this.local[f - 200]; delete this.remote[f - 200]; delete this.predicted[f - 200];
+  },
+  // treino online: mudança de configuração marcada para um quadro futuro (quem já passou dele volta no rollback)
+  applyT(f) { const tc = this.tcfgAt && this.tcfgAt[f]; if (tc) Training.applyCfg(tc); },
+  normT(c) { return { hp: !!c.hp, meter: !!c.meter, reset: !!c.reset }; },
+  trainSet(c) {
+    if (this.role != 'host' || !this.active) return;
+    const tc = this.normT(c), f = this.spectating ? this.frame + (this.specAhead || 0) + 60 : this.frame + this.delay + 20;
+    this.tcfgAt[f] = tc; this.route({ t: 'tcfg', f, c: tc }, 'h', 'all');
+    if (!tc.reset) { Room.tcfg = { hp: tc.hp, meter: tc.meter }; this.broadcastRoom(); }
   },
   checkHash(f) {
     const a = this.myHashes[f], b = this.theirHashes[f]; if (a === undefined || b === undefined) return;
@@ -5909,7 +5925,7 @@ const Net = {
     if (this.spectating) return this.specTick();
     if (!this.active) return;
     const F = this.frame, lf = F + this.delay;
-    if (this.local[lf] === undefined) { let v = encIn(rawInput(0, true)); if (window.__botInput) v = window.__botInput(lf); for (let k = lf; k >= 0 && this.local[k] === undefined; k--) this.local[k] = v; }
+    if (this.local[lf] === undefined) { let v = Game.tmenu ? 0 : encIn(rawInput(0, true)); if (window.__botInput) v = window.__botInput(lf); for (let k = lf; k >= 0 && this.local[k] === undefined; k--) this.local[k] = v; }
     const a = []; for (let k = Math.max(0, lf - 15); k <= lf; k++) a.push(this.local[k] ?? 0);
     this.send('fs', { t: 'i', slot: this.slot, f: lf, a, fr: F, adv: F - this.lastRemote });
     if (this.rbFrom != null && this.rbFrom < F && this.snaps[this.rbFrom]) {
@@ -5931,7 +5947,7 @@ const Net = {
   },
   // ---------- espectador: simula só com inputs confirmados dos dois lutadores ----------
   beginSpec() {
-    Object.assign(this, { active: true, spectating: true, slot: -1, frame: 0, sIn: [[], []], desyncs: 0, lastRecv: UIF });
+    Object.assign(this, { tcfgAt: {}, active: true, spectating: true, slot: -1, frame: 0, sIn: [[], []], desyncs: 0, lastRecv: UIF });
     for (let f = 0; f < 8; f++) this.sIn[0][f] = this.sIn[1][f] = 0;
   },
   specRecv(d) { if (!this.okInputs(d)) return; this.lastRecv = UIF; const arr = this.sIn[d.slot]; if (!arr) return; for (let k = 0; k < d.a.length; k++) { const f = d.f - d.a.length + 1 + k; if (f >= 0 && arr[f] === undefined) arr[f] = d.a[k]; } },
@@ -5943,7 +5959,7 @@ const Net = {
     const drain = UIF - (this.lastRecv || 0) > 8;                          // lutadores pararam de mandar: consome o resto
     const steps = ahead > 14 ? 3 : ahead > 7 ? 2 : ahead > 2 || (drain && ahead > 0) ? 1 : 0;   // mantém ~3 quadros de folga para ficar suave
     for (let i = 0; i < steps; i++) {
-      const f = this.frame; Game.simStep(decIn(this.sIn[0][f]), decIn(this.sIn[1][f])); this.frame++;
+      const f = this.frame; this.applyT(f); Game.simStep(decIn(this.sIn[0][f]), decIn(this.sIn[1][f])); this.frame++;
       delete this.sIn[0][f - 300]; delete this.sIn[1][f - 300];
       if (M.matchOver) { this.active = false; Game.matchEnd(); return; }
     }
@@ -6233,6 +6249,12 @@ const HUD = {
       ui(c, 'Último combo: ' + Training.last.n + ' hits / ' + Training.last.dmg + ' de dano', W / 2, 129, 15, '#ddd', 'center');
       if (rs) { const blink = UIF % 40 < 26; c.fillStyle = rs == 'rec' ? '#d01818' : '#18a038'; slant(c, W / 2 - 80, 142, 160, 24, 8); c.fill(); ui(c, (blink ? '● ' : '   ') + (rs == 'rec' ? 'GRAVANDO BONECO' : 'REPRODUZINDO'), W / 2, 159, 15, '#fff', 'center'); }
     }
+    if (M.training && Game.mode == 'online') {
+      const tc = M.tcfg || {};
+      c.fillStyle = 'rgba(0,0,0,.6)'; slant(c, W / 2 - 260, 118, 520, 46, 10); c.fill();   // abaixo da linha do ping
+      ui(c, 'TREINO ONLINE · Vida: ' + (tc.hp !== false ? 'recarrega' : 'normal') + ' · Barra: ' + (tc.meter !== false ? 'cheia' : 'normal') + ' · ' + (Net.role == 'host' ? 'Esc: menu do treino' : 'o anfitrião configura'), W / 2, 136, 14, '#9cf', 'center');
+      ui(c, 'Último combo: ' + Training.last.n + ' hits / ' + Training.last.dmg + ' de dano', W / 2, 155, 15, '#ddd', 'center');
+    }
     if (tut) Tutorial.draw(c);
     if (Game.replaying) { c.fillStyle = 'rgba(0,0,0,.55)'; slant(c, W / 2 - 150, 96, 300, 30, 10); c.fill(); ui(c, (UIF % 50 < 34 ? '▶ ' : '   ') + 'REPLAY · segure um botão p/ acelerar · Esc sai', W / 2, 116, 14, '#fff', 'center'); }
     if (Game.mode == 'trials') Trials.draw(c);
@@ -6431,11 +6453,12 @@ const Menus = {
           else if (g.escEdge) { TextInput.active = false; this.editName = false; }
           break;
         }
-        if (this.createPick) {                     // criar sala: pública ou privada
-          this.nav(mi, 3);
+        if (this.createPick) {                     // criar sala: pública ou privada (+ caixa de treino online)
+          this.nav(mi, 4);
+          if (g.idx == 2 && (mi.ok || mi.l || mi.r)) { this.createTrain = !this.createTrain; Audio.sfx('move'); break; }
           if (mi.ok) {
             Audio.sfx('select');
-            if (g.idx < 2) { g.netMsg = ''; this.lobbyJoin = false; this.fromList = false; this.createPick = false; Net.host(g.idx == 0); g.go('lobby'); }
+            if (g.idx < 2) { g.netMsg = ''; this.lobbyJoin = false; this.fromList = false; this.createPick = false; Net.host(g.idx == 0, !!this.createTrain); g.go('lobby'); }
             else { this.createPick = false; g.idx = 0; }
           }
           if (mi.back) { Audio.sfx('back'); this.createPick = false; g.idx = 0; } break;
@@ -7189,11 +7212,13 @@ Object.assign(Menus, {
   drawOnline(c) {
     const g = Game; this.bg(c, '#3cf'); this.header(c, 'JOGAR ONLINE', '#3cf');
     const pick = this.createPick;
-    if (pick) this.list(c, ['SALA PÚBLICA', 'SALA PRIVADA', 'VOLTAR'], 110, 130, g.idx, 380, 50);
+    if (pick) this.list(c, ['SALA PÚBLICA', 'SALA PRIVADA', (this.createTrain ? '[X]' : '[  ]') + ' TREINO ONLINE', 'VOLTAR'], 110, 130, g.idx, 380, 50);
     else this.list(c, ['CRIAR SALA', 'PROCURAR SALAS', 'ENTRAR COM CÓDIGO', 'NOME: ' + (this.editName ? TextInput.value + (UIF % 40 < 20 ? '_' : ' ') : (settings.name || '(sem nome)')), 'VOLTAR'], 110, 130, g.idx, 380, 50);
     if (this.editName) ui(c, 'Digite seu nome e aperte ENTER', 300, 400, 16, '#ffd21e', 'center');
     c.fillStyle = 'rgba(0,0,0,.55)'; c.fillRect(540, 120, 380, 250); c.strokeStyle = '#3cf'; c.lineWidth = 2; c.strokeRect(540, 120, 380, 250);
-    const info = pick ? (g.idx == 1
+    const info = pick ? (g.idx == 2
+      ? ['Treino online:', 'Os dois lutadores treinam juntos,', 'sem K.O. e sem tempo.', 'O anfitrião configura na luta (Esc):', 'vida, barra de super, resetar', 'posições e trocar personagem.']
+      : g.idx == 1
       ? ['Sala privada:', 'Só entra quem tiver o código.', 'Você recebe um código de 5 letras', 'e passa pros amigos.', '', 'Não aparece em "Procurar salas".']
       : ['Sala pública:', 'Aparece em "Procurar salas" para', 'qualquer jogador, sem código.', 'Mostra seu nome e quantos estão', 'na sala. O código também funciona', 'para chamar amigos.'])
       : ['Como funciona:', '1. Crie uma sala (pública ou privada)', '   ou procure uma sala pública aberta', '2. Sala privada: passe o código', '3. Até 8 na sala: dois lutam, o resto assiste', '4. Quem ganha fica; quem perde vai pra fila', '', 'Rollback netcode para esconder o lag.', 'Precisa de internet em todos.'];
@@ -7227,7 +7252,7 @@ Object.assign(Menus, {
   },
   drawLobby(c) {
     const joining = this.lobbyJoin && (TextInput.active || !Net.id), host = Net.role == 'host';
-    this.bg(c, '#3cf'); this.header(c, joining ? 'ENTRAR NA SALA' : (host ? (Net.pub ? 'SALA PÚBLICA ' : 'SALA PRIVADA ') : 'SALA ') + (Net.code || ''), '#3cf');
+    this.bg(c, '#3cf'); this.header(c, joining ? 'ENTRAR NA SALA' : (host ? (Net.pub ? 'SALA PÚBLICA ' : 'SALA PRIVADA ') : 'SALA ') + (Net.code || '') + (Room.train ? ' · TREINO' : ''), '#3cf');
     if (joining) {
       c.fillStyle = 'rgba(0,0,0,.6)'; c.fillRect(W / 2 - 280, 120, 560, 250); c.strokeStyle = '#3cf'; c.lineWidth = 2; c.strokeRect(W / 2 - 280, 120, 560, 250);
       ui(c, this.fromList ? 'Entrando na sala pública:' : 'Digite o código da sala (5 letras/números):', W / 2, 170, 20, '#dde', 'center');
@@ -7309,6 +7334,13 @@ Object.assign(Menus, {
     }
     gradText(c, 'PAUSA', W / 2, 100, 64, '#fff', '#9cf');
     { const it = this.pauseItems(), h = Math.min(44, Math.floor((H - 150) / it.length) - 8); this.list(c, it.map(i => i[0]), W / 2 - 230, 124, g.idx, 460, h, Math.min(28, Math.round(h * .62))); }
+  },
+  drawTMenu(c) {
+    const g = Game, it = g.tItems();
+    c.fillStyle = 'rgba(0,0,10,.7)'; c.fillRect(0, 0, W, H);
+    gradText(c, 'TREINO ONLINE', W / 2, 96, 52, '#fff', '#3cf');
+    this.list(c, it.map(i => i[0]), W / 2 - 240, 126, g.tIdx || 0, 480, 46, 24);
+    this.hint(c, '↑↓ escolher · ←→ / Enter alterar · Esc fechar — a luta continua por trás (você fica parado)');
   },
   drawQuit(c) {
     c.fillStyle = 'rgba(0,0,0,.7)'; c.fillRect(W / 2 - 220, H / 2 - 60, 440, 110); c.strokeStyle = '#f66'; c.lineWidth = 3; c.strokeRect(W / 2 - 220, H / 2 - 60, 440, 110);
@@ -7555,8 +7587,14 @@ const Training = {
   update(a, b) {
     for (const [x, y] of [[a, b], [b, a]]) if ((y.st == 'hit' || y.st == 'knock' || y.st == 'crumple') && x.comboDmg) this.last = { n: x.combo, dmg: x.comboDmg };
     const busy = f => ['hit', 'knock', 'down', 'wake', 'cineD', 'thrown', 'block', 'cine', 'throw', 'crumple', 'parry'].includes(f.st);
-    if (busy(a) || busy(b)) this.calm = 0;
-    else if (++this.calm > 45) for (const f of [a, b]) { f.meter = METER_MAX; if (f.grey <= 0) { f.hp = f.ch.hp; f.hpS = f.hp; } }   // com vida cinza, deixa ela voltar sozinha (dá pra ver a mecânica)
+    const tc = M.tcfg || {}, hp = tc.hp !== false, meter = tc.meter !== false;   // treino online: o anfitrião escolhe (padrão: recarrega os dois)
+    if (busy(a) || busy(b)) M.tcalm = 0;
+    else if ((M.tcalm = (M.tcalm || 0) + 1) > 45) for (const f of [a, b]) { if (meter) f.meter = METER_MAX; if (hp && f.grey <= 0) { f.hp = f.ch.hp; f.hpS = f.hp; } }   // com vida cinza, deixa ela voltar sozinha (dá pra ver a mecânica)
+  },
+  // configuração do treino online, aplicada no MESMO quadro pelos dois lados (ou resetar as posições)
+  applyCfg(tc) {
+    if (tc.reset) { const keep = M.tcfg; Match.newRound(); M.tcfg = keep; return; }
+    M.tcfg = { hp: tc.hp, meter: tc.meter };
   }
 };
 
@@ -7583,11 +7621,34 @@ const Game = {
   },
   startOnline(c0, c1, stageId) {
     this.mode = 'online'; this.attract = false; this.quitAsk = false; this.forfeitMsg = '';
-    Stage.set(stageId); Match.create(c0, c1, stageId, { mode: 'online', ctrl: ['human', 'human'], pal: [0, c0 == c1 ? 1 : 0], simple: (Room.simple || [false, false]).map(Boolean) });
+    this.tmenu = false;
+    Stage.set(stageId); Match.create(c0, c1, stageId, { mode: Room.train ? 'training' : 'online', tcfg: Room.train ? Object.assign({ hp: true, meter: true }, Room.tcfg) : null, ctrl: ['human', 'human'], pal: [0, c0 == c1 ? 1 : 0], simple: (Room.simple || [false, false]).map(Boolean) });
     Voice.preload(CHARS[c0].id + '/'); Voice.preload(CHARS[c1].id + '/');
     M.f.forEach((f, i) => f.netName = memberName(Room.fighters[i]));
     const slot = Room.fighters.indexOf(Net.id); if (slot >= 0) Net.begin(slot); else Net.beginSpec();
     this.goNow('fight'); this.trans = null; Music.play(Stage.def.music); Audio.ambience(Stage.def.amb);
+  },
+  tItems() {
+    const c = Room.tcfg || { hp: true, meter: true };
+    return [['VIDA: ' + (c.hp ? 'RECARREGA' : 'NORMAL'), 'hp'], ['BARRA DE SUPER: ' + (c.meter ? 'SEMPRE CHEIA' : 'NORMAL'), 'meter'], ['RESETAR POSIÇÕES', 'reset'], ['TROCAR PERSONAGEM', 'select'], ['SAIR DA SALA', 'quit'], ['FECHAR MENU', 'close']];
+  },
+  // menu do treino online (só o anfitrião); devolve true se saiu da luta
+  tmenuUpdate() {
+    const mi = menuInput(0, true), it = this.tItems(), n = it.length;
+    if (mi.u) { this.tIdx = (this.tIdx + n - 1) % n; Audio.sfx('move'); } if (mi.d) { this.tIdx = (this.tIdx + 1) % n; Audio.sfx('move'); }
+    if (mi.back) { this.tmenu = false; Audio.sfx('back'); return false; }
+    const id = it[this.tIdx][1], c = Room.tcfg || { hp: true, meter: true };
+    if (!(mi.ok || ((mi.l || mi.r) && (id == 'hp' || id == 'meter')))) return false;
+    Audio.sfx('select');
+    switch (id) {
+      case 'hp': Net.trainSet({ hp: !c.hp, meter: c.meter }); break;
+      case 'meter': Net.trainSet({ hp: c.hp, meter: !c.meter }); break;
+      case 'reset': Net.trainSet({ reset: true }); this.tmenu = false; break;
+      case 'select': this.tmenu = false; Net.active = false; Net.hostStartSelect(); return true;
+      case 'quit': this.tmenu = false; Net.close(); this.netMsg = 'Você saiu da sala.'; this.go('online'); Music.play('select'); return true;
+      case 'close': this.tmenu = false; break;
+    }
+    return false;
   },
   onGoSelect() { this.mode = 'online'; this.quitAsk = false; TextInput.active = false; this.trans = null; this.go('select'); },
   onGoLobby(msg) { this.netMsg = msg || ''; Net.active = false; this.trans = null; Menus.lobbyJoin = false; this.go('lobby'); Music.play('select'); },
@@ -7621,7 +7682,8 @@ const Game = {
   fightUpdate() {
     const [a, b] = M.f;
     if (this.mode == 'online') {
-      if (this.escEdge) this.quitAsk = !this.quitAsk;
+      if (M.training && Net.role == 'host') { if (this.escEdge) { this.tmenu = !this.tmenu; this.tIdx = 0; this.quitAsk = false; menuInput(0, true); } else if (this.tmenu && this.tmenuUpdate()) return; }
+      else if (this.escEdge) this.quitAsk = !this.quitAsk;
       if (this.quitAsk && Input.held('Enter')) { Net.close(); this.quitAsk = false; this.netMsg = 'Você saiu da sala.'; this.go('online'); Music.play('select'); return; }
       Net.tick(); this.visual(); return;
     }
@@ -7851,7 +7913,7 @@ try { Audio.unlock(); } catch (e) {}
 function tick() { if (Audio.ac) Music.tick(); FX.update(); Game.update(); Input.endTick(); }
 function render() {
   ctx.setTransform(RS, 0, 0, RS, 0, 0); ctx.clearRect(0, 0, W, H);
-  if (Game.scene == 'fight' || Game.scene == 'pause') { Game.drawFight(ctx); if (Game.scene == 'pause') Menus.draw('pause'); if (Game.quitAsk) Menus.drawQuit(ctx); }
+  if (Game.scene == 'fight' || Game.scene == 'pause') { Game.drawFight(ctx); if (Game.scene == 'pause') Menus.draw('pause'); if (Game.quitAsk) Menus.drawQuit(ctx); if (Game.tmenu && Game.mode == 'online') Menus.drawTMenu(ctx); }
   else Menus.draw(Game.scene);
   if (Game.trans) Menus.drawTrans(ctx, Game.trans);
   if (settings.crt) Menus.drawCRT(ctx);
