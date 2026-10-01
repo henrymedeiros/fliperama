@@ -1864,7 +1864,10 @@ class Fighter {
     if (m.drift && this.y > 0 && this.t > 2) this.vx = (this.fx || 0) * m.drift;   // levitação: ← → movem no ar
     if (m.vbuff && this.t == m.vbuff.f) {
       const vb = Object.assign({}, m.vbuff);
-      if (vb.burnGrey) { const g = this.grey; this.grey = 0; this.greyT = 0; vb.mult = 1.15 + .35 * Math.min(1, g / (this.ch.healMax || 25 * HPK)); }   // FÚRIA: queima a vida cinza
+      if (vb.burnGrey) {   // FÚRIA: queima a vida cinza e SOMA à fúria atual (começa em +15%, teto +50%)
+        const g = this.grey, add = .35 * Math.min(1, g / (this.ch.healMax || 25 * HPK)), prev = this.vbuff && this.vbuff.label == vb.label ? this.vbuff.mult - 1 : 0;
+        this.grey = 0; this.greyT = 0; vb.mult = 1 + Math.min(.5, prev ? prev + add : .15 + add);
+      }
       this.vbuff = { mult: vb.mult, sp: vb.sp || null, any: !!vb.any, label: vb.label, col: vb.col };
       if (!SIM.silent) { FX.aura(this, 12); Audio.sfx('superready', 1, this.x); }
     }
@@ -4829,6 +4832,8 @@ function footPart(an, fw, col, L, boot) {
 // V-Skill de bônus: 0..1 da intensidade (FÚRIA do Lobo escala de +15% a +50%; os outros têm intensidade fixa)
 function buffLevel(f) { const vb = f.vbuff; if (!vb) return 0; const gs = f.ch.vskill && f.ch.vskill.vbuff && f.ch.vskill.vbuff.burnGrey; return gs ? clamp((vb.mult - 1.15) / .35, 0, 1) : .6; }
 function furyPotential(f) { return clamp(f.grey / (f.ch.healMax || 25 * HPK), 0, 1); }
+// bônus da FÚRIA (0..0,5) se o Lobo queimar a vida cinza agora: soma à fúria atual
+function furyNext(f) { const cur = f.vbuff ? f.vbuff.mult - 1 : 0, add = .35 * furyPotential(f); return Math.min(.5, cur ? cur + add : .15 + add); }
 // aura de chamas atrás do lutador (só visual): cresce com a intensidade k
 function drawBuffAura(c, f, col, k) {
   const T = UIF, sz = f.sz, cx = f.x, base = -f.y, hgt = 150 * sz, n = 6 + Math.round(8 * k);
@@ -6280,13 +6285,15 @@ const HUD = {
         if (tag) { const k = .75 + .25 * Math.sin(T * .2); c.save(); c.globalAlpha = k; ui(c, '◆ ' + tag[0], L ? bx + 4 : bx + bw - 4, by + 76, 14, tag[1], L ? 'left' : 'right', 3); c.restore(); }
         const vs = f.ch.vskill && f.ch.vskill.vbuff;
         if (vs && vs.burnGrey) {   // barra de FÚRIA: cheia = +50%; sem fúria ativa mostra (apagado) quanto a vida cinza renderia agora
-          const on = !!f.vbuff, lv = on ? buffLevel(f) : furyPotential(f), w = 150, h = 8, x = L ? bx + 4 : bx + bw - 4 - w, y = by + (tag ? 84 : 70);
+          const on = !!f.vbuff, cur = on ? f.vbuff.mult - 1 : 0, nxt = furyNext(f), w = 150, h = 8, x = L ? bx + 4 : bx + bw - 4 - w, y = by + (tag ? 84 : 70);
           c.fillStyle = 'rgba(0,0,0,.6)'; c.fillRect(x - 2, y - 2, w + 4, h + 4);
           const gg = c.createLinearGradient(x, 0, x + w, 0); gg.addColorStop(0, on ? '#ff7a1a' : '#5a1a14'); gg.addColorStop(1, on ? '#ff1a1a' : '#7a2018');
-          c.fillStyle = gg; const fw = w * clamp((on ? f.vbuff.mult - 1 : .15 + .35 * lv) / .5, 0, 1), fx = L ? x : x + w - fw; c.fillRect(fx, y, fw, h);   // barra = bônus de 0 a 50%
+          if (nxt > cur + .005) { const pw = w * clamp(nxt / .5, 0, 1); c.fillStyle = 'rgba(160,40,30,.55)'; c.fillRect(L ? x : x + w - pw, y, pw, h); }   // quanto a próxima queima somaria
+          c.fillStyle = gg; const fw = w * clamp(cur / .5, 0, 1), fx = L ? x : x + w - fw; if (on) c.fillRect(fx, y, fw, h);   // barra = bônus de 0 a 50%
           if (on) { c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = .35 + .25 * Math.sin(T * .3); c.fillStyle = '#ff6a3a'; c.fillRect(fx, y - 1, fw, h + 2); c.restore(); }
           c.strokeStyle = on ? '#ff8a5a' : '#6a3a34'; c.lineWidth = 1; c.strokeRect(x - .5, y - .5, w + 1, h + 1);
-          if (!on) ui(c, 'FÚRIA: renderia +' + Math.round(15 + 35 * lv) + '%', L ? x + w + 8 : x - 8, y + 8, 11, '#9a6a64', L ? 'left' : 'right', 2);
+          if (nxt > cur + .005) ui(c, (on ? 'queimar a vida cinza: +' : 'FÚRIA: renderia +') + Math.round(nxt * 100) + '%', L ? x + w + 8 : x - 8, y + 8, 11, '#b07a70', L ? 'left' : 'right', 2);
+          else if (on && cur >= .495) ui(c, 'FÚRIA MÁXIMA', L ? x + w + 8 : x - 8, y + 8, 11, '#ff8a5a', L ? 'left' : 'right', 2);
         } }
       if (f.simple) { const w = c.measureText(f.ch.name).width; ui(c, 'SIMPLES', L ? bx + 12 + w : bx + bw - 12 - w, by + 51, 12, '#6cf', L ? 'left' : 'right', 3); }
       if (Game.mode == 'online' && f.netName) ui(c, f.netName + (f.i == Net.slot ? ' (você)' : ''), L ? bx + 90 : bx + bw - 90, by + 52, 16, f.i == Net.slot ? '#ffd21e' : '#9cf', L ? 'left' : 'right', 3);
