@@ -228,6 +228,7 @@ const Audio = {
     this.duckG = ac.createGain(); this.duckG.connect(this.out);
     this.muffleF = ac.createBiquadFilter(); this.muffleF.type = 'lowpass'; this.muffleF.frequency.value = 20000; this.muffleF.Q.value = .8; this.muffleF.connect(this.duckG);
     this.musicBus = ac.createGain(); this.musicBus.connect(this.muffleF);
+    this.trackG = ac.createGain(); this.trackG.connect(this.muffleF);   // faixas gravadas (abertura, seleção)
     this.drumBus = ac.createGain(); this.drumBus.connect(this.musicBus);
     this.pumpG = ac.createGain(); this.pumpG.connect(this.musicBus);
     this.leadBus = ac.createGain(); this.leadBus.connect(this.musicBus);
@@ -258,6 +259,7 @@ const Audio = {
     this.master.gain.setTargetAtTime(v('volMaster'), t, .02);
     this.sfxVol.gain.setTargetAtTime(settings.sfx ? v('volSfx') : 0, t, .02);
     this.musicBus.gain.setTargetAtTime(settings.music && !(typeof YTM != 'undefined' && YTM.active) ? .24 * v('volMusic') / .7 : 0, t, .02);
+    if (this.trackG) this.trackG.gain.setTargetAtTime(settings.music && !(typeof YTM != 'undefined' && YTM.active) ? 1.4 * v('volMusic') / .7 : 0, t, .02);
     if (typeof YTM != 'undefined') YTM.syncVolume();
     this.voiceBus.gain.setTargetAtTime(settings.voice || settings.shouts ? v('volVoice') : 0, t, .02);
   },
@@ -332,6 +334,19 @@ const Audio = {
       case 'gust': this.noise(t, 2.2, { type: 'bandpass', f: 400, fMid: 900, fTo: 300, q: .7, vol: .08, a: .8 }); break;
     }
     this.evDest = null; this.vary = 1;
+  },
+  // abertura: "Ultra Mini Fighter 4" (intro.mp3) uma vez na tela inicial; a música do jogo espera terminar
+  playIntro() {
+    if (!this.ac || this.introDone) return; this.introDone = true;
+    const fallback = () => { if (settings.voice) { this.say('title'); this.duck(.3, 3.6); this.sfx('titlehit'); } };
+    if (!settings.music) { fallback(); return; }
+    Music.pending = Music.name || 'title'; Music.stop(); Music.hold = true;
+    const resume = () => { Music.hold = false; const p = Music.pending; Music.pending = null; Music.play(p || 'title'); };
+    Tracks.load('intro.mp3').then(b => {
+      if (!b) { resume(); fallback(); return; }
+      const src = this.ac.createBufferSource(), g = this.ac.createGain(); src.buffer = b; g.gain.value = 1.5;
+      src.connect(g).connect(this.trackG); src.onended = resume; src.start(this.now + .05);
+    });
   },
   // abaixa a música por um tempo (super, K.O., narrador)
   duck(level = .4, hold = .8) {
@@ -524,11 +539,13 @@ const Audio = {
   // esforço (e), dor (h), nocaute (ko), frase de vitória (win)
   grunt(f, kind, o = {}) {
     if (!settings.shouts || SIM.silent || !f) return;
-    const id = f.ch.id, key = kind == 'e' ? id + '/e' + (1 + (Math.random() * 3 | 0)) : kind == 'h' ? id + '/h' + (1 + (Math.random() * 2 | 0)) : id + '/' + kind;
+    const id = f.ch.id, nv = b => { const ck = id + '/' + b; if (this.nvar[ck] == null) { let n = 0; while (Voice.has(ck + (n + 1))) n++; this.nvar[ck] = n; } return Math.max(1, this.nvar[ck]); };
+    const key = kind == 'e' || kind == 'h' ? id + '/' + kind + (1 + (Math.random() * nv(kind) | 0)) : id + '/' + kind;
     if (Voice.play(key, Object.assign({ chan: 'f' + f.i, pri: { e: 1, h: 2, ko: 4, win: 3 }[kind] || 1, fx: VOICE_FX[id], x: f.x, rate: kind == 'e' || kind == 'h' ? .95 + Math.random() * .1 : 1 }, o))) return;
     const VL = f.ch.voice && f.ch.voice.lines, ln = VL && VL[{ h: 'hurt', ko: 'ko', win: 'win', intro: 'intro' }[kind]];
     if (ln) this.line(f, ln, kind == 'ko' || kind == 'win' || kind == 'intro', o.delay);
   },
+  nvar: {},
   // fala curta pela voz do navegador (lutador sem voz gravada): intervalo mínimo entre falas de dor para não falar a cada golpe
   lineT: {},
   line(f, arr, force, delay) {
@@ -678,13 +695,37 @@ for (const k in SONGS) {
   s.ev = ev; s.len = tk.length;
 }
 
+// faixas gravadas (Suno): tocam em laço entre loopStart e loopEnd (a introdução da faixa só toca na primeira vez); alt = música sintetizada de reserva
+const TRACKS = { charselect: { src: 'select.mp3', loopStart: .948, loopEnd: 41.204, gain: 1, alt: 'select' } };
+const Tracks = {
+  raw: {}, buf: {}, pend: {},
+  fetch(src) { return this.raw[src] || (this.raw[src] = fetch(src).then(r => r.ok ? r.arrayBuffer() : null).catch(() => null)); },
+  load(src) {
+    if (this.buf[src]) return Promise.resolve(this.buf[src]); if (!Audio.ac) return Promise.resolve(null);
+    return this.pend[src] || (this.pend[src] = this.fetch(src).then(ab => ab ? Audio.ac.decodeAudioData(ab.slice(0)) : null).then(b => (this.buf[src] = b)).catch(() => null));
+  }
+};
+for (const k in TRACKS) Tracks.fetch(TRACKS[k].src); Tracks.fetch('intro.mp3');   // já baixa; decodifica quando o som for liberado
 const Music = {
-  cur: null, name: '', step: 0, t: 0, prevLead: null, prevEnd: 0,
+  cur: null, name: '', step: 0, t: 0, prevLead: null, prevEnd: 0, trk: null, hold: false, pending: null,
   play(name) {
-    if (this.name == name && this.cur) return;
-    this.name = name; this.cur = SONGS[name] || null; this.step = 0; this.t = Audio.now + .1; this.prevLead = null;
+    if (this.hold) { this.pending = name; return; }                                   // abertura tocando: a música espera
+    if (this.name == name && (this.cur || this.trk)) return;
+    this.stopTrack(); this.name = name; this.step = 0; this.t = Audio.now + .1; this.prevLead = null;
+    const T = TRACKS[name];
+    if (T && Audio.ac && settings.music) {
+      const b = Tracks.buf[T.src];
+      if (b) { this.cur = null; this.startTrack(T, b); return; }
+      Tracks.load(T.src).then(bb => { if (bb && this.name == name && !this.trk && !this.hold) { this.cur = null; this.startTrack(T, bb); } });
+    }
+    this.cur = SONGS[name] || (T && SONGS[T.alt]) || null;
   },
-  stop() { this.cur = null; this.name = ''; },
+  stop() { this.cur = null; this.name = ''; this.stopTrack(); },
+  startTrack(T, b) {
+    const A = Audio, src = A.ac.createBufferSource(), g = A.ac.createGain(); src.buffer = b; src.loop = true; src.loopStart = T.loopStart; src.loopEnd = Math.min(T.loopEnd, b.duration);
+    g.gain.setValueAtTime(0, A.now); g.gain.setTargetAtTime(T.gain, A.now, .04); src.connect(g).connect(A.trackG); src.start(A.now + .02); this.trk = { src, g };
+  },
+  stopTrack() { const k = this.trk; if (!k) return; const t = Audio.now; try { k.g.gain.setTargetAtTime(0, t, .12); k.src.stop(t + .7); } catch (e) {} this.trk = null; },
   tick() {
     const A = Audio; if (!A.ac || !this.cur || !settings.music) return;
     const s = this.cur, dt = 60 / (s.bpm * (this.hot ? 1.07 : 1)) / 4;          // round decisivo / vida baixa: acelera
@@ -1071,6 +1112,7 @@ const VOICE_DATA = {
 };
 
 </script>
+<script src="vozes.js"></script>
 <script>/* src/audio/voice.js */
 // ===== vozes gravadas (narrador + lutadores): decodificação sob demanda, efeitos por personagem, prioridade =====
 // Os clipes vêm de src/audio/voicedata.js (gerado por tools/voices/gen.mjs). Sem o arquivo, cai no speechSynthesis.
@@ -3502,7 +3544,7 @@ defChar({
     tornado: s => { const m = Kit.dp({ shout: 'tornado_claw', vy: [11.5, 13, 14.5, 14.5] })(s);
       m.hits = multi(S3(s, [3, 4, 5, 5]), 3, 4, 2, { box: [8, 50, 50, 110], dmg: S3(s, [3.4, 3, 3, 2.8]), lv: 'SP', launch: { vy: 11 }, jLimit: 3, lastKd: 1, bs: 10 }); m.name = 'Tornado Claw'; return m; },
     // Berserker Slash: corte que atravessa o oponente
-    slash: s => ({ anim: 'rush', name: 'Berserker Slash', startup: S3(s, [12, 13, 14, 10]), active: 12, recovery: 18, vel: [[8, 22, S3(s, [7, 8.5, 10, 10]), null]], ghost: 1,
+    slash: s => ({ anim: 'rush', name: 'Berserker Slash', shout: 'slash', startup: S3(s, [12, 13, 14, 10]), active: 12, recovery: 18, vel: [[8, 22, S3(s, [7, 8.5, 10, 10]), null]], ghost: 1,
       inv: s == 3 ? { proj: [1, 24], strike: [1, 6] } : {}, hits: [{ box: [-10, 30, 90, 70], dmg: S3(s, [8, 9, 10, 10]), lv: 'SP', kd: 'soft', onBlock: -8 }] }),
     // Drill Claw: mergulho em diagonal com as garras; quica no oponente
     drill: s => ({ anim: 'drill', air: 1, name: 'Drill Claw', startup: 5, active: 60, recovery: 0, vel: [[5, 99, 8, -8]], bounce: 1,
@@ -3532,9 +3574,9 @@ defChar({
     buster: s => { const sh = f => ({ f, vx: S3(s, [9, 10, 11, 12]), r: 9, life: 80, dmg: 3, hs: 16, bs: 9, col: '#fff27a', glow: '#ffffd0', lv: 'SP', yOff: 92, ahead: 20 });
       return s == 3 ? { anim: 'buster', name: 'Mega Buster', startup: 6, active: 1, recovery: 18, multiProj: 1, projs: [6, 10, 14].map(sh) }
         : { anim: 'buster', name: 'Mega Buster', startup: 6, active: 1, recovery: 12, maxProj: 3, proj: sh(6) }; },
-    charge: nm('Charge Shot', Kit.fireball({ anim: 'buster', col: '#6af0ff', glow: '#e0ffff', vx: [7, 8, 9, 10], r: 22, dmg: 9, exDmg: 6, rec: [26, 26, 26, 24], startup: 10, yOff: 92 })),
+    charge: nm('Charge Shot', Kit.fireball({ anim: 'buster', shout: 'charge_shot', col: '#6af0ff', glow: '#e0ffff', vx: [7, 8, 9, 10], r: 22, dmg: 9, exDmg: 6, rec: [26, 26, 26, 24], startup: 10, yOff: 92 })),
     // Rush Coil: pula na mola do cachorro robô, acertando para cima
-    coil: s => ({ anim: 'flip', name: 'Rush Coil', startup: 6, active: 20, recovery: 0, landEnd: 12, vel: [[6, 6, S3(s, [1, 1.5, 2, 2]), S3(s, [14, 15, 16, 16])]], inv: { strike: [1, S3(s, [4, 6, 8, 10])] },
+    coil: s => ({ anim: 'flip', name: 'Rush Coil', shout: 'rush_coil', startup: 6, active: 20, recovery: 0, landEnd: 12, vel: [[6, 6, S3(s, [1, 1.5, 2, 2]), S3(s, [14, 15, 16, 16])]], inv: { strike: [1, S3(s, [4, 6, 8, 10])] },
       hits: [{ f: [6, 14], box: [0, 30, 60, 100], dmg: S3(s, [9, 10, 11, 8]), lv: 'SP', launch: { vy: 11 }, kd: 'soft', bs: 12 }].concat(s == 3 ? [{ f: [16, 22], box: [0, 50, 60, 100], dmg: 5, lv: 'SP', launch: { vy: 9 }, kd: 'soft' }] : []) }),
     // Leaf Shield: escudo de folhas que avança devagar e absorve projéteis
     leaf: s => ({ anim: 'reflect', name: 'Leaf Shield', startup: 14, active: 1, recovery: 24,
@@ -3726,14 +3768,14 @@ defChar({
     bat: s => { const st = S3(s, [12, 14, 16, 11]), box = [14, 50, 118, 56];
       const hits = s == 3 ? [{ f: [st, st + 2], box, dmg: 6, lv: 'SP', hs: 22, bs: 12 }, { f: [st + 8, st + 11], box, dmg: 7, lv: 'SP', kd: 'hard', launch: { vx: 6, vy: 7 }, onBlock: -6 }]
         : [Object.assign({ box, dmg: S3(s, [9, 10, 12]), lv: 'SP', onBlock: -5 }, s >= 2 ? { kd: 'soft', launch: { vx: 5, vy: 6 } } : { onHit: 2 })];
-      return { anim: 'bat', alt: s == 3 ? 1 : 0, weapon: 'bat', name: 'Taco de Beisebol', startup: st, active: s == 3 ? 12 : 4, recovery: S3(s, [18, 20, 22, 18]), vel: [[4, st, S3(s, [2, 3, 4, 4]), null]], hits }; },
+      return { anim: 'bat', alt: s == 3 ? 1 : 0, weapon: 'bat', name: 'Taco de Beisebol', shout: 'outta_here', startup: st, active: s == 3 ? 12 : 4, recovery: S3(s, [18, 20, 22, 18]), vel: [[4, st, S3(s, [2, 3, 4, 4]), null]], hits }; },
     // Coquetel Molotov: garrafa em arco que deixa fogo no chão por um tempo
-    molotov: s => ({ anim: 'throwk', name: 'Coquetel Molotov', startup: 14, active: 1, recovery: S3(s, [22, 22, 22, 20]),
+    molotov: s => ({ anim: 'throwk', name: 'Coquetel Molotov', shout: 'eat_this', startup: 14, active: 1, recovery: S3(s, [22, 22, 22, 20]),
       proj: { f: 14, vx: S3(s, [3, 4, 5, 5]), vy: 7.5, grav: .45, stick: 1, r: 22, life: S3(s, [150, 170, 190, 210]), dmg: S3(s, [5, 5, 6, 5]), hits: s == 3 ? 3 : 2, gap: 24, hs: 22, bs: 12, shape: 'molotov', snd: 'fire', lv: 'SP', kd: 1, yOff: 100 } }),
     // Grove Street Rush: avança socando; Soco logo depois sai o gancho final
     rush: s => { const st = S3(s, [10, 11, 12, 9]); return { anim: 'hook', alt: 1, name: 'Grove Street Rush', startup: st, active: 10, recovery: 16, vel: [[4, 18, S3(s, [4, 5, 6, 6]), null]], inv: s == 3 ? { strike: [1, 6] } : {},
       hits: multi(S3(s, [2, 2, 3, 3]), st, 5, 2, { box: [14, 62, 80, 40], dmg: 3.5, lv: 'SP', hs: 20, bs: 10, push: 1.5 }), follow: [{ btn: 'P', key: 'grovefinish', from: st + 8, to: st + 22 }] }; },
-    respect: nm('Respeito', Kit.dp({ dmg: [10] })),
+    respect: nm('Respeito', Kit.dp({ shout: 'respect', dmg: [10] })),
     super: () => ({ anim: 'hook', super: 1, name: 'GROVE STREET 4 LIFE', shout: 'grove_street_for_life', startup: 8, active: 14, recovery: 30, inv: { strike: [1, 12], throw: [1, 12], proj: [1, 20] }, vel: [[6, 20, 9, null]],
       hits: [{ box: [10, 30, 80, 80], dmg: 3, lv: 'SA', cine: 'grove' }] }),
   },
@@ -7386,7 +7428,7 @@ const Game = {
   get online() { return this.mode == 'online'; },
   go(s, cb) { if (this.trans) return; this.trans = { to: s, t: 0, dur: 13, cb }; },
   goNow(s) { this.scene = s; this.t = 0; this.idx = 0; if (s != 'fight' && s != 'pause') Audio.stopAmbience(); },
-  musicFor(s) { return { title: 'title', mode: 'select', options: 'select', padtest: 'select', select: 'select', stagesel: 'select', tsetup: 'select', bracket: 'select', champion: 'title', online: 'select', lobby: 'select', vs: 'select', continue: 'select', ending: 'title', gameover: 'title', howto: 'select' }[s]; },
+  musicFor(s) { return { title: 'title', mode: 'select', options: 'select', padtest: 'select', select: 'charselect', stagesel: 'charselect', tsetup: 'select', bracket: 'select', champion: 'title', online: 'select', lobby: 'select', vs: 'charselect', continue: 'select', ending: 'title', gameover: 'title', howto: 'select' }[s]; },
 
   startMatch(c1, c2, stageId) {
     const ctl = this.attract ? ['cpu', 'cpu'] : this.mode == 'tourney' ? this.tCtl : ['human', this.mode == 'versus' ? 'human' : this.mode == 'training' || this.mode == 'tutorial' || this.mode == 'trials' ? 'dummy' : 'cpu'];
@@ -7517,7 +7559,7 @@ const Game = {
   update() {
     this.escEdge = Input.held('Escape') && !this.escPrev; this.escPrev = Input.held('Escape'); UIF++;
     if (!this.titleSaid && Audio.ac && Audio.ac.state == 'running' && (this.scene == 'title' || this.scene == 'mode') && settings.voice) {
-      this.titleSaid = true; Audio.say('title'); Audio.duck(.3, 3.6); Audio.sfx('titlehit');
+      this.titleSaid = true; Audio.playIntro();
     }
     YTM.tick();
     if (this.trans) {
@@ -7661,6 +7703,7 @@ Match.onNewRound = () => { if (window.__testHP && Game.mode == 'online') M.f.for
 
 // ---------- loop principal (simulação fixa a 60 Hz, desenho a cada frame do monitor) ----------
 let acc = 0, lastT = performance.now();
+try { Audio.unlock(); } catch (e) {}
 function tick() { if (Audio.ac) Music.tick(); FX.update(); Game.update(); Input.endTick(); }
 function render() {
   ctx.setTransform(RS, 0, 0, RS, 0, 0); ctx.clearRect(0, 0, W, H);
