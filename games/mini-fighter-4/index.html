@@ -4452,7 +4452,7 @@ const AI = {
 <script>/* src/net/net.js */
 // ===== multiplayer online: sala com vários jogadores ("quem ganha fica"), rollback e espectadores =====
 // Topologia em estrela: todos se conectam ao anfitrião (PeerJS/WebRTC), que repassa as mensagens.
-const NET_VERSION = 7, PEER_PREFIX = 'minifighter3-', MAX_ROOM = 8;
+const NET_VERSION = 8, PEER_PREFIX = 'minifighter3-', MAX_ROOM = 8;
 const Room = { members: [], queue: [], fighters: [], phase: 'lobby', sel: [0, 1], ready: [false, false], simple: [false, false], last: null, chars: {} };
 const memberName = id => (Room.members.find(m => m.id == id) || {}).name || '?';
 
