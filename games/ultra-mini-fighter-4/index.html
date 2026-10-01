@@ -1661,7 +1661,7 @@ class Fighter {
     const dashF = free && this.in.dashF == ic, dashB = free && this.in.dashB == ic;
     if (!P && !K) return dashF ? 'dashF' : dashB ? 'dashB' : null;
     // super: só pelo comando (sem atalho de botões)
-    const canSu = !air && this.meter >= SUPER_COST && (!m || !m.super) && (!cancel || m.cancel.su);
+    const canSu = (!air || (cancel && m && m.dpLike)) && this.meter >= SUPER_COST   // Shoryuken que acertou cancela em super mesmo saindo do chão && (!m || !m.super) && (!cancel || m.cancel.su);
     if (canSu && ch.super2 && this.meter >= (ch.super2.cost || METER_MAX)) {      // Critical Art: comando próprio, custa 3 barras
       const s2 = ch.super2, b = s2.btn == 'P' ? P : K;
       if (b && Cmd.motion(this, s2.input, this.in.bt[b]) != null) return 'super2';
@@ -1705,6 +1705,8 @@ class Fighter {
   act(o) {
     const want = this.decide(o); if (!want) return;
     let key = want, mv = getMove(this.ch, key);
+    // Shoryuken → super: o lutador pousa na hora e solta o super (como o cancelamento em super do SF6)
+    if (mv.super && this.y > 0 && this.m && this.m.dpLike && this.contact && this.st == 'atk') { this.y = 0; this.vy = 0; this.vx = 0; }
     const air = this.y > 0;
     if (!!mv.air != air && !mv.airOk) { this.want = null; return; }
     if (key.endsWith(':3') && this.meter < EX_COST) key = key.slice(0, -1) + '2';
@@ -1842,6 +1844,7 @@ class Fighter {
   launchJump() {
     const ch = this.ch, back = this.jdir * this.face < 0;
     this.st = 'air'; this.stT = 0; this.vy = ch.jumpV; this.vx = this.jdir * (back ? ch.jumpX * .82 : ch.jumpX); this.airUsed = false; this.y = .01; this.in.airT = this.in.ic;
+    this.in.parryLock = 0; this.in.tapF = this.in.tapD = -99;   // o → do pulo não é tentativa de parry: libera o parry aéreo logo ao sair do chão
     Audio.sfx('jump', 1, this.x); FX.dust(this.x, 0, 4);
   }
   runMove(o) {
@@ -7448,15 +7451,15 @@ const Tutorial = {
 // s = sequência (especial com força: 0 fraco, 1 médio, 2 forte, 3 EX), h = hits, d = dano esperado; o 3º termina em super, menos quando o super é agarrão (Goro, Gunter, Alek, Crow, Legion, Xeno, Vorhas, Totem, Kongo) ou não causa dano (Dario, Shiro)
 const TRIAL_COMBOS = {
   kai: [{ s: ['jhk', 'chp', 'tatsu:2'], h: 6, d: 274 }, { s: ['jhp', 'slp', 'slp', 'clp', 'tatsu:1'], h: 7, d: 225 }, { s: ['jhk', 'chp', 'fb:0', 'super'], h: 8, d: 422 }],
-  akio: [{ s: ['jhk', 'smp', 'tatsu:2'], h: 7, d: 270 }, { s: ['jhk', 'clp', 'slp', 'tatsu:2'], h: 8, d: 244 }, { s: ['jhp', 'chp', 'tatsu:0', 'super'], h: 13, d: 458 }],
+  akio: [{ s: ['jhk', 'smp', 'tatsu:2'], h: 7, d: 270 }, { s: ['jhk', 'clp', 'slp', 'tatsu:2'], h: 8, d: 244 }, { s: ['jhp', 'chp', 'dp:0', 'super'], h: 13, d: 506 }],
   mei: [{ s: ['jhk', 'shp', 'sbk:2'], h: 6, d: 262 }, { s: ['jhp', 'chp', 'sbk:3'], h: 7, d: 276 }, { s: ['jhk', 'shp', 'qi:0', 'super'], h: 15, d: 457 }],
-  colt: [{ s: ['jhk', 'chp', 'flash:2'], h: 3, d: 282 }, { s: ['jhk', 'clp', 'clp', 'flash:2'], h: 4, d: 242 }, { s: ['jhk', 'chp', 'super'], h: 5, d: 482 }],
+  colt: [{ s: ['jhk', 'chp', 'flash:2'], h: 3, d: 282 }, { s: ['jhk', 'clp', 'clp', 'flash:2'], h: 4, d: 242 }, { s: ['jhk', 'chp', 'flash:2', 'super'], h: 6, d: 594 }],
   valor: [{ s: ['jhp', 'chp', 'charging:2'], h: 3, d: 258 }, { s: ['jhp', 'slp', 'clp', 'slp', 'charging:2'], h: 5, d: 231 }, { s: ['jhp', 'chp', 'shield:0', 'super'], h: 11, d: 389 }],
   goro: [{ s: ['jhk', 'chp', 'flat:2'], h: 3, d: 250 }, { s: ['jhk', 'clp', 'slp', 'lariat:0'], h: 5, d: 235 }],
   goen: [{ s: ['jhp', 'shp', 'flurry:3'], h: 6, d: 300 }, { s: ['jhp', 'slp', 'clp', 'slp', 'flurry:1'], h: 7, d: 240 }, { s: ['jhp', 'shp', 'flurry:0', 'super'], h: 16, d: 386 }],
   lobo: [{ s: ['jhk', 'cmp', 'berserker:1'], h: 7, d: 216 }, { s: ['jhp', 'slp', 'clp', 'slp', 'berserker:1'], h: 9, d: 209 }, { s: ['jhp', 'chp', 'slash:2', 'super'], h: 14, d: 497 }],
-  ren: [{ s: ['jhp', 'shp', 'kunai:2'], h: 3, d: 210 }, { s: ['jhk', 'slp', 'clp', 'kunai:2'], h: 4, d: 179 }, { s: ['jhp', 'shp', 'kunai:0', 'super'], h: 13, d: 461 }],
-  sakda: [{ s: ['jhp', 'shp', 'tk:2'], h: 3, d: 258 }, { s: ['jhp', 'slp', 'slp', 'clp', 'tk:2'], h: 5, d: 231 }, { s: ['jhk', 'chp', 'shot:0', 'super'], h: 9, d: 468 }],
+  ren: [{ s: ['jhp', 'shp', 'kunai:2'], h: 3, d: 210 }, { s: ['jhk', 'slp', 'clp', 'kunai:2'], h: 4, d: 179 }, { s: ['shp', 'dp:0', 'super'], h: 12, d: 431 }],
+  sakda: [{ s: ['jhp', 'shp', 'tk:2'], h: 3, d: 258 }, { s: ['jhp', 'slp', 'slp', 'clp', 'tk:2'], h: 5, d: 231 }, { s: ['jhk', 'chp', 'tu:0', 'super'], h: 9, d: 516 }],
   ravi: [{ s: ['jhk', 'smp', 'flame:3'], h: 6, d: 228 }, { s: ['jhp', 'clp', 'slp', 'blast:0'], h: 5, d: 196 }, { s: ['jhk', 'smp', 'flame:0', 'super'], h: 11, d: 393 }],
   zago: [{ s: ['jhk', 'smp', 'roll:2'], h: 3, d: 246 }, { s: ['jhk', 'cmp', 'vroll:0'], h: 4, d: 217 }, { s: ['jhk', 'shp', 'elec:0', 'super'], h: 14, d: 433 }],
   taiho: [{ s: ['jhk', 'slp', 'clp', 'slp', 'head:2'], h: 5, d: 249 }, { s: ['jhk', 'clp', 'slp', 'head:2'], h: 4, d: 242 }, { s: ['jhk', 'chp', 'slap:0', 'super'], h: 10, d: 438 }],
@@ -7464,11 +7467,11 @@ const TRIAL_COMBOS = {
   rodney: [{ s: ['jhk', 'chp', 'turn:0'], h: 3, d: 290 }, { s: ['jhp', 'clp', 'slp', 'dstr:2'], h: 4, d: 228 }, { s: ['jhk', 'chp', 'turn:0', 'super'], h: 14, d: 537 }],
   gunter: [{ s: ['jhp', 'clp', 'slp', 'palm:3'], h: 4, d: 252 }, { s: ['jhp', 'slp', 'palm:3'], h: 3, d: 242 }],
   winston: [{ s: ['jhp', 'chp', 'mgb:1'], h: 6, d: 238 }, { s: ['jhp', 'slp', 'slp', 'clp', 'mgb:0'], h: 7, d: 204 }, { s: ['jhp', 'chp', 'ssb:2', 'super'], h: 11, d: 501 }],
-  altair: [{ s: ['jhp', 'shp', 'rcf:1'], h: 6, d: 248 }, { s: ['jhp', 'chp', 'st:2'], h: 3, d: 266 }, { s: ['jhp', 'shp', 'rcf:0', 'super'], h: 11, d: 443 }],
+  altair: [{ s: ['jhp', 'shp', 'rcf:1'], h: 6, d: 248 }, { s: ['jhp', 'chp', 'st:2'], h: 3, d: 266 }, { s: ['jhp', 'chp', 'st:2', 'super'], h: 11, d: 515 }],
   valerius: [{ s: ['jhk', 'chp', 'knee:3'], h: 4, d: 282 }, { s: ['jhp', 'clp', 'slp', 'chariot:2'], h: 4, d: 228 }, { s: ['jhk', 'chp', 'chariot:2', 'super'], h: 8, d: 378 }],
   alek: [{ s: ['jhk', 'chp', 'chop:3'], h: 4, d: 275 }, { s: ['jhk', 'chp', 'stamp:3'], h: 4, d: 275 }],
   crow: [{ s: ['jhk', 'clp', 'slp', 'bhead:3'], h: 4, d: 228 }, { s: ['jhk', 'slp', 'bhead:3'], h: 3, d: 216 }],
-  yura: [{ s: ['jhp', 'shp', 'pin:3'], h: 6, d: 274 }, { s: ['jhp', 'shp', 'rrk:3'], h: 6, d: 274 }, { s: ['jhp', 'shp', 'fuha:0', 'super'], h: 14, d: 452 }],
+  yura: [{ s: ['jhp', 'shp', 'pin:3'], h: 6, d: 274 }, { s: ['jhp', 'shp', 'rrk:3'], h: 6, d: 274 }, { s: ['jhp', 'shp', 'pin:0', 'super'], h: 14, d: 492 }],
   sasori: [{ s: ['jhp', 'chp', 'take:2'], h: 3, d: 258 }, { s: ['jhp', 'chp', 'tele:3'], h: 3, d: 266 }, { s: ['jhp', 'chp', 'take:2', 'super'], h: 11, d: 493 }],
   kori: [{ s: ['jhp', 'chp', 'hammer:2'], h: 3, d: 274 }, { s: ['jhp', 'slp', 'clp', 'slide:2'], h: 4, d: 221 }, { s: ['jhp', 'chp', 'hammer:2', 'super'], h: 10, d: 513 }],
   legion: [{ s: ['jhk', 'chp', 'lift:3', 'lift:2'], h: 4, d: 328 }, { s: ['shp', 'lift:3', 'lift:2'], h: 3, d: 270 }],
@@ -7482,7 +7485,7 @@ const TRIAL_COMBOS = {
   kazan: [{ s: ['jhk', 'shp', 'demon:2'], h: 6, d: 284 }, { s: ['jhp', 'slp', 'clp', 'demon:2'], h: 7, d: 232 }, { s: ['jhk', 'shp', 'hellsweep:2', 'super'], h: 11, d: 381 }],
   lao: [{ s: ['jhp', 'chp', 'tail:2'], h: 3, d: 250 }, { s: ['jhp', 'chp', 'frog:2'], h: 3, d: 250 }, { s: ['jhp', 'chp', 'tail:2', 'super'], h: 13, d: 483 }],
   totem: [{ s: ['jhk', 'clp', 'slp', 'spire:2'], h: 4, d: 221 }, { s: ['jhk', 'slp', 'tomahawk:0'], h: 3, d: 216 }],
-  groove: [{ s: ['jhp', 'chp', 'mgu:1'], h: 6, d: 243 }, { s: ['jhp', 'chp', 'sobat:0'], h: 4, d: 267 }, { s: ['jhp', 'chp', 'slasher:0', 'super'], h: 12, d: 451 }],
+  groove: [{ s: ['jhp', 'chp', 'mgu:1'], h: 6, d: 243 }, { s: ['jhp', 'chp', 'sobat:0'], h: 4, d: 267 }, { s: ['jhp', 'chp', 'jackknife:0', 'super'], h: 12, d: 483 }],
   optik: [{ s: ['jhp', 'slp', 'clp', 'cyclone:1'], h: 6, d: 216 }, { s: ['jhp', 'chp', 'cyclone:1'], h: 5, d: 254 }, { s: ['jhp', 'chp', 'cyclone:0', 'super'], h: 15, d: 353 }],
   roko: [{ s: ['jhp', 'shp', 'leaf:3'], h: 6, d: 236 }, { s: ['jhp', 'shp', 'charge:3'], h: 4, d: 260 }, { s: ['jhp', 'shp', 'charge:0', 'super'], h: 14, d: 393 }],
   falko: [{ s: ['jhp', 'shp', 'raptor:2'], h: 3, d: 258 }, { s: ['jhp', 'shp', 'kick:2'], h: 3, d: 258 }, { s: ['jhp', 'shp', 'raptor:2', 'super'], h: 10, d: 502 }],
