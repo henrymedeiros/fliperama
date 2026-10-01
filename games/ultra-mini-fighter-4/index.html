@@ -1355,7 +1355,7 @@ const LEG_ANIMS = { lk: 1, hk: 1, clk: 1, sweep: 1, jk: 1, jhk: 1, smk: 1, cmk: 
 <script>/* src/sim/cmd.js */
 // ===== leitor de comandos: histórico por "relógio de input", motions com janela por passo, carga, mash, parry =====
 // O relógio `ic` do lutador NÃO avança durante hitstop/superfreeze: inputs feitos no congelamento entram como "recentes".
-const CHARGE_TIME = 40, CHARGE_KEEP = 14, STEP_WIN = 10, FINAL_WIN = 8, BTN_BUF = 5, PAIR_WIN = 3;
+const CHARGE_TIME = 30, CHARGE_KEEP = 14, STEP_WIN = 10, FINAL_WIN = 8, BTN_BUF = 5, PAIR_WIN = 3;
 const PARRY_WIN = 10, PARRY_AIR_WIN = 7, PARRY_LOCK = 20, RED_PARRY_WIN = 3;
 // variações aceitas por motion (inclui atalhos oficiais do SF e o 6-2-6 sem diagonal)
 const MOTIONS = {
@@ -1398,10 +1398,12 @@ const Cmd = {
     });
     s.held = mask;
     if (inp.lp && inp.lk && (t - s.bt.lp <= PAIR_WIN && t - s.bt.lk <= PAIR_WIN)) s.throwT = t;   // tentativa de arremesso (usada no tech; não é consumida)
-    if (!frozen) {
-      if (f.holdBack) s.chB++; else { if (s.chB) { s.chBr = s.chB; s.chBt = t; } s.chB = 0; }
-      if (f.holdDown) s.chD++; else { if (s.chD) { s.chDr = s.chD; s.chDt = t; } s.chD = 0; }
-    }
+    // carga: conta também no congelamento do impacto (como no SF: segurar ↙ durante o normal já carrega) e
+    // uma soltada curta (até 4 quadros, analógico tremendo entre ↙ e ↓) não zera: continua de onde estava
+    if (f.holdBack) { if (!s.chB && s.chBr && s.ic - s.chBt <= 4) s.chB = s.chBr; s.chB++; }
+    else if (!frozen) { if (s.chB) { s.chBr = s.chB; s.chBt = t; } s.chB = 0; }
+    if (f.holdDown) { if (!s.chD && s.chDr && s.ic - s.chDt <= 4) s.chD = s.chDr; s.chD++; }
+    else if (!frozen) { if (s.chD) { s.chDr = s.chD; s.chDt = t; } s.chD = 0; }
   },
   tap(s, k, t) { if (t < s.parryLock) return; s[k] = t; s.parryLock = t + PARRY_WIN + PARRY_LOCK; },
   parryOk(f, low, air, red) {
@@ -1700,6 +1702,9 @@ class Fighter {
     this.want = null; this.wantBufT = 0;
     this.in.cbt = !mv.special && !mv.super && !mv.grab ? Object.assign({}, this.in.bt) : null;
     Cmd.consume(this);
+    // especial de carga gasta a carga daquela direção
+    const csp = key.includes(':') && this.ch.specials.find(x => x.input[0] == '[' && key.startsWith(x.id + ':'));
+    if (csp) { const s = this.in; if (csp.input[1] == '4') s.chB = s.chBr = 0; else s.chD = s.chDr = 0; }
     this.startMove(key, o);
   }
   startMove(key, o) {
