@@ -1544,8 +1544,11 @@ function compileMove(src, key, ch) {
   if (m.special && !m.super && !m.air && !m.grab && key != 'vskill' && m.cancel.su == null) {
     const pf = m.proj ? m.proj.f : m.projs && m.projs.length ? Math.min(...m.projs.map(p => p.f)) : null;
     if (pf != null) { m.cancel.su = 'proj'; m.projF = pf; }
-    else if (m.hits.length && m.vel && m.vel.length && m.vel.every(v => v[3] == null) && m.vel.some(v => typeof v[2] == 'number' && v[2] > 0)) m.cancel.su = 1;
+    else if (m.hits.length) m.cancel.su = 1;   // como no SF6: especial que encosta cancela em super
   }
+  // juggle por pontos: o golpe acerta quem está caindo se o limite dele passar do contador do oponente
+  const jl = m.super ? 6 : m.special && key != 'vskill' && !key.startsWith('tr_') ? (key.endsWith(':3') ? 2 : 1) : 0;
+  if (jl) { for (const h of m.hits) h.jLimit = Math.max(h.jLimit || 0, jl); for (const p of m.projs || (m.proj ? [m.proj] : [])) p.jLimit = Math.max(p.jLimit || 0, jl); }
   return m;
 }
 // valida regras de design (roda nos testes): especial que acerta não pode ser punível
@@ -2019,12 +2022,16 @@ const Combat = {
     o.mv = null; o.combo = 0; o.cine = null; o.flash = 2; o.flashCol = out.ctr ? 2 : 1;
     const air = o.y > 0 || o.st == 'knock';
     o.hitKind = py > o.y + 90 * o.sz ? 'head' : 'gut'; o.hitLv = h.lv;
+    // lançador: Soco Forte agachado no contra-ataque, na punição ou em quem está no ar joga o oponente pra cima, pronto pro juggle
+    const lnch = !proj && m && /^(m_)?chp$/.test(m.key) && (out.ctr || air) && o.st != 'knock' && o.hp > 0 ? { vy: 10.5, vx: 1 } : null;
+    if (lnch) FX.text('LANÇOU!', o.x, o.y + 160, '#7cf');
     if (h.crumple && out.ctr == 'punish' && !air && o.hp > 0) { o.setSt('crumple'); o.stun = 48; o.vx = dir * 2; }
-    else if (h.kd || h.launch || air || o.hp <= 0) {
-      o.airReset = air && !h.kd && !h.launch && o.st != 'knock' && o.hp > 0;
-      if (o.st == 'knock') o.juggle += h.jAdd || 1; else o.juggle = h.launch ? 1 : air ? 1 : 0;
+    else if (h.kd || h.launch || lnch || air || o.hp <= 0) {
+      o.airReset = air && !h.kd && !h.launch && !lnch && o.st != 'knock' && o.hp > 0;
+      if (o.st == 'knock') o.juggle += h.jAdd || 1; else o.juggle = lnch ? 0 : 1;   // só o lançador deixa o contador em 0 (qualquer especial pega)
       o.kdType = h.kd == 'hard' ? 'hard' : 'soft';
-      o.setSt('knock'); o.vy = h.launch ? (h.launch.vy ?? 11) : air ? 6 : 6.5; o.vx = dir * (h.launch ? (h.launch.vx ?? 1.6) : 3.4); o.y = Math.max(o.y, 1);
+      const L2 = lnch || h.launch;
+      o.setSt('knock'); o.vy = L2 ? (L2.vy ?? 11) : air ? 6 : 6.5; o.vx = dir * (L2 ? (L2.vx ?? 1.6) : 3.4); o.y = Math.max(o.y, 1);
     } else {
       o.crouchHit = o.crouch; o.setSt('hit'); o.stun = h.hs + (out.ctr == 'counter' ? 2 : out.ctr == 'punish' ? 4 : 0);
       o.vx = dir * (h.push || L.push); if (!proj && (o.x < 45 || o.x > STAGE_W - 45)) a.vx = -dir * L.push;
@@ -7329,7 +7336,7 @@ Object.assign(Menus, {
       });
       c.fillStyle = 'rgba(0,0,0,.6)'; c.fillRect(0, H - 88, W, 60);
       ui(c, 'EX: especial com 2 botões ou L1/L2 no controle (1 barra) · SUPER: comando + 2 barras · ARREMESSO: Soco Fraco + Chute Fraco', W / 2, H - 66, 14, '#ffd21e', 'center', 3);
-      ui(c, 'PARRY: toque → (↓ em golpe baixo) no instante do impacto · normais leves cancelam em especiais · 2: hitboxes', W / 2, H - 44, 14, '#ddd', 'center', 3);
+      ui(c, 'PARRY: toque → (↓ em golpe baixo) no impacto · ↓ + Soco Forte no contra-ataque/punição/anti-aéreo LANÇA: emende especial, EX ou super no ar', W / 2, H - 44, 14, '#ddd', 'center', 3);
       return;
     }
     gradText(c, 'PAUSA', W / 2, 100, 64, '#fff', '#9cf');
