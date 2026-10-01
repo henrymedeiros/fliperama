@@ -3661,7 +3661,7 @@ defChar({
   },
   extraMoves: { feral: { anim: 'chop', name: 'Garra Feral', startup: 6, active: 3, recovery: 15, hits: [{ box: [14, 40, 80, 70], dmg: 9, lv: 'H', onHit: 3, onBlock: -3 }] } },
   // V-Skill Investida Feral: corrida curta; Soco durante ela sai uma garrada de cima
-  vskill: { anim: 'flex', startup: 99, dur: 28, name: 'FÚRIA', vbuff: { f: 14, burnGrey: 1, label: 'FÚRIA', col: '#ffd21e' } },
+  vskill: { anim: 'flex', startup: 99, dur: 28, name: 'FÚRIA', vbuff: { f: 14, burnGrey: 1, label: 'FÚRIA', col: '#ff3a2a' } },
   ai: { aa: 'tornado', enders: ['berserker', 'slash'], rush: 1, poke: 'cmk', bnb: ['clk', 'clp', 'cmp'] }
 });
 
@@ -4826,6 +4826,26 @@ function footPart(an, fw, col, L, boot) {
 </script>
 <script>/* src/render/draw2.js */
 // ===== montagem do corpo: pernas, tronco, roupas, braços =====
+// V-Skill de bônus: 0..1 da intensidade (FÚRIA do Lobo escala de +15% a +50%; os outros têm intensidade fixa)
+function buffLevel(f) { const vb = f.vbuff; if (!vb) return 0; const gs = f.ch.vskill && f.ch.vskill.vbuff && f.ch.vskill.vbuff.burnGrey; return gs ? clamp((vb.mult - 1.15) / .35, 0, 1) : .6; }
+function furyPotential(f) { return clamp(f.grey / (f.ch.healMax || 25 * HPK), 0, 1); }
+// aura de chamas atrás do lutador (só visual): cresce com a intensidade k
+function drawBuffAura(c, f, col, k) {
+  const T = UIF, sz = f.sz, cx = f.x, base = -f.y, hgt = 150 * sz, n = 6 + Math.round(8 * k);
+  c.save(); c.globalCompositeOperation = 'lighter';
+  const g = c.createRadialGradient(cx, base - hgt * .5, 10, cx, base - hgt * .5, hgt * (.6 + .35 * k));
+  g.addColorStop(0, col); g.addColorStop(1, 'rgba(0,0,0,0)');
+  c.globalAlpha = .18 + .3 * k + .06 * Math.sin(T * .2); c.fillStyle = g; c.beginPath(); c.ellipse(cx, base - hgt * .5, 60 * sz * (1 + .3 * k), hgt * (.62 + .25 * k), 0, 0, 7); c.fill();
+  for (let i = 0; i < n; i++) {
+    const u = n > 1 ? i / (n - 1) - .5 : 0, ph = T * (.18 + .06 * k) + i * 1.9, bx = cx + u * 78 * sz + Math.sin(ph * .7) * 4, w = (7 + 6 * k) * sz;
+    const h = (55 + 95 * k) * sz * (.55 + .45 * Math.abs(Math.sin(ph))) * (1 - Math.abs(u) * .7), top = base - 6 - h, sway = Math.sin(ph * 1.3) * 10 * sz;
+    const fg = c.createLinearGradient(0, base, 0, top); fg.addColorStop(0, col); fg.addColorStop(1, 'rgba(0,0,0,0)');
+    c.globalAlpha = .35 + .4 * k; c.fillStyle = fg; c.beginPath(); c.moveTo(bx - w, base - 4); c.quadraticCurveTo(bx - w * .6 + sway, base - h * .55, bx + sway * 1.4, top); c.quadraticCurveTo(bx + w * .6 + sway, base - h * .55, bx + w, base - 4); c.closePath(); c.fill();
+  }
+  const sp = Math.round(3 + 9 * k);
+  for (let i = 0; i < sp; i++) { const t = (T * (1.2 + k) + i * 37) % 60 / 60, x = cx + Math.sin(i * 7.3 + T * .05) * 50 * sz, y = base - 10 - t * hgt * (1 + .4 * k); c.globalAlpha = (1 - t) * (.5 + .5 * k); c.fillStyle = '#fff'; c.fillRect(x, y, 2.5, 2.5); c.fillStyle = col; c.fillRect(x - 1, y + 3, 4.5, 4.5); }
+  c.restore();
+}
 function drawFighter(c, f, pz, tint) {
   const ch = f.ch, L0 = f.look || ch.look, L1 = f.mode && ch.modeLook ? Object.assign({}, L0, ch.modeLook) : L0, L = f.aura ? Object.assign({}, L1, { skin: '#4a4250', glove: L1.gloveType == 'bare' ? '#4a4250' : L1.glove }) : L1, p = pz.p.slice(), fl = pz.flip ? -1 : 1, rot = pz.rot, T = M.frame;
   const B = L.build || 1, K = B * (L.thin ? .8 : 1), fem = !!L.fem;
@@ -6256,8 +6276,18 @@ const HUD = {
       sg.addColorStop(0, 'rgba(255,255,255,0)'); sg.addColorStop(.5, 'rgba(255,255,255,.25)'); sg.addColorStop(1, 'rgba(255,255,255,0)'); c.fillStyle = sg; c.fillRect(bx + sx - 40, by, 80, bh);
       c.restore();
       txt(c, f.ch.name, L ? bx + 4 : bx + bw - 4, by + 54, 24, '#fff', L ? 'left' : 'right', 5);
-      { const tag = f.aura ? ['AURA METÁLICA', '#b8c4d8'] : f.vbuff ? [f.vbuff.label, f.vbuff.col] : null;
-        if (tag) { const k = .75 + .25 * Math.sin(T * .2); c.save(); c.globalAlpha = k; ui(c, '◆ ' + tag[0], L ? bx + 4 : bx + bw - 4, by + 76, 14, tag[1], L ? 'left' : 'right', 3); c.restore(); } }
+      { const tag = f.aura ? ['AURA METÁLICA · armadura nos especiais', '#b8c4d8'] : f.vbuff ? [f.vbuff.label + ' +' + Math.round((f.vbuff.mult - 1) * 100) + '%', f.vbuff.col] : null;
+        if (tag) { const k = .75 + .25 * Math.sin(T * .2); c.save(); c.globalAlpha = k; ui(c, '◆ ' + tag[0], L ? bx + 4 : bx + bw - 4, by + 76, 14, tag[1], L ? 'left' : 'right', 3); c.restore(); }
+        const vs = f.ch.vskill && f.ch.vskill.vbuff;
+        if (vs && vs.burnGrey) {   // barra de FÚRIA: cheia = +50%; sem fúria ativa mostra (apagado) quanto a vida cinza renderia agora
+          const on = !!f.vbuff, lv = on ? buffLevel(f) : furyPotential(f), w = 150, h = 8, x = L ? bx + 4 : bx + bw - 4 - w, y = by + (tag ? 84 : 70);
+          c.fillStyle = 'rgba(0,0,0,.6)'; c.fillRect(x - 2, y - 2, w + 4, h + 4);
+          const gg = c.createLinearGradient(x, 0, x + w, 0); gg.addColorStop(0, on ? '#ff7a1a' : '#5a1a14'); gg.addColorStop(1, on ? '#ff1a1a' : '#7a2018');
+          c.fillStyle = gg; const fw = w * clamp((on ? f.vbuff.mult - 1 : .15 + .35 * lv) / .5, 0, 1), fx = L ? x : x + w - fw; c.fillRect(fx, y, fw, h);   // barra = bônus de 0 a 50%
+          if (on) { c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = .35 + .25 * Math.sin(T * .3); c.fillStyle = '#ff6a3a'; c.fillRect(fx, y - 1, fw, h + 2); c.restore(); }
+          c.strokeStyle = on ? '#ff8a5a' : '#6a3a34'; c.lineWidth = 1; c.strokeRect(x - .5, y - .5, w + 1, h + 1);
+          if (!on) ui(c, 'FÚRIA: renderia +' + Math.round(15 + 35 * lv) + '%', L ? x + w + 8 : x - 8, y + 8, 11, '#9a6a64', L ? 'left' : 'right', 2);
+        } }
       if (f.simple) { const w = c.measureText(f.ch.name).width; ui(c, 'SIMPLES', L ? bx + 12 + w : bx + bw - 12 - w, by + 51, 12, '#6cf', L ? 'left' : 'right', 3); }
       if (Game.mode == 'online' && f.netName) ui(c, f.netName + (f.i == Net.slot ? ' (você)' : ''), L ? bx + 90 : bx + bw - 90, by + 52, 16, f.i == Net.slot ? '#ffd21e' : '#9cf', L ? 'left' : 'right', 3);
       if (!M.training) for (let w = 0; w < WINS_NEEDED; w++) {
@@ -7939,6 +7969,8 @@ const Game = {
         c.restore();
       }
       { const boosted = f.boostMv >= 0 && f.boostMv === f.mvId && (f.st == 'atk' || f.st == 'air'), col = boosted ? f.boostCol : f.vbuff ? f.vbuff.col : f.aura ? '#b8c4d8' : null;
+        if (f.vbuff && f.st != 'intro') { const isFury = f.ch.vskill && f.ch.vskill.vbuff && f.ch.vskill.vbuff.burnGrey; drawBuffAura(c, f, isFury ? '#ff2a1a' : f.vbuff.col, isFury ? .25 + .75 * buffLevel(f) : .55); }
+        else if (f.aura && f.st != 'intro') drawBuffAura(c, f, '#8a9ab8', .35);
         if (col) { const pz = f.rp || Anim.pose(f), k = boosted ? .9 : .35 + .2 * Math.sin(UIF * .15);
           c.save(); c.globalCompositeOperation = 'lighter'; for (const [d, al] of [[6, .2], [3, .45]]) { c.globalAlpha = al * k; for (const [dx, dy] of [[-d, 0], [d, 0], [0, -d], [0, d]]) { c.save(); c.translate(dx, dy); drawFighter(c, f, pz, col); c.restore(); } } c.restore(); } }
       if (f.mv && f.mv.endsWith(':3') && (f.st == 'atk' || f.st == 'air')) {   // EX: contorno amarelo pulsando enquanto o golpe dura
