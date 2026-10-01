@@ -7442,12 +7442,26 @@ const Tutorial = {
 </script>
 <script>/* src/ui/trials.js */
 // ===== desafios de combo: sequências geradas por personagem e VALIDADAS por simulação (timing perfeito) =====
+// combos autorais dos desafios: achados por busca na simulação (cada passo funciona apertando até ~2 quadros atrasado, contra bonecos de tamanhos diferentes)
+// s = sequência (especial com força: 0 fraco, 1 médio, 2 forte, 3 EX), h = hits, d = dano esperado
+const TRIAL_COMBOS = {
+  kai: [{ s: ['jhk', 'chp', 'tatsu:2'], h: 6, d: 274 }, { s: ['jhp', 'slp', 'slp', 'clp', 'tatsu:1'], h: 7, d: 225 }],
+  akio: [{ s: ['jhk', 'smp', 'tatsu:2'], h: 7, d: 270 }, { s: ['jhk', 'clp', 'slp', 'tatsu:2'], h: 8, d: 244 }],
+  mei: [{ s: ['jhk', 'shp', 'sbk:2'], h: 6, d: 262 }, { s: ['jhp', 'chp', 'sbk:3'], h: 7, d: 276 }],
+  colt: [{ s: ['jhk', 'chp', 'flash:2'], h: 3, d: 282 }, { s: ['jhk', 'clp', 'clp', 'flash:2'], h: 4, d: 242 }],
+  valor: [{ s: ['jhp', 'chp', 'charging:2'], h: 3, d: 258 }, { s: ['jhp', 'slp', 'clp', 'slp', 'charging:2'], h: 5, d: 231 }],
+  goro: [{ s: ['jhk', 'chp', 'flat:2'], h: 3, d: 250 }, { s: ['jhk', 'clp', 'slp', 'lariat:0'], h: 5, d: 235 }],
+  goen: [{ s: ['jhp', 'shp', 'flurry:3'], h: 6, d: 300 }, { s: ['jhp', 'slp', 'clp', 'slp', 'flurry:1'], h: 7, d: 240 }],
+  lobo: [{ s: ['jhk', 'cmp', 'berserker:1'], h: 7, d: 216 }, { s: ['jhp', 'slp', 'clp', 'slp', 'berserker:1'], h: 9, d: 209 }],
+  ren: [{ s: ['jhp', 'shp', 'kunai:2'], h: 3, d: 210 }, { s: ['jhk', 'slp', 'clp', 'kunai:2'], h: 4, d: 179 }],
+  sakda: [{ s: ['jhp', 'shp', 'tk:2'], h: 3, d: 258 }, { s: ['jhp', 'slp', 'slp', 'clp', 'tk:2'], h: 5, d: 231 }]
+};
 const Trials = {
   ch: null, list: [], i: 0, hits: [], lastMv: '', lastT: 0, lastHits: 0, done: 0, t: 0,
   norm(k) { return k == 'super' || !k.includes(':') ? k : k.endsWith(':3') ? k : k.split(':')[0]; },
-  label(ch, k) {
+  label(ch, k, str) {
     if (k == 'super') return (getMove(ch, 'super').name || 'SUPER');
-    if (k.includes(':')) return moveName(ch, k.split(':')[0]) + (k.endsWith(':3') ? ' EX' : '');
+    if (k.includes(':')) return moveName(ch, k.split(':')[0]) + (k.endsWith(':3') ? ' EX' : str ? ' (' + ['fraco', 'médio', 'forte'][+k.split(':')[1]] + ')' : '');
     const cn = (ch.cmdNormals || []).find(c => c.key == k); if (cn) return cn.move.name || CMD_NAMES[cn.move.anim] || k;
     const pos = { s: 'em pé', c: 'agachado', j: 'no ar' }[k[0]], b = BTN_NAMES[k.slice(1)];
     return b ? b + ' (' + pos + ')' : k;
@@ -7501,19 +7515,20 @@ const Trials = {
       const pool = cat[k].slice().sort((p, q) => (used.has(p[p.length - 1].split(':')[0]) ? 1 : 0) - (used.has(q[q.length - 1].split(':')[0]) ? 1 : 0));   // prefere especiais ainda não usados
       const ok = pool.find(seq => this.validate(ci, seq)); if (ok) this.list.push(ok);
     }
+    for (const c of TRIAL_COMBOS[ch.id] || []) { const q = c.s.slice(); q.combo = c; this.list.push(q); }
     this.reset();
   },
-  reset() { this.hits = []; this.lastMv = ''; this.lastT = 0; this.lastHits = M.f.length ? M.f[0].stats.hits : 0; },
+  reset() { this.hits = []; this.lastMv = ''; this.lastT = 0; this.lastId = -1; this.lastHits = M.f.length ? M.f[0].stats.hits : 0; },
   update() {
     const a = M.f[0], seq = this.list[this.i]; if (!seq) return;
     if (this.f0 !== a) { this.f0 = a; this.reset(); }                // partida nova (a validação usa outras)
     if (this.done) { if (++this.t > 80) { this.done = 0; this.t = 0; this.i++; this.reset(); if (this.i >= this.list.length) { Game.go('title'); padToast = { t: 240, msg: 'Todos os desafios de ' + this.ch.name + ' concluídos!' }; } } return; }
     if (a.stats.hits > this.lastHits) {
       this.lastHits = a.stats.hits;
-      const mv = a.mv || '', inst = mv != this.lastMv || a.t < this.lastT;
+      const mv = a.mv || '', inst = a.mvId != this.lastId;   // golpe novo (vale também pra repetir o mesmo, ex.: Soco Fraco > Soco Fraco)
       if (a.combo <= 1) this.hits = [];
       if (inst && mv) this.hits.push(this.norm(mv));
-      this.lastMv = mv; this.lastT = a.t;
+      this.lastMv = mv; this.lastT = a.t; this.lastId = a.mvId;
       const want = seq.map(k => this.norm(k)), h = this.hits;
       if (h.length >= want.length && want.every((w, j) => h[h.length - want.length + j] == w)) { this.done = 1; this.t = 0; Audio.sfx('superready'); }
     }
@@ -7530,10 +7545,11 @@ const Trials = {
     if (!seq) { c.fillStyle = 'rgba(0,0,0,.7)'; c.fillRect(20, 100, 380, 40); ui(c, 'Nenhum desafio disponível para este lutador.', 30, 126, 16, '#fff'); return; }
     const pr = this.done ? seq.length : this.progress();
     const x0 = W / 2 - 170;
-    c.fillStyle = 'rgba(0,0,0,.72)'; c.fillRect(x0, 96, 340, 44 + seq.length * 26);
-    ui(c, 'DESAFIO ' + (this.i + 1) + ' / ' + this.list.length, x0 + 12, 116, 15, '#9cf');
+    c.fillStyle = 'rgba(0,0,0,.72)'; c.fillRect(x0, 96, 340, 44 + seq.length * 26 + (seq.combo ? 22 : 0));
+    ui(c, 'DESAFIO ' + (this.i + 1) + ' / ' + this.list.length + (seq.combo ? ' · COMBO' : ''), x0 + 12, 116, 15, seq.combo ? '#ffd21e' : '#9cf');
     if (this.done) txt(c, 'CONCLUÍDO!', x0 + 328, 118, 20, '#6f6', 'right', 3);
-    seq.forEach((k, j) => { const ok = j < pr; ui(c, (ok ? '✔ ' : (j + 1) + '. ') + this.label(this.ch, k), x0 + 16, 142 + j * 26, 17, ok ? '#6f6' : '#fff', 'left', 3); });
+    seq.forEach((k, j) => { const ok = j < pr; ui(c, (ok ? '✔ ' : (j + 1) + '. ') + this.label(this.ch, k, !!seq.combo), x0 + 16, 142 + j * 26, 17, ok ? '#6f6' : '#fff', 'left', 3); });
+    if (seq.combo) ui(c, seq.combo.h + ' hits · cerca de ' + seq.combo.d + ' de dano', x0 + 16, 142 + seq.length * 26, 14, '#ffd21e', 'left', 3);
   }
 };
 
