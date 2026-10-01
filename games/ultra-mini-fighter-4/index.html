@@ -2136,7 +2136,7 @@ const Combat = {
   cineHit(a, o, d, big) {
     a.combo++; if (a.combo == 1) a.starterL = false;
     const dmg = Math.max(1, Math.round(d * HPK * Math.max(.5, SCALE[Math.min(a.combo - 1 - ((a.cine && a.cine.c0) || 0), 9)])));
-    o.hp = Math.max(0, o.hp - dmg); o.grey = 0; o.greyT = 0; o.lastDmg = 'S'; a.comboDmg += dmg; a.stats.dmg += dmg; a.stats.maxCombo = Math.max(a.stats.maxCombo, a.combo); o.flash = 2; o.shakeT = 4;
+    o.hp = Math.max(0, o.hp - dmg); o.grey = 0; o.greyT = 0; o.lastDmg = 'S'; a.comboDmg += dmg; a.stats.dmg += dmg; a.stats.hits++; a.stats.maxCombo = Math.max(a.stats.maxCombo, a.combo); o.flash = 2; o.shakeT = 4;
     M.comboShow = { f: a.i, n: a.combo, dmg: a.comboDmg, t: 90 };
     FX.hit(o.x + rnd(-20, 20), o.y + rnd(40, 110) * o.sz, a.face, big ? 2 : 1, big ? 'SA' : 'H'); Audio.sfx(big ? 'hitS' : 'hitM', 1, o.x);
     M.trauma = Math.min(1, (M.trauma || 0) + (big ? .5 : .1));
@@ -7445,18 +7445,18 @@ const Tutorial = {
 <script>/* src/ui/trials.js */
 // ===== desafios de combo: sequências geradas por personagem e VALIDADAS por simulação (timing perfeito) =====
 // combos autorais dos desafios: achados por busca na simulação (cada passo funciona apertando até ~2 quadros atrasado, contra bonecos de tamanhos diferentes)
-// s = sequência (especial com força: 0 fraco, 1 médio, 2 forte, 3 EX), h = hits, d = dano esperado
+// s = sequência (especial com força: 0 fraco, 1 médio, 2 forte, 3 EX), h = hits, d = dano esperado; o 3º termina em super (o do GORO é agarrão: não entra em combo)
 const TRIAL_COMBOS = {
-  kai: [{ s: ['jhk', 'chp', 'tatsu:2'], h: 6, d: 274 }, { s: ['jhp', 'slp', 'slp', 'clp', 'tatsu:1'], h: 7, d: 225 }],
-  akio: [{ s: ['jhk', 'smp', 'tatsu:2'], h: 7, d: 270 }, { s: ['jhk', 'clp', 'slp', 'tatsu:2'], h: 8, d: 244 }],
-  mei: [{ s: ['jhk', 'shp', 'sbk:2'], h: 6, d: 262 }, { s: ['jhp', 'chp', 'sbk:3'], h: 7, d: 276 }],
-  colt: [{ s: ['jhk', 'chp', 'flash:2'], h: 3, d: 282 }, { s: ['jhk', 'clp', 'clp', 'flash:2'], h: 4, d: 242 }],
-  valor: [{ s: ['jhp', 'chp', 'charging:2'], h: 3, d: 258 }, { s: ['jhp', 'slp', 'clp', 'slp', 'charging:2'], h: 5, d: 231 }],
+  kai: [{ s: ['jhk', 'chp', 'tatsu:2'], h: 6, d: 274 }, { s: ['jhp', 'slp', 'slp', 'clp', 'tatsu:1'], h: 7, d: 225 }, { s: ['jhk', 'chp', 'fb:0', 'super'], h: 8, d: 422 }],
+  akio: [{ s: ['jhk', 'smp', 'tatsu:2'], h: 7, d: 270 }, { s: ['jhk', 'clp', 'slp', 'tatsu:2'], h: 8, d: 244 }, { s: ['jhp', 'chp', 'tatsu:0', 'super'], h: 13, d: 458 }],
+  mei: [{ s: ['jhk', 'shp', 'sbk:2'], h: 6, d: 262 }, { s: ['jhp', 'chp', 'sbk:3'], h: 7, d: 276 }, { s: ['jhk', 'shp', 'qi:0', 'super'], h: 15, d: 457 }],
+  colt: [{ s: ['jhk', 'chp', 'flash:2'], h: 3, d: 282 }, { s: ['jhk', 'clp', 'clp', 'flash:2'], h: 4, d: 242 }, { s: ['jhk', 'chp', 'super'], h: 5, d: 482 }],
+  valor: [{ s: ['jhp', 'chp', 'charging:2'], h: 3, d: 258 }, { s: ['jhp', 'slp', 'clp', 'slp', 'charging:2'], h: 5, d: 231 }, { s: ['jhp', 'chp', 'shield:0', 'super'], h: 11, d: 389 }],
   goro: [{ s: ['jhk', 'chp', 'flat:2'], h: 3, d: 250 }, { s: ['jhk', 'clp', 'slp', 'lariat:0'], h: 5, d: 235 }],
-  goen: [{ s: ['jhp', 'shp', 'flurry:3'], h: 6, d: 300 }, { s: ['jhp', 'slp', 'clp', 'slp', 'flurry:1'], h: 7, d: 240 }],
-  lobo: [{ s: ['jhk', 'cmp', 'berserker:1'], h: 7, d: 216 }, { s: ['jhp', 'slp', 'clp', 'slp', 'berserker:1'], h: 9, d: 209 }],
-  ren: [{ s: ['jhp', 'shp', 'kunai:2'], h: 3, d: 210 }, { s: ['jhk', 'slp', 'clp', 'kunai:2'], h: 4, d: 179 }],
-  sakda: [{ s: ['jhp', 'shp', 'tk:2'], h: 3, d: 258 }, { s: ['jhp', 'slp', 'slp', 'clp', 'tk:2'], h: 5, d: 231 }]
+  goen: [{ s: ['jhp', 'shp', 'flurry:3'], h: 6, d: 300 }, { s: ['jhp', 'slp', 'clp', 'slp', 'flurry:1'], h: 7, d: 240 }, { s: ['jhp', 'shp', 'flurry:0', 'super'], h: 16, d: 386 }],
+  lobo: [{ s: ['jhk', 'cmp', 'berserker:1'], h: 7, d: 216 }, { s: ['jhp', 'slp', 'clp', 'slp', 'berserker:1'], h: 9, d: 209 }, { s: ['jhp', 'chp', 'slash:2', 'super'], h: 14, d: 497 }],
+  ren: [{ s: ['jhp', 'shp', 'kunai:2'], h: 3, d: 210 }, { s: ['jhk', 'slp', 'clp', 'kunai:2'], h: 4, d: 179 }, { s: ['jhp', 'shp', 'kunai:0', 'super'], h: 13, d: 461 }],
+  sakda: [{ s: ['jhp', 'shp', 'tk:2'], h: 3, d: 258 }, { s: ['jhp', 'slp', 'slp', 'clp', 'tk:2'], h: 5, d: 231 }, { s: ['jhk', 'chp', 'shot:0', 'super'], h: 9, d: 468 }]
 };
 const Trials = {
   ch: null, list: [], i: 0, hits: [], lastMv: '', lastT: 0, lastHits: 0, done: 0, t: 0,
@@ -7505,7 +7505,9 @@ const Trials = {
           lastHits = a.stats.hits; k++;
         }
       }
-      return k == seq.length && a.combo >= seq.length;
+      if (!(k == seq.length && a.combo >= seq.length)) return false;
+      for (let i = 0; i < 160; i++) Match.step({}, {});   // deixa terminar os acertos: o dano ordena os desafios
+      return a.comboDmg || 1;
     } catch (e) { return false; } finally { SIM.silent = false; }
   },
   prepare(ci) {
@@ -7515,9 +7517,10 @@ const Trials = {
     for (const k of ['leve', 'medio', 'forte', 'comando', 'cadeia', 'pulo', 'ex', 'super']) {
       const used = new Set(this.list.map(q => q[q.length - 1].split(':')[0]));
       const pool = cat[k].slice().sort((p, q) => (used.has(p[p.length - 1].split(':')[0]) ? 1 : 0) - (used.has(q[q.length - 1].split(':')[0]) ? 1 : 0));   // prefere especiais ainda não usados
-      const ok = pool.find(seq => this.validate(ci, seq)); if (ok) this.list.push(ok);
+      for (const seq of pool) { const d = this.validate(ci, seq); if (d) { const q = seq.slice(); q.dmg = d; this.list.push(q); break; } }
     }
-    for (const c of TRIAL_COMBOS[ch.id] || []) { const q = c.s.slice(); q.combo = c; this.list.push(q); }
+    for (const c of TRIAL_COMBOS[ch.id] || []) { const q = c.s.slice(); q.combo = c; q.dmg = c.d; this.list.push(q); }
+    this.list.sort((p, q) => p.dmg - q.dmg);   // do menor pro maior dano
     this.reset();
   },
   // pular (+1) ou voltar (-1) um desafio; dá a volta na lista
@@ -7529,7 +7532,7 @@ const Trials = {
     if (this.done) { if (++this.t > 80) { this.done = 0; this.t = 0; this.i++; this.reset(); if (this.i >= this.list.length) { Game.go('title'); padToast = { t: 240, msg: 'Todos os desafios de ' + this.ch.name + ' concluídos!' }; } } return; }
     if (a.stats.hits > this.lastHits) {
       this.lastHits = a.stats.hits;
-      const mv = a.mv || '', inst = a.mvId != this.lastId;   // golpe novo (vale também pra repetir o mesmo, ex.: Soco Fraco > Soco Fraco)
+      const mv = a.mv || (a.st == 'cine' ? 'super' : ''), inst = a.mvId != this.lastId;   // super cinemático: o golpe vira a cena   // golpe novo (vale também pra repetir o mesmo, ex.: Soco Fraco > Soco Fraco)
       if (a.combo <= 1) this.hits = [];
       if (inst && mv) this.hits.push(this.norm(mv));
       this.lastMv = mv; this.lastT = a.t; this.lastId = a.mvId;
@@ -7549,11 +7552,11 @@ const Trials = {
     if (!seq) { c.fillStyle = 'rgba(0,0,0,.7)'; c.fillRect(20, 100, 380, 40); ui(c, 'Nenhum desafio disponível para este lutador.', 30, 126, 16, '#fff'); return; }
     const pr = this.done ? seq.length : this.progress();
     const x0 = W / 2 - 170;
-    c.fillStyle = 'rgba(0,0,0,.72)'; c.fillRect(x0, 96, 340, 44 + seq.length * 26 + (seq.combo ? 22 : 0));
+    c.fillStyle = 'rgba(0,0,0,.72)'; c.fillRect(x0, 96, 340, 66 + seq.length * 26);
     ui(c, 'DESAFIO ' + (this.i + 1) + ' / ' + this.list.length + (seq.combo ? ' · COMBO' : ''), x0 + 12, 116, 15, seq.combo ? '#ffd21e' : '#9cf');
     if (this.done) txt(c, 'CONCLUÍDO!', x0 + 328, 118, 20, '#6f6', 'right', 3);
     seq.forEach((k, j) => { const ok = j < pr; ui(c, (ok ? '✔ ' : (j + 1) + '. ') + this.label(this.ch, k, !!seq.combo), x0 + 16, 142 + j * 26, 17, ok ? '#6f6' : '#fff', 'left', 3); });
-    if (seq.combo) ui(c, seq.combo.h + ' hits · cerca de ' + seq.combo.d + ' de dano', x0 + 16, 142 + seq.length * 26, 14, '#ffd21e', 'left', 3);
+    ui(c, (seq.combo ? seq.combo.h + ' hits · ' : '') + 'cerca de ' + seq.dmg + ' de dano', x0 + 16, 142 + seq.length * 26, 14, seq.combo ? '#ffd21e' : '#9cf', 'left', 3);
     if (!this.done) ui(c, 'Pausa: pular desafio', x0 + 328, 116, 12, '#889', 'right', 2);
   }
 };
