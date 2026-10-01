@@ -7445,7 +7445,7 @@ const Tutorial = {
 <script>/* src/ui/trials.js */
 // ===== desafios de combo: sequências geradas por personagem e VALIDADAS por simulação (timing perfeito) =====
 // combos autorais dos desafios: achados por busca na simulação (cada passo funciona apertando até ~2 quadros atrasado, contra bonecos de tamanhos diferentes)
-// s = sequência (especial com força: 0 fraco, 1 médio, 2 forte, 3 EX), h = hits, d = dano esperado; o 3º termina em super (o do GORO é agarrão: não entra em combo)
+// s = sequência (especial com força: 0 fraco, 1 médio, 2 forte, 3 EX), h = hits, d = dano esperado; o 3º termina em super, menos quando o super é agarrão (Goro, Gunter, Alek, Crow, Legion, Xeno, Vorhas, Totem, Kongo) ou não causa dano (Dario, Shiro)
 const TRIAL_COMBOS = {
   kai: [{ s: ['jhk', 'chp', 'tatsu:2'], h: 6, d: 274 }, { s: ['jhp', 'slp', 'slp', 'clp', 'tatsu:1'], h: 7, d: 225 }, { s: ['jhk', 'chp', 'fb:0', 'super'], h: 8, d: 422 }],
   akio: [{ s: ['jhk', 'smp', 'tatsu:2'], h: 7, d: 270 }, { s: ['jhk', 'clp', 'slp', 'tatsu:2'], h: 8, d: 244 }, { s: ['jhp', 'chp', 'tatsu:0', 'super'], h: 13, d: 458 }],
@@ -7456,7 +7456,40 @@ const TRIAL_COMBOS = {
   goen: [{ s: ['jhp', 'shp', 'flurry:3'], h: 6, d: 300 }, { s: ['jhp', 'slp', 'clp', 'slp', 'flurry:1'], h: 7, d: 240 }, { s: ['jhp', 'shp', 'flurry:0', 'super'], h: 16, d: 386 }],
   lobo: [{ s: ['jhk', 'cmp', 'berserker:1'], h: 7, d: 216 }, { s: ['jhp', 'slp', 'clp', 'slp', 'berserker:1'], h: 9, d: 209 }, { s: ['jhp', 'chp', 'slash:2', 'super'], h: 14, d: 497 }],
   ren: [{ s: ['jhp', 'shp', 'kunai:2'], h: 3, d: 210 }, { s: ['jhk', 'slp', 'clp', 'kunai:2'], h: 4, d: 179 }, { s: ['jhp', 'shp', 'kunai:0', 'super'], h: 13, d: 461 }],
-  sakda: [{ s: ['jhp', 'shp', 'tk:2'], h: 3, d: 258 }, { s: ['jhp', 'slp', 'slp', 'clp', 'tk:2'], h: 5, d: 231 }, { s: ['jhk', 'chp', 'shot:0', 'super'], h: 9, d: 468 }]
+  sakda: [{ s: ['jhp', 'shp', 'tk:2'], h: 3, d: 258 }, { s: ['jhp', 'slp', 'slp', 'clp', 'tk:2'], h: 5, d: 231 }, { s: ['jhk', 'chp', 'shot:0', 'super'], h: 9, d: 468 }],
+  ravi: [{ s: ['jhk', 'smp', 'flame:3'], h: 6, d: 228 }, { s: ['jhp', 'clp', 'slp', 'blast:0'], h: 5, d: 196 }, { s: ['jhk', 'smp', 'flame:0', 'super'], h: 11, d: 393 }],
+  zago: [{ s: ['jhk', 'smp', 'roll:2'], h: 3, d: 246 }, { s: ['jhk', 'cmp', 'vroll:0'], h: 4, d: 217 }, { s: ['jhk', 'shp', 'elec:0', 'super'], h: 14, d: 433 }],
+  taiho: [{ s: ['jhk', 'slp', 'clp', 'slp', 'head:2'], h: 5, d: 249 }, { s: ['jhk', 'clp', 'slp', 'head:2'], h: 4, d: 242 }, { s: ['jhk', 'chp', 'slap:0', 'super'], h: 10, d: 438 }],
+  kaiser: [{ s: ['jhp', 'chp', 'psycho:3'], h: 6, d: 287 }, { s: ['jhp', 'chp', 'scissor:0'], h: 4, d: 252 }, { s: ['jhp', 'chp', 'scissor:0', 'super'], h: 13, d: 516 }],
+  rodney: [{ s: ['jhk', 'chp', 'turn:0'], h: 3, d: 290 }, { s: ['jhp', 'clp', 'slp', 'dstr:2'], h: 4, d: 228 }, { s: ['jhk', 'chp', 'turn:0', 'super'], h: 14, d: 537 }],
+  gunter: [{ s: ['jhp', 'clp', 'slp', 'palm:3'], h: 4, d: 252 }, { s: ['jhp', 'slp', 'palm:3'], h: 3, d: 242 }],
+  winston: [{ s: ['jhp', 'chp', 'mgb:1'], h: 6, d: 238 }, { s: ['jhp', 'slp', 'slp', 'clp', 'mgb:0'], h: 7, d: 204 }, { s: ['jhp', 'chp', 'ssb:2', 'super'], h: 11, d: 501 }],
+  altair: [{ s: ['jhp', 'shp', 'rcf:1'], h: 6, d: 248 }, { s: ['jhp', 'chp', 'st:2'], h: 3, d: 266 }, { s: ['jhp', 'shp', 'rcf:0', 'super'], h: 11, d: 443 }],
+  valerius: [{ s: ['jhk', 'chp', 'knee:3'], h: 4, d: 282 }, { s: ['jhp', 'clp', 'slp', 'chariot:2'], h: 4, d: 228 }, { s: ['jhk', 'chp', 'chariot:2', 'super'], h: 8, d: 378 }],
+  alek: [{ s: ['jhk', 'chp', 'chop:3'], h: 4, d: 275 }, { s: ['jhk', 'chp', 'stamp:3'], h: 4, d: 275 }],
+  crow: [{ s: ['jhk', 'clp', 'slp', 'bhead:3'], h: 4, d: 228 }, { s: ['jhk', 'slp', 'bhead:3'], h: 3, d: 216 }],
+  yura: [{ s: ['jhp', 'shp', 'pin:3'], h: 6, d: 274 }, { s: ['jhp', 'shp', 'rrk:3'], h: 6, d: 274 }, { s: ['jhp', 'shp', 'fuha:0', 'super'], h: 14, d: 452 }],
+  sasori: [{ s: ['jhp', 'chp', 'take:2'], h: 3, d: 258 }, { s: ['jhp', 'chp', 'tele:3'], h: 3, d: 266 }, { s: ['jhp', 'chp', 'take:2', 'super'], h: 11, d: 493 }],
+  kori: [{ s: ['jhp', 'chp', 'hammer:2'], h: 3, d: 274 }, { s: ['jhp', 'slp', 'clp', 'slide:2'], h: 4, d: 221 }, { s: ['jhp', 'chp', 'hammer:2', 'super'], h: 10, d: 513 }],
+  legion: [{ s: ['jhk', 'chp', 'lift:3', 'lift:2'], h: 4, d: 328 }, { s: ['shp', 'lift:3', 'lift:2'], h: 3, d: 270 }],
+  xeno: [{ s: ['slp', 'slp', 'clp', 'pounce:2'], h: 4, d: 150 }, { s: ['shp', 'pounce:2'], h: 2, d: 200 }],
+  vorhas: [{ s: ['shp', 'rush:2'], h: 4, d: 225 }, { s: ['jhk', 'slp', 'clp', 'clk'], h: 4, d: 158 }],
+  joe: [{ s: ['jhp', 'chp', 'over:2'], h: 5, d: 275 }, { s: ['jhp', 'chp', 'hslash:3'], h: 4, d: 260 }, { s: ['jhp', 'chp', 'hslash:2', 'super'], h: 15, d: 409 }],
+  dario: [{ s: ['jhp', 'chp', 'knife:3'], h: 6, d: 236 }, { s: ['jhp', 'slp', 'clp', 'knife:0'], h: 6, d: 190 }],
+  j7: [{ s: ['jhp', 'clp', 'slp', 'clk', 'cossack:0'], h: 7, d: 203 }, { s: ['shp', 'mega:2', 'cossack:3'], h: 4, d: 285 }, { s: ['shp', 'mega:2', 'super'], h: 9, d: 484 }],
+  nervo: [{ s: ['jhp', 'chp', 'tornado:3'], h: 6, d: 259 }, { s: ['jhp', 'chp', 'cobra:0'], h: 7, d: 228 }, { s: ['jhp', 'chp', 'tornado:0', 'super'], h: 9, d: 400 }],
+  duke: [{ s: ['jhk', 'chp', 'burning:1'], h: 6, d: 238 }, { s: ['jhk', 'chp', 'deathfist:2'], h: 3, d: 282 }, { s: ['jhk', 'shp', 'deathfist:2', 'super'], h: 10, d: 529 }],
+  kazan: [{ s: ['jhk', 'shp', 'demon:2'], h: 6, d: 284 }, { s: ['jhp', 'slp', 'clp', 'demon:2'], h: 7, d: 232 }, { s: ['jhk', 'shp', 'hellsweep:2', 'super'], h: 11, d: 381 }],
+  lao: [{ s: ['jhp', 'chp', 'tail:2'], h: 3, d: 250 }, { s: ['jhp', 'chp', 'frog:2'], h: 3, d: 250 }, { s: ['jhp', 'chp', 'tail:2', 'super'], h: 13, d: 483 }],
+  totem: [{ s: ['jhk', 'clp', 'slp', 'spire:2'], h: 4, d: 221 }, { s: ['jhk', 'slp', 'tomahawk:0'], h: 3, d: 216 }],
+  groove: [{ s: ['jhp', 'chp', 'mgu:1'], h: 6, d: 243 }, { s: ['jhp', 'chp', 'sobat:0'], h: 4, d: 267 }, { s: ['jhp', 'chp', 'slasher:0', 'super'], h: 12, d: 451 }],
+  optik: [{ s: ['jhp', 'slp', 'clp', 'cyclone:1'], h: 6, d: 216 }, { s: ['jhp', 'chp', 'cyclone:1'], h: 5, d: 254 }, { s: ['jhp', 'chp', 'cyclone:0', 'super'], h: 15, d: 353 }],
+  roko: [{ s: ['jhp', 'shp', 'leaf:3'], h: 6, d: 236 }, { s: ['jhp', 'shp', 'charge:3'], h: 4, d: 260 }, { s: ['jhp', 'shp', 'charge:0', 'super'], h: 14, d: 393 }],
+  falko: [{ s: ['jhp', 'shp', 'raptor:2'], h: 3, d: 258 }, { s: ['jhp', 'shp', 'kick:2'], h: 3, d: 258 }, { s: ['jhp', 'shp', 'raptor:2', 'super'], h: 10, d: 502 }],
+  genoma: [{ s: ['jhp', 'chp', 'burst:3'], h: 6, d: 274 }, { s: ['jhp', 'slp', 'clp', 'burst:1'], h: 6, d: 216 }, { s: ['jhp', 'chp', 'super'], h: 15, d: 340 }],
+  shiro: [{ s: ['jhp', 'chp', 'camellia:2', 'willow:0'], h: 6, d: 304 }, { s: ['jhp', 'chp', 'camellia:2', 'slp'], h: 6, d: 269 }],
+  kongo: [{ s: ['shp', 'spin:2'], h: 6, d: 225 }, { s: ['shp', 'giant:3'], h: 2, d: 280 }],
+  cj: [{ s: ['jhk', 'chp', 'rush:2'], h: 5, d: 244 }, { s: ['jhp', 'slp', 'clp', 'rush:3'], h: 6, d: 208 }, { s: ['jhk', 'chp', 'bat:2', 'super'], h: 12, d: 512 }]
 };
 const Trials = {
   ch: null, list: [], i: 0, hits: [], lastMv: '', lastT: 0, lastHits: 0, done: 0, t: 0,
@@ -7525,21 +7558,21 @@ const Trials = {
   },
   // pular (+1) ou voltar (-1) um desafio; dá a volta na lista
   jump(d) { const n = this.list.length; if (!n) return; this.i = (this.i + d + n) % n; this.done = 0; this.t = 0; this.reset(); },
-  reset() { this.hits = []; this.lastMv = ''; this.lastT = 0; this.lastId = -1; this.lastHits = M.f.length ? M.f[0].stats.hits : 0; },
+  reset() { this.hits = []; this.lastMv = ''; this.lastT = 0; this.lastId = -1; this.prevMv = ''; this.lastHits = M.f.length ? M.f[0].stats.hits : 0; },
   update() {
     const a = M.f[0], seq = this.list[this.i]; if (!seq) return;
     if (this.f0 !== a) { this.f0 = a; this.reset(); }                // partida nova (a validação usa outras)
     if (this.done) { if (++this.t > 80) { this.done = 0; this.t = 0; this.i++; this.reset(); if (this.i >= this.list.length) { Game.go('title'); padToast = { t: 240, msg: 'Todos os desafios de ' + this.ch.name + ' concluídos!' }; } } return; }
     if (a.stats.hits > this.lastHits) {
       this.lastHits = a.stats.hits;
-      const mv = a.mv || (a.st == 'cine' ? 'super' : ''), inst = a.mvId != this.lastId;   // super cinemático: o golpe vira a cena   // golpe novo (vale também pra repetir o mesmo, ex.: Soco Fraco > Soco Fraco)
+      const mv = a.mv || (a.st == 'cine' ? 'super' : this.prevMv || ''), inst = a.mvId != this.lastId;   // super cinemático vira a cena; golpe que quica no acerto (cabeçada, rolamento) some no mesmo quadro   // golpe novo (vale também pra repetir o mesmo, ex.: Soco Fraco > Soco Fraco)
       if (a.combo <= 1) this.hits = [];
       if (inst && mv) this.hits.push(this.norm(mv));
       this.lastMv = mv; this.lastT = a.t; this.lastId = a.mvId;
       const want = seq.map(k => this.norm(k)), h = this.hits;
       if (h.length >= want.length && want.every((w, j) => h[h.length - want.length + j] == w)) { this.done = 1; this.t = 0; Audio.sfx('superready'); }
     }
-    if (a.mv) this.lastT = a.t;
+    if (a.mv) { this.lastT = a.t; this.prevMv = a.mv; }
   },
   // quantos passos do desafio atual já saíram em sequência
   progress() {
