@@ -1546,6 +1546,8 @@ function compileMove(src, key, ch) {
     if (pf != null) { m.cancel.su = 'proj'; m.projF = pf; }
     else if (m.hits.length) m.cancel.su = 1;   // como no SF6: especial que encosta cancela em super
   }
+  // tipo Shoryuken: especial de chão que sobe e lança (a versão fraca ganha o "anti-aéreo no alto")
+  m.dpLike = !!(m.special && !m.super && !m.air && m.hits.some(h => h.launch) && m.vel && m.vel.some(v => v[3] != null && v[3] > 6));
   // juggle por pontos: o golpe acerta quem está caindo se o limite dele passar do contador do oponente
   const jl = m.super ? 6 : m.special && key != 'vskill' && !key.startsWith('tr_') ? (key.endsWith(':3') ? 2 : 1) : 0;
   if (jl) { for (const h of m.hits) h.jLimit = Math.max(h.jLimit || 0, jl); for (const p of m.projs || (m.proj ? [m.proj] : [])) p.jLimit = Math.max(p.jLimit || 0, jl); }
@@ -1604,7 +1606,7 @@ class Fighter {
       combo: 0, comboDmg: 0, comboScale: 1, starterL: false, juggle: 0, airReset: false, airUsed: false,
       hitMask: 0, contact: 0, cancelUntil: -1, grabDone: false, armorLeft: 0, projMask: 0, throwInv: 0, throwBack: false,
       flash: 0, flashCol: 0, shakeT: 0, cine: null, thr: null, cineRot: 0, parryFx: 0, want: null, in: Cmd.fresh(),
-      mode: 0, modeT: 0, tStop: 0, frozen: 0, sPrev: 0, sStep: 0, wantBuf: null, wantBufT: 0, bounced: 0, lastDmg: 'V', grey: 0, greyT: 0, airVs: false, mvId: 0, lastSrc: '' });
+      mode: 0, modeT: 0, tStop: 0, frozen: 0, sPrev: 0, sStep: 0, wantBuf: null, wantBufT: 0, bounced: 0, lastDmg: 'V', grey: 0, greyT: 0, airVs: false, mvId: 0, lastSrc: '', floatK: 0, quickLand: 0 });
     this.trail = [];
   }
   get m() { return this.mv ? getMove(this.ch, this.mv) : null; }
@@ -1868,7 +1870,7 @@ class Fighter {
     if (this.st == 'cine' || this.st == 'cineD' || this.st == 'thrown') return;
     if (this.y > 0 || this.vy > 0) {
       if (fl.hover) this.vy = 0;
-      else this.vy -= GRAV * (this.st == 'knock' ? .85 : (this.st == 'air' || this.st == 'atk') ? (this.ch.grav || 1) : 1);
+      else this.vy -= GRAV * (this.st == 'knock' ? .85 * (this.floatK || 1) : (this.st == 'air' || this.st == 'atk') ? (this.ch.grav || 1) : 1);
       this.y += this.vy; this.x += this.vx;
       if (this.y <= 0) { this.y = 0; this.vy = 0; this.onLand(o); }
     } else {
@@ -1882,8 +1884,10 @@ class Fighter {
     else if (this.st == 'atk' && m) {
       this.vx = 0; FX.dust(this.x, 0, 8);
       if (m.onLand) Combat.shock(this, o, m.onLand);
-      if (m.landEnd) { this.mv = null; this.setSt('land'); this.landT = m.landEnd === true ? (m.super ? 16 : 11) : m.landEnd; }
+      if (m.landEnd) { this.mv = null; this.setSt('land'); this.landT = this.quickLand ? 3 : m.landEnd === true ? (m.super ? 16 : 11) : m.landEnd; }
+      this.quickLand = 0;
     } else if (this.st == 'knock') {
+      this.floatK = 0;
       // nocaute forte: quica uma vez no chão antes de deitar
       if (this.kdType == 'hard' && !this.bounced && !this.airReset) { this.bounced = 1; this.vy = 5; this.y = 1; this.vx *= .4; FX.dust(this.x, 0, 10); Audio.sfx('fall', .8, this.x); M.trauma = Math.min(1, (M.trauma || 0) + .15); return; }
       this.bounced = 0; this.vx = 0; this.juggle = 0;
@@ -2025,12 +2029,16 @@ const Combat = {
     // lançador: Soco Forte agachado no contra-ataque, na punição ou em quem está no ar joga o oponente pra cima, pronto pro juggle
     const lnch = !proj && m && /^(m_)?chp$/.test(m.key) && (out.ctr || air) && o.st != 'knock' && o.hp > 0 ? { vy: 10.5, vx: 1 } : null;
     if (lnch) FX.text('LANÇOU!', o.x, o.y + 160, '#7cf');
+    o.floatK = 0;
+    const apex = !proj && m && m.dpLike && /:0$/.test(m.key) && o.st == 'air' && o.y > 75 && o.hp > 0;
+    if (apex) { a.quickLand = 1; FX.text('ANTI-AÉREO!', o.x, o.y + 160, '#ffd21e'); }
     if (h.crumple && out.ctr == 'punish' && !air && o.hp > 0) { o.setSt('crumple'); o.stun = 48; o.vx = dir * 2; }
     else if (h.kd || h.launch || lnch || air || o.hp <= 0) {
       o.airReset = air && !h.kd && !h.launch && !lnch && o.st != 'knock' && o.hp > 0;
       if (o.st == 'knock') o.juggle += h.jAdd || 1; else o.juggle = lnch ? 0 : 1;   // só o lançador deixa o contador em 0 (qualquer especial pega)
       o.kdType = h.kd == 'hard' ? 'hard' : 'soft';
-      const L2 = lnch || h.launch;
+      const L2 = apex ? { vy: 9, vx: .8 } : lnch || h.launch;
+      if (apex) o.floatK = .55;   // cai bem mais devagar: dá tempo de aterrissar e emendar um super
       o.setSt('knock'); o.vy = L2 ? (L2.vy ?? 11) : air ? 6 : 6.5; o.vx = dir * (L2 ? (L2.vx ?? 1.6) : 3.4); o.y = Math.max(o.y, 1);
     } else {
       o.crouchHit = o.crouch; o.setSt('hit'); o.stun = h.hs + (out.ctr == 'counter' ? 2 : out.ctr == 'punish' ? 4 : 0);
