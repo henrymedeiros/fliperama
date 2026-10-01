@@ -1801,7 +1801,7 @@ class Fighter {
       case 'down':
         this.kdT--;
         if (this.kdType == 'soft' && !this.quick && this.hp > 0 && this.stT <= 14 && BTN.some(b => this.in.ic - this.in.bt[b] <= 1)) { this.quick = true; this.kdT = Math.min(this.kdT, 6); }
-        if (this.kdT <= 0 && this.hp > 0) { this.backRise = this.kdType == 'soft' && this.holdBack && !this.quick; this.setSt('wake'); this.kdT = this.backRise ? 18 : 12; }
+        if (this.kdT <= 0 && this.hp > 0) { this.faceTo(o); this.backRise = this.kdType == 'soft' && this.holdBack && !this.quick; this.setSt('wake'); this.kdT = this.backRise ? 18 : 12; }
         break;
       case 'wake': if (this.backRise) this.x -= this.face * 3.2; if (--this.kdT <= 0) { this.setSt('idle'); this.throwInv = 4; } break;
       case 'land': if (--this.landT <= 0) this.setSt('idle'); break;
@@ -1810,6 +1810,7 @@ class Fighter {
       case 'throw': Combat.throwStep(this, o); break;
       case 'cine': Combat.cineStep(this, o); break;
     }
+    if (this.y <= 0 && (this.st == 'idle' || this.st == 'land' || this.st == 'hit' || this.st == 'block' || this.st == 'parry' || this.st == 'crumple')) this.faceTo(o);
     if (inp && M.phase == 'fight') this.act(o);
     if (this.st == 'idle') this.groundMove(o);
     const flags = this.runMove(o);
@@ -1841,8 +1842,15 @@ class Fighter {
     if (edge('hk') && !air) r.want = 'super';
     return r;
   }
+  // vira de frente pro oponente (troca de lado: o direcional segurado já vale pro lado novo neste quadro)
+  faceTo(o) {
+    if (Math.abs(o.x - this.x) <= 1) return; const nf = o.x > this.x ? 1 : -1; if (nf == this.face) return;
+    const s = this.in; this.face = nf; this.fwd = this.fx * nf; this.holdBack = this.fwd < 0;
+    const n = (s.dir <= 3 ? 2 : s.dir >= 7 ? 8 : 5) + this.fwd;
+    if (n != s.dir) { s.hist.push(n, s.ic); if (s.hist.length > 64) s.hist.splice(0, 2); s.dir = n; }
+  }
   groundMove(o) {
-    if (Math.abs(o.x - this.x) > 1) this.face = o.x > this.x ? 1 : -1;
+    this.faceTo(o);
     this.crouch = this.holdDown; this.walking = 0;
     if (M.phase != 'fight') return;
     if (this.up) { this.setSt('prejump'); this.jdir = this.fx; this.crouch = false; return; }
@@ -1993,6 +2001,8 @@ const Combat = {
     if (om && !om.move && (o.st == 'atk' || o.st == 'air')) ctr = o.t <= om.e ? 'counter' : 'punish';
     return { r: 'hit', ctr };
   },
+  // quadros até o atacante pousar (cross up: compensa a altura do acerto; 3 = um pulo que acertou fundo)
+  xupBonus(a) { let y = a.y, vy = a.vy, n = 0; const g = GRAV * (a.ch.grav || 1); while (y > 0 && n < 40) { vy -= g; y += vy; n++; } return Math.max(0, n - 3); },
   scaleFor(a, h) {
     let sc = SCALE[Math.min(a.combo - 1, 9)];
     if (a.starterL && a.combo > 1) sc -= .1;
@@ -2014,9 +2024,11 @@ const Combat = {
       if (out.red) FX.banner('RED PARRY!', o.i, '#f33');
       return;
     }
+    const xup = !proj && a.st == 'air' && a.y > 0 && m && !m.special && !m.super && o.y <= 0 && (o.x - a.x) * a.face < 0 && Math.abs(o.x - a.x) > 1;
+    if (xup && (out.r == 'block' || out.r == 'hit')) FX.text('CROSS UP!', o.x, o.y + 175, '#ff7ad9');
     if (out.r == 'block') {
       touch(2);
-      o.setSt('block'); o.stun = h.bs; o.crouch = o.holdDown; o.mv = null;
+      o.setSt('block'); o.stun = h.bs + (xup ? this.xupBonus(a) : 0); o.crouch = o.holdDown; o.mv = null;
       if (proj || (m && (m.special || m.super))) { o.hp = Math.max(0, o.hp - (h.chip ?? Math.max(1, Math.round(h.dmg * (h.lv == 'SA' ? .25 : .18))))); o.hpS = Math.max(o.hpS, o.hp); o.lastDmg = 'C'; }
       if (o.grey > 0) o.greyT = GREY_DELAY;
       o.vx = dir * L.push * (proj ? .6 : 1); if (!proj && (o.x < 45 || o.x > STAGE_W - 45)) a.vx = -dir * L.push * .8;
@@ -2072,7 +2084,7 @@ const Combat = {
       if (apex) o.floatK = .55;   // cai bem mais devagar: dá tempo de aterrissar e emendar um super
       o.setSt('knock'); o.vy = L2 ? (L2.vy ?? 11) : air ? 6 : 6.5; o.vx = dir * (L2 ? (L2.vx ?? 1.6) : 3.4); o.y = Math.max(o.y, 1);
     } else {
-      o.crouchHit = o.crouch; o.setSt('hit'); o.stun = h.hs + (out.ctr == 'counter' ? 2 : out.ctr == 'punish' ? 4 : 0);
+      o.crouchHit = o.crouch; o.setSt('hit'); o.stun = h.hs + (out.ctr == 'counter' ? 2 : out.ctr == 'punish' ? 4 : 0) + (xup ? this.xupBonus(a) : 0);
       o.vx = dir * (h.push || L.push); if (!proj && (o.x < 45 || o.x > STAGE_W - 45)) a.vx = -dir * L.push;
       // congelamento: só como iniciador (nunca no meio de combo, evita loop infinito)
       if (h.freeze && a.combo == 1 && o.hp > 0) { o.stun += h.freeze; o.frozen = o.stun; o.vx = 0; Audio.sfx('ice', 1, px); }
