@@ -349,6 +349,15 @@ const Audio = {
       src.connect(g).connect(this.trackG); src.onended = resume; src.start(this.now + .05);
     });
   },
+  // cursor da seleção de lutador (som de arcade gravado): cada movimento corta o anterior; 1P um pouco à esquerda, 2P à direita
+  cursor(slot) {
+    if (!this.ac || !settings.sfx) return;
+    const b = Tracks.buf['cursor.mp3']; if (!b) { Tracks.load('cursor.mp3'); this.sfx('move'); return; }
+    if (this.curSrc) try { this.curSrc.stop(); } catch (e) {}
+    const src = this.ac.createBufferSource(), g = this.ac.createGain(); src.buffer = b; g.gain.value = .22;
+    let node = src.connect(g); if (this.ac.createStereoPanner) { const p = this.ac.createStereoPanner(); p.pan.value = slot ? .3 : -.3; node = node.connect(p); } node.connect(this.sfxBus);
+    src.start(); this.curSrc = src;
+  },
   // abaixa a música por um tempo (super, K.O., narrador)
   duck(level = .4, hold = .8) {
     if (!this.ac || SIM.silent) return; const t = this.ac.currentTime, g = this.duckG.gain;
@@ -700,7 +709,7 @@ for (const k in SONGS) {
 }
 
 // faixas gravadas (Suno): tocam em laço entre loopStart e loopEnd (a introdução da faixa só toca na primeira vez); alt = música sintetizada de reserva
-const TRACKS = { charselect: { src: 'select.mp3', loopStart: .948, loopEnd: 41.204, gain: 1, alt: 'select' } };
+const TRACKS = { charselect: { src: 'select.mp3', loopStart: 12.47, loopEnd: 49.91, gain: 1, alt: 'select' } };   // Character Select 2: 12 s de introdução, depois laço de 20 compassos
 const Tracks = {
   raw: {}, buf: {}, pend: {},
   fetch(src) { return this.raw[src] || (this.raw[src] = fetch(src).then(r => r.ok ? r.arrayBuffer() : null).catch(() => null)); },
@@ -709,7 +718,7 @@ const Tracks = {
     return this.pend[src] || (this.pend[src] = this.fetch(src).then(ab => ab ? Audio.ac.decodeAudioData(ab.slice(0)) : null).then(b => (this.buf[src] = b)).catch(() => null));
   }
 };
-for (const k in TRACKS) Tracks.fetch(TRACKS[k].src); Tracks.fetch('intro.mp3');   // já baixa; decodifica quando o som for liberado
+for (const k in TRACKS) Tracks.fetch(TRACKS[k].src); Tracks.fetch('intro.mp3'); Tracks.fetch('cursor.mp3');   // já baixa; decodifica quando o som for liberado
 const Music = {
   cur: null, name: '', step: 0, t: 0, prevLead: null, prevEnd: 0, trk: null, hold: false, pending: null,
   play(name) {
@@ -3771,8 +3780,8 @@ defChar({
     ko: ['Ah, shit... not again.', 'Aw man...'],
     win: ['Grove Street for life!', 'Ah, that was easy, homie.', 'Grove Street. Home.'],
     intro: ['Ah shit, here we go again.'] } },
-  look: { gloveType: 'bare', skin: '#6a4028', hair: 'buzz', hairC: '#141010', mustache: '#1a1010', torso: 'tank', top: '#2a8a3a', goldchain: 1, pants: '#4a6aa0', sleeve: 'none', glove: '#6a4028', feet: '#f2f2f2' },
-  palettes: [{}, { top: '#f2f2f2', pants: '#2a2a2a' }, { top: '#1a1a1a', pants: '#c8a878', feet: '#1a1a1a' }, { top: '#6a2a8a', pants: '#4a6aa0' }],
+  look: { gloveType: 'bare', skin: '#6a4028', hair: 'buzz', hairC: '#141010', mustache: '#1a1010', torso: 'tank', top: '#f2f2f2', goldchain: 1, pants: '#4a6aa0', sleeve: 'none', glove: '#6a4028', feet: '#f2f2f2' },
+  palettes: [{}, { top: '#2a8a3a' }, { top: '#1a1a1a', pants: '#c8a878', feet: '#1a1a1a' }, { top: '#6a2a8a', pants: '#4a6aa0' }],
   sz: 1.02, hp: 102, walkF: 3.6, walkB: 2.9, jumpV: 14.5, jumpX: 4.2, stance: [55, 6, 30, 100, 20, 92, 16, 0, -20, 0, 0],
   cmdNormals: [
     { key: '6hp', dir: [6], btn: 'hp', move: { anim: 'chop', name: 'Soco de Cima', startup: 18, active: 3, recovery: 15, hits: [{ box: [14, 60, 70, 60], dmg: 8, lv: 'H', high: 1, onHit: 2, onBlock: -2 }] } },
@@ -6462,7 +6471,7 @@ const Menus = {
     const move = (mi, slot) => {
       const s = g.sel[slot], rows = Math.ceil(n / GRID_COLS); let col = s % GRID_COLS, row = (s / GRID_COLS) | 0;
       if (mi.l) col = (col + GRID_COLS - 1) % GRID_COLS; if (mi.r) col = (col + 1) % GRID_COLS; if (mi.u) row = (row + rows - 1) % rows; if (mi.d) row = (row + 1) % rows;
-      const ns = Math.min(n - 1, row * GRID_COLS + col); if (ns != s) { g.sel[slot] = ns; Audio.sfx('move'); if (online) this.netSel(slot, ns, false); }
+      const ns = Math.min(n - 1, row * GRID_COLS + col); if (ns != s) { g.sel[slot] = ns; Audio.cursor(slot); if (online) this.netSel(slot, ns, false); }
       if (mi.ok || mi.hp || mi.hk) {
         if (g.sel[slot] >= CHARS.length) g.sel[slot] = Math.random() * CHARS.length | 0;   // aleatório
         g.pal[slot] = mi.hk ? 3 : mi.hp ? 2 : mi.lk ? 1 : 0; g.pal[slot] %= CHARS[g.sel[slot]].palettes.length;
