@@ -1629,6 +1629,8 @@ class Fighter {
     const k = (air ? 'j' : this.holdDown ? 'c' : 's') + b;
     return this.mode && this.ch.modeNormals && this.ch.modeNormals[k] ? 'm_' + k : k;   // ex.: normais do Stand
   }
+  // V-Skill liberada? (a FÚRIA do Lobo só sai se houver vida cinza pra queimar)
+  vsOk() { const v = this.ch.vskill; return !(v && v.vbuff && v.vbuff.burnGrey && !(this.grey > 0)); }
   decide(o) {
     const st = this.st, m = this.m, air = this.y > 0, ic = this.in.ic;
     const free = st == 'idle' || st == 'prejump';
@@ -1692,10 +1694,10 @@ class Fighter {
     }
     if (cancel || airCancel) { const nk = this.normalKey(air); return nk && m.cancel.chains && m.cancel.chains.includes(nk) ? nk : null; }
     if (!air) {
-      if (ch.vskill && Cmd.comboConv(this, 'mp', 'mk')) return 'vskill';
+      if (ch.vskill && this.vsOk() && Cmd.comboConv(this, 'mp', 'mk')) return 'vskill';
       if (Cmd.comboConv(this, 'lp', 'lk') && !this.holdDown) return 'throw';
     } else {
-      if (ch.vskill && ch.vskill.airOk && !this.airVs && Cmd.comboConv(this, 'mp', 'mk')) return 'vskill';
+      if (ch.vskill && ch.vskill.airOk && !this.airVs && this.vsOk() && Cmd.comboConv(this, 'mp', 'mk')) return 'vskill';
       if (ch.airThrow && Cmd.comboConv(this, 'lp', 'lk')) return 'athrow';
     }
     if (conv || convAir) return null;
@@ -1709,6 +1711,7 @@ class Fighter {
     if (mv.super && this.y > 0 && this.m && this.m.dpLike && this.contact && this.st == 'atk') { this.y = 0; this.vy = 0; this.vx = 0; }
     const air = this.y > 0;
     if (!!mv.air != air && !mv.airOk) { this.want = null; return; }
+    if (key == 'vskill' && !this.vsOk()) { this.want = null; return; }
     if (key.endsWith(':3') && this.meter < EX_COST) key = key.slice(0, -1) + '2';
     if (mv.super && this.meter < (mv.cost || SUPER_COST)) return;
     mv = getMove(this.ch, key);
@@ -6294,6 +6297,7 @@ const HUD = {
           c.strokeStyle = on ? '#ff8a5a' : '#6a3a34'; c.lineWidth = 1; c.strokeRect(x - .5, y - .5, w + 1, h + 1);
           if (nxt > cur + .005) ui(c, (on ? 'queimar a vida cinza: +' : 'FÚRIA: renderia +') + Math.round(nxt * 100) + '%', L ? x + w + 8 : x - 8, y + 8, 11, '#b07a70', L ? 'left' : 'right', 2);
           else if (on && cur >= .495) ui(c, 'FÚRIA MÁXIMA', L ? x + w + 8 : x - 8, y + 8, 11, '#ff8a5a', L ? 'left' : 'right', 2);
+          else if (!(f.grey > 0)) ui(c, 'sem vida cinza: V-Skill bloqueada', L ? x + w + 8 : x - 8, y + 8, 11, '#7a6a68', L ? 'left' : 'right', 2);
         } }
       if (f.simple) { const w = c.measureText(f.ch.name).width; ui(c, 'SIMPLES', L ? bx + 12 + w : bx + bw - 12 - w, by + 51, 12, '#6cf', L ? 'left' : 'right', 3); }
       if (Game.mode == 'online' && f.netName) ui(c, f.netName + (f.i == Net.slot ? ' (você)' : ''), L ? bx + 90 : bx + bw - 90, by + 52, 16, f.i == Net.slot ? '#ffd21e' : '#9cf', L ? 'left' : 'right', 3);
