@@ -4185,8 +4185,8 @@ addVersion('genoma', { id: '1.0.0', apply(ch) {
 
 // ===== GENOMA 1.1.0 =====
 addVersion('genoma', { id: '1.1.0', apply(ch) {
-  // Absorção rouba 85% do que roubava (85 de barra em vez de 1 barra de EX inteira)
-  ch.vskill = Object.assign({}, ch.vskill, { hits: ch.vskill.hits.map(h => Object.assign({}, h, { meterSteal: Math.round(EX_COST * .85) })) });
+  // Absorção: roubo de barra 85% menor — rouba só 15 de barra (antes 1 barra de EX inteira = 100)
+  ch.vskill = Object.assign({}, ch.vskill, { hits: ch.vskill.hits.map(h => Object.assign({}, h, { meterSteal: Math.round(EX_COST * .15) })) });
 } });
 
 </script>
