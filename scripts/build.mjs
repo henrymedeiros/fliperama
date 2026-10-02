@@ -53,6 +53,8 @@ for (const slug of existsSync(GAMES) ? readdirSync(GAMES).sort() : []) {
     warnings.push(`${where}: sem capa (campo "thumb"); o catálogo usa uma capa gerada`);
   }
   if (meta.tags && !Array.isArray(meta.tags)) errors.push(`${where}/game.json: "tags" deve ser uma lista`);
+  // notas de atualização (opcional): página dentro da pasta do jogo, aberta por um botão na ficha
+  if (meta.notes !== undefined && (typeof meta.notes !== 'string' || meta.notes.startsWith('/') || meta.notes.split(/[\\/]/).includes('..') || !existsSync(join(dir, meta.notes)))) errors.push(`${where}/game.json: "notes" deve apontar pra uma página que existe dentro da pasta do jogo`);
   const versions = readVersions(meta, dir, where);
 
   const updated = git(['log', '-1', '--format=%cI', '--', `games/${slug}`]) || statSync(metaPath).mtime.toISOString();
@@ -73,6 +75,7 @@ for (const slug of existsSync(GAMES) ? readdirSync(GAMES).sort() : []) {
     created,
     updated,
     ...(versions ? { versions } : {}),
+    ...(meta.notes ? { notes: meta.notes } : {}),
   });
 }
 
