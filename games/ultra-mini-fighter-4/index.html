@@ -205,7 +205,7 @@ const SIM = { silent: false };
 const SFX_BOOST = { whiff: .35, hitM: 1.1, hitH: 1.6, block: 1.55, proj: 1.6, projBig: .6, boom: 2.2, fire: .9, elec: 2, psycho: 1.2, super: .64, land: 3.5, jump: .75, dash: .7, teleport: 2, counter: 1.26, tech: 2.4, select: 2, move: 3.4, back: .54, timer: 2.8, bell: 1.3, parry: 1.6, superready: 1.8,
   armor: .7, spear: .63, fizzle: .63, clash: 1.4, throw: 1.25, beam: .8, heart: .2, quake: .56, combo: 4, bone: 2, shield: 1.6, molotov: 1.6 };
 
-const UI_SFX = { select: 1, move: 1, back: 1, timer: 1, bell: 1, superready: 1, heart: 1, combo: 1 };
+const UI_SFX = { vaultok: 1, vaultno: 1, select: 1, move: 1, back: 1, timer: 1, bell: 1, superready: 1, heart: 1, combo: 1 };
 const Audio = {
   gainMul: 1, vary: 1, ac: null, out: null, sfxBus: null, musicBus: null, rev: null, delay: null, noiseBuf: null, crush: null,
   unlock() {
@@ -508,6 +508,8 @@ const Audio = {
       case 'select': this.osc('triangle', 1318, t, .09, { vol: .07 }); this.osc('square', 1318, t, .05, { vol: .025, lp: 4000 }); this.osc('triangle', 1975, t + .06, .2, { vol: .07, send: R }); this.noise(t + .06, .15, { type: 'highpass', f: 7000, vol: .03 }); break;
       case 'move': this.osc('triangle', 1400, t, .03, { vol: .05 }); this.osc('square', 700, t, .02, { vol: .015, lp: 3000 }); break;
       case 'back': this.osc('triangle', 1318, t, .06, { vol: .06 }); this.osc('triangle', 880, t + .05, .12, { vol: .06 }); break;
+      case 'vaultok': this.osc('triangle', 1568, t, .07, { vol: .07 }); this.osc('triangle', 2093, t + .07, .18, { vol: .07, send: R }); break;
+      case 'vaultno': this.osc('square', 196, t, .12, { vol: .05, lp: 1400 }); this.osc('square', 147, t + .11, .22, { vol: .05, lp: 1100 }); break;
       case 'heart': this.thump(t, 62, 42, .12, .5, { lp: 300 }); this.thump(t + .17, 56, 40, .1, .34, { lp: 300 }); break;   // vida no fim: batimento
       case 'combo': { const n = Math.min(k, 14), f0 = 1046 * Math.pow(2, [0, 2, 4, 7, 9, 12, 14, 16, 19, 21, 24, 26][(n - 3) % 12] / 12); this.osc('triangle', f0, t, .1, { vol: .035 }); this.osc('sine', f0 * 2, t, .06, { vol: .014 }); break; }
       case 'swoosh':   // passagem para o tema da seleção: ar subindo + brilho suave
@@ -7148,25 +7150,25 @@ const HUD = {
 const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.random() * (i + 1) | 0; [a[i], a[j]] = [a[j], a[i]]; } return a; };
 const GRID_COLS = 12;   // 44 lutadores + célula aleatória (4 fileiras)
 // lutador secreto: na seleção a célula dele é um cofre dourado (???). Em cima dela, 4 botões na ordem certa abrem o cofre;
-// cada acerto acende uma moeda e ele fala um golpe, errar volta do começo. Até abrir, fica fora do aleatório, arcade, torneio e título
-const SECRET = { id: 'markito', code: ['lp', 'hp', 'lk', 'hk'], lines: ['Ohm_Fodass', 'Prumblex', 'Trumblex', 'Atchunprumblex'] };
-function isLocked(i) { const ch = CHARS[i]; return !!ch && ch.id == SECRET.id && !(settings.secrets || []).includes(ch.id); }
+// cada acerto acende uma moeda, errar volta do começo. Até abrir, fica fora do aleatório, arcade, torneio e título.
+// O cofre fecha de novo toda vez que o jogo abre (nada fica salvo)
+const SECRET = { id: 'markito', code: ['lp', 'hp', 'lk', 'hk'], super: 'Atchunprumblex' };
+delete settings.secrets;   // desbloqueio salvo da versão antiga (agora não fica salvo)
+function isLocked(i) { const ch = CHARS[i]; return !!ch && ch.id == SECRET.id && !Vault.open; }
 function openChars() { return CHARS.map((_, i) => i).filter(i => !isLocked(i)); }
 const Vault = {
-  n: 0, hitT: -99, failT: -99, openT: -99, slot: -1,
+  n: 0, hitT: -99, failT: -99, openT: -99, slot: -1, open: false,
   reset() { this.n = 0; this.slot = -1; },
   // um botão apertado em cima do cofre (true = abriu agora)
   press(slot, btn) {
     const ch = charById(SECRET.id);
     if (this.slot != slot) { this.slot = slot; this.n = 0; }
     if (btn == SECRET.code[this.n]) {
-      this.n++; this.hitT = UIF; Audio.shout(ch, SECRET.lines[this.n - 1], null, true);
-      if (this.n < SECRET.code.length) { Audio.sfx('parry'); return false; }
-      settings.secrets = (settings.secrets || []).concat([SECRET.id]); saveSettings();
-      this.openT = UIF; this.reset(); Audio.sfx('superready'); return true;
+      this.n++; this.hitT = UIF;
+      if (this.n < SECRET.code.length) { Audio.sfx('vaultok'); return false; }
+      this.open = true; this.openT = UIF; this.reset(); Audio.sfx('superready'); Audio.shout(ch, SECRET.super, null, true); return true;
     }
-    this.n = btn == SECRET.code[0] ? 1 : 0; this.failT = UIF; Audio.sfx('block');
-    if (this.n) Audio.shout(ch, SECRET.lines[0], null, true);
+    this.n = 0; this.failT = UIF; Audio.sfx('vaultno');
     return false;
   },
   // silhueta preta com brilho dourado (o lutador ainda trancado)
@@ -7392,7 +7394,7 @@ const Menus = {
       if (mi.l) col = (col + GRID_COLS - 1) % GRID_COLS; if (mi.r) col = (col + 1) % GRID_COLS; if (mi.u) row = (row + rows - 1) % rows; if (mi.d) row = (row + 1) % rows;
       const ns = Math.min(n - 1, row * GRID_COLS + col); if (ns != s) { g.sel[slot] = ns; Audio.cursor(slot); if (online) this.netSel(slot, ns, false); if (Vault.slot == slot) Vault.reset(); }
       if (isLocked(g.sel[slot])) {                 // cofre: os 6 botões viram a combinação (e não escolhem nem voltam)
-        const b = BTN.find(k => mi[k]); if (b) { mi.back = false; if (Vault.press(slot, b)) Audio.say('n_' + SECRET.id); }
+        const b = BTN.find(k => mi[k]); if (b) { mi.back = false; Vault.press(slot, b); }
         return;
       }
       if (mi.ok || mi.hp || mi.hk) {
