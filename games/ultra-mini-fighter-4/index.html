@@ -4010,7 +4010,7 @@ defChar({
 //               quem escolhe o major joga sempre a última X.Y.Z dele.
 // Cada versão parte da anterior do MESMO lutador (2.0.0 = última 1.Y.Z + mudanças novas). Cada versão de cada lutador fica num
 // bloco próprio (src/data/versions/<id>.js) e num commit próprio ("<lutador> X.Y.Z: ..."), com tag git umf4-<lutador>-X.Y.Z.
-// Nome de cada major no seletor (ex.: { 1: 'OMEGA', 2: 'ALPHA' }); null = mostra a versão (ex.: 1.0.0)
+// Nome de cada major no seletor (ex.: { 1: 'OMEGA', 2: 'ALPHA' }); null = mostra X.0.0 (o major 1 aparece como 1.0.0 mesmo que já esteja em 1.2.1)
 const MAJOR_LABELS = { 1: null };
 const CHAR_VERSIONS = {};   // id → [{ id: 'X.Y.Z', apply(ch) }], em ordem crescente
 const semv = v => String(v).split('.').map(n => +n || 0);
@@ -4025,9 +4025,9 @@ function versionsOf(ci) { const ch = CHARS[ci]; return ch ? ['base'].concat([...
 function newestVer(ci) { const v = versionsOf(ci); return v[v.length - 1]; }
 // última X.Y.Z de um major do lutador
 function fullVer(ci, major) { const l = ((CHARS[ci] && CHAR_VERSIONS[CHARS[ci].id]) || []).filter(v => String(semv(v.id)[0]) == String(major)); return l.length ? l[l.length - 1].id : null; }
-// nome no seletor: BASE, o nome do major ou a versão completa; verSub = versão completa embaixo de um major com nome
-function verLabel(v, ci) { if (!v || v == 'base') return 'BASE'; return MAJOR_LABELS[v] || (ci != null && fullVer(ci, v)) || v; }
-function verSub(v, ci) { return v && v != 'base' && MAJOR_LABELS[v] && ci != null ? fullVer(ci, v) || '' : ''; }
+// nome no seletor: BASE, o nome do major ou X.0.0 (os ajustes Y.Z não aparecem: o major já usa o último deles)
+function verLabel(v, ci) { if (!v || v == 'base') return 'BASE'; return MAJOR_LABELS[v] || v + '.0.0'; }
+function verSub(v, ci) { return ''; }
 // cópia profunda do lutador (as funções dos golpes são compartilhadas; o cache de golpes compilados não vem junto)
 function cloneChar(o) {
   if (Array.isArray(o)) return o.map(cloneChar);
