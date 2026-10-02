@@ -4003,6 +4003,25 @@ function charVer(ci, vid) {
 }
 
 </script>
+<script>/* src/data/versions/joe.js */
+// ===== JOE v0.1 =====
+addVersion('joe', { id: 'v0.1', apply(ch) {
+  // Clacker vira ↓↙← e o Corte Hamon vira ↓↘→ (comandos invertidos)
+  ch.specials.find(s => s.id == 'clack').input = '214';
+  ch.specials.find(s => s.id == 'hslash').input = '236';
+  // Overdrive: o ângulo do chute muda com a força
+  //   fraco = rasteira deslizando pra frente (baixo) · médio = chute reto (o de antes) · forte = chute alto, anti-aéreo · EX = o de antes
+  const over = ch.moves.over;
+  ch.moves.over = s => {
+    if (s == 0) return { anim: 'slide', crouch: 1, hurtShape: 'flat', fx: 'hamon', startup: 9, active: 14, recovery: 15, shout: 'overdrive', vel: [[5, 20, 8, null]],
+      hits: multi(2, 9, 6, 3, { box: [10, 0, 82, 26], dmg: 5, lv: 'SP', low: 1, hs: 18, bs: 10, snd: 'elec', lastKd: 1 }) };
+    if (s == 2) return { anim: 'flash', fx: 'hamon', startup: 8, active: 12, recovery: 18, shout: 'overdrive', upperInv: [1, 12], vel: [[4, 14, 4, null]],
+      hits: multi(2, 8, 6, 3, { box: [6, 78, 70, 100], dmg: 5.5, lv: 'SP', hs: 18, bs: 10, snd: 'elec', lastKd: 1 }) };
+    return over(s);
+  };
+} });
+
+</script>
 <script>/* src/data/endings.js */
 // ===== finais do modo arcade (um por lutador) =====
 const ENDINGS = {
