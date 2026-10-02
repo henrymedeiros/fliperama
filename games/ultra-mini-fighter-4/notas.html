@@ -12,7 +12,7 @@
 :root{
   --bg:#0c0a12; --panel:#15121e; --panel-2:#1d1929; --line:rgba(200,180,255,.13);
   --ink:#f1ecf8; --dim:#9d95b3; --coin:#ffb000; --cyan:#33e1ed; --pink:#ff4f9a;
-  --buff:#3ddc84; --nerf:#ff5a5a; --rework:#b58cff; --ajuste:#33e1ed;
+  --buff:#3ddc84; --nerf:#ff5a5a; --rework:#b58cff; --ajuste:#33e1ed; --novo:#ffc21a;
   --display:'Bungee','Impact',system-ui,sans-serif;
   --body:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
   --mono:'IBM Plex Mono',ui-monospace,Consolas,monospace;
@@ -109,10 +109,20 @@ footer{padding-block:40px 56px;color:var(--dim);font-size:14px}
 </div>
 <script>
 // tipos de mudança (cada item de cada lutador tem um)
-const TYPES = { buff: ['Buff', 'var(--buff)'], nerf: ['Nerf', 'var(--nerf)'], rework: ['Rework', 'var(--rework)'], ajuste: ['Ajuste', 'var(--ajuste)'] };
+const TYPES = { novo: ['Novo', 'var(--novo)'], buff: ['Buff', 'var(--buff)'], nerf: ['Nerf', 'var(--nerf)'], rework: ['Rework', 'var(--rework)'], ajuste: ['Ajuste', 'var(--ajuste)'] };
 const C = s => `<span class="cmd">${s}</span>`;
 // notas por lançamento (o mais novo primeiro). Lutador: [id do retrato, nome, [[tipo, mudança], ...], versão do lutador (padrão: a do lançamento)]
 const RELEASES = [{
+  id: 'markito', title: 'Novo lutador', kind: 'Markito Dourado', date: '2026-10-02',
+  chars: [
+    ['markito', 'Markito Dourado', [['novo', 'O 44º lutador: brutamontes de ouro, agarrador. Ainda só tem a Base.'],
+      ['novo', `Ohm Fodass (${C('→↓↘ + Soco')}): Shoryuken dourado.`],
+      ['novo', `Prumblex (${C('↓↘→ + Soco')}): avança em linha reta e solta um soco.`],
+      ['novo', `Trumblex (${C('→↘↓↙← + Soco')}): agarrão de comando com muito dano.`],
+      ['novo', 'V-Skill Trabuco Dourado (Soco Médio + Chute Médio): brota do chão embaixo do oponente (um brilho dourado avisa antes) e joga ele pra cima.'],
+      ['novo', `Super Atchunprumblex (${C('↓↘→↓↘→ + Soco')}): abre as asas douradas, voa até o oponente e bate de todos os lados.`]], 'base'],
+  ]
+}, {
   id: 'jasper-1.2.0', title: 'Jasper 1.2.0', kind: 'Ajuste de personagem', date: '2026-10-02',
   chars: [
     ['vorhas', 'Jasper', [['rework', 'V-Skill nova: Facão Arremessado (no lugar do Implacável). Joga o facão num arco; se acertar, machuca. Se errar, ele fica cravado no chão por uns segundos (só 1 por vez).'], ['buff', 'Passando por cima do facão cravado, o Jasper pega de volta e a próxima investida (↓↘→ + Soco) ou agarrão de comando bate 30% mais forte.']], '1.2.0'],
