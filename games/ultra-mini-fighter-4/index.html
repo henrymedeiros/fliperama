@@ -4156,6 +4156,16 @@ addVersion('genoma', { id: 'v0.1', apply(ch) {
 } });
 
 </script>
+<script>/* src/data/versions/kai.js */
+// ===== KAI v0.1 =====
+addVersion('kai', { id: 'v0.1', apply(ch) {
+  // Solar Plexus (→ + Soco Forte): avança mais, o soco alcança mais e cancela em especial/super nos dois acertos
+  const c = ch.cmdNormals.find(n => n.key == '6hp');
+  c.move = Object.assign({}, c.move, { vel: [[3, 20, 4.5, null]], cancel: { sp: 1, su: 1 },
+    hits: [{ f: [13, 14], box: [14, 70, 88, 26], dmg: 4, lv: 'M', hs: 24 }, { f: [21, 24], box: [14, 70, 96, 26], dmg: 5, lv: 'H', onHit: 2, onBlock: -4 }] });
+} });
+
+</script>
 <script>/* src/data/endings.js */
 // ===== finais do modo arcade (um por lutador) =====
 const ENDINGS = {
