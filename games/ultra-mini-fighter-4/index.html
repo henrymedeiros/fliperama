@@ -1879,7 +1879,7 @@ class Fighter {
     if (!this.mv || (this.st != 'atk' && this.st != 'air')) return fl;
     let m = this.m; this.t++;
     if (m.hold && !this.holdOff && this.t == m.hold.f + 1) {
-      if (Cmd.holding(this, m.hold.btn) && this.holdT < m.hold.max) { this.t = m.hold.f; this.holdT++; if (this.holdT % 6 == 0 && !SIM.silent) FX.aura(this, 6); }
+      if (Cmd.holding(this, m.hold.btn) && this.holdT < m.hold.max && (!m.hold.boosted || this.boostMv === this.mvId)) { this.t = m.hold.f; this.holdT++; if (this.holdT % 6 == 0 && !SIM.silent) FX.aura(this, 6); }
       else {
         this.holdOff = 1; let lv = 0; m.hold.lv.forEach((L, i) => { if (this.holdT >= L.t) lv = i + 1; });
         if (lv) { this.mv = this.mv + '^' + lv; m = this.m; if (!SIM.silent) { FX.aura(this, 14); Audio.sfx('superready', .8, this.x); } }
@@ -1898,7 +1898,7 @@ class Fighter {
         const g = this.grey, add = .35 * Math.min(1, g / (this.ch.healMax || 25 * HPK)), prev = this.vbuff && this.vbuff.label == vb.label ? this.vbuff.mult - 1 : 0;
         this.grey = 0; this.greyT = 0; vb.mult = 1 + Math.min(.5, prev ? prev + add : .15 + add);
       }
-      this.vbuff = { mult: vb.mult, sp: vb.sp || null, any: !!vb.any, label: vb.label, col: vb.col };
+      this.vbuff = { mult: vb.mult, sp: vb.sp || null, any: !!vb.any, label: vb.label, col: vb.col, lose: !!vb.lose };
       if (!SIM.silent) { FX.aura(this, 12); Audio.sfx('superready', 1, this.x); }
     }
     if (m.aura && this.t == m.aura.f) { this.aura = 1; if (!SIM.silent) { FX.aura(this, 12); Audio.sfx('armor', 1, this.x); } }
@@ -2079,6 +2079,7 @@ const Combat = {
     let sc = this.scaleFor(a, h); if (out.ctr) sc *= 1.2;
     if (a.boostMv >= 0 && (proj ? h.src == a.i + ':' + a.boostMv : a.mvId === a.boostMv)) sc *= a.boostMult;   // bônus da V-Skill
     o.aura = 0; o.auraMv = -1;
+    if (o.vbuff && o.vbuff.lose) o.vbuff = null;   // bônus que se perde ao apanhar
     if (a.mode && a.ch.modeStats && a.ch.modeStats.dmg) sc *= a.ch.modeStats.dmg;
     if (a.simple && ((m && m.special) || proj)) sc *= .85;                  // controle simplificado: especiais um pouco mais fracos
     const dmg = Math.max(1, Math.round(h.dmg * sc));
@@ -4405,6 +4406,21 @@ addVersion('nervo', { id: 'v0.1', apply(ch) {
   const sup = ch.moves.super;
   ch.moves.super = () => { const m = sup(); m.hits = m.hits.map((h, i) => i < m.hits.length - 1 ? Object.assign({}, h, { push: .15 }) : h); return m; };
   ch.ai = Object.assign({}, ch.ai, { aa: 'shock' });
+} });
+
+</script>
+<script>/* src/data/versions/falko.js */
+// ===== FALKO v0.1 =====
+addVersion('falko', { id: 'v0.1', apply(ch) {
+  // Show Me Your Moves: o bônus só vale para os golpes "Falcon" (Punch, Kick, Kick Aéreo, Raptor Boost, Dive) e some se ele apanhar
+  ch.vskill = Object.assign({}, ch.vskill, { vbuff: Object.assign({}, ch.vskill.vbuff, { any: 0, sp: ['punch', 'kick', 'akick', 'raptor', 'dive'], lose: 1 }) });
+  // com o bônus guardado, SEGURAR o Falcon Punch carrega um soco que não dá pra defender
+  const punch = ch.moves.punch;
+  ch.moves.punch = s => {
+    const m = punch(s);
+    m.hold = { f: 10, max: 40, btn: 'P', boosted: 1, lv: [{ t: 18, apply: src => { src.hits = src.hits.map(h => Object.assign({}, h, { unblockable: 1, dmg: h.dmg + 4 })); src.name = 'Falcon Punch Supremo'; return src; } }] };
+    return m;
+  };
 } });
 
 </script>
