@@ -6747,7 +6747,7 @@ function moveName(ch, id) { let n = null; try { n = getMove(ch, id + ':1').name;
 function moveList(ch) {
   const su = ch.superCmd || { input: '236236', btn: 'P' }, L = [];
   L.push([getMove(ch, 'super').name || 'SUPER', notation(su.input, su.btn) + '  (2 barras)', 1]);
-  if (ch.super2) L.push([getMove(ch, 'super2').name || 'CRITICAL ART', notation(ch.super2.input, ch.super2.btn) + '  (3 barras)', 1]);
+  if (ch.super2) L.push([getMove(ch, 'super2').name || 'CRITICAL ART', notation(ch.super2.input, ch.super2.btn) + '  (' + Math.round((ch.super2.cost || METER_MAX) / 100) + ' barras)', 1]);
   for (const sp of ch.specials) L.push([moveName(ch, sp.id), (sp.air == 'only' ? '(no ar) ' : '') + notation(sp.input, sp.btn)]);
   if (ch.airThrow) L.push(['Agarrão aéreo (sem escape)', '(no ar) Soco Fraco + Chute Fraco']);
   if (ch.vskill) L.push(['V-SKILL: ' + (ch.vskill.name || ''), 'Soco Médio + Chute Médio' + (ch.vskill.airOk ? '  (também no ar)' : ''), 2]);
