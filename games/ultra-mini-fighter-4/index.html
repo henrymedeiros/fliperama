@@ -1674,7 +1674,7 @@ class Fighter {
     const dashF = free && this.in.dashF == ic, dashB = free && this.in.dashB == ic;
     if (!P && !K) return dashF ? 'dashF' : dashB ? 'dashB' : null;
     // super: só pelo comando (sem atalho de botões)
-    const canSu = (!air || (cancel && m && m.dpLike)) && this.meter >= SUPER_COST   // Shoryuken que acertou cancela em super mesmo saindo do chão && (!m || !m.super) && (!cancel || m.cancel.su);
+    const canSu = (!air || (cancel && m && (m.dpLike || m.suAir))) && this.meter >= SUPER_COST   // Shoryuken que acertou cancela em super mesmo saindo do chão && (!m || !m.super) && (!cancel || m.cancel.su);
     if (canSu && ch.super2 && this.meter >= (ch.super2.cost || METER_MAX)) {      // Critical Art: comando próprio, custa 3 barras
       const s2 = ch.super2, b = s2.btn == 'P' ? P : K;
       if (b && Cmd.motion(this, s2.input, this.in.bt[b]) != null) return 'super2';
@@ -1719,7 +1719,7 @@ class Fighter {
     const want = this.decide(o); if (!want) return;
     let key = want, mv = getMove(this.ch, key);
     // Shoryuken → super: o lutador pousa na hora e solta o super (como o cancelamento em super do SF6)
-    if (mv.super && this.y > 0 && this.m && this.m.dpLike && this.contact && this.st == 'atk') { this.y = 0; this.vy = 0; this.vx = 0; }
+    if (mv.super && this.y > 0 && this.m && (this.m.dpLike || this.m.suAir) && this.contact && this.st == 'atk') { this.y = 0; this.vy = 0; this.vx = 0; }
     const air = this.y > 0;
     if (!!mv.air != air && !mv.airOk) { this.want = null; return; }
     if (key == 'vskill' && !this.vsOk()) { this.want = null; return; }
@@ -4227,6 +4227,18 @@ addVersion('kazan', { id: 'v0.1', apply(ch) {
   ch.moves.hellsweep = s => { const m = hs(s); m.vel = [[2, m.startup + 2, S3(s, [6, 7, 8, 8]), null]]; m.hurtShape = 'flat'; m.inv = Object.assign({}, m.inv, { proj: [1, m.startup + m.active + 8] }); return m; };
   // Devil Blaster com menos acertos e o mesmo dano total (dá pra aparar)
   beamFewerHits(ch);
+} });
+
+</script>
+<script>/* src/data/versions/kaiser.js */
+// ===== KAISER v0.1 =====
+addVersion('kaiser', { id: 'v0.1', apply(ch) {
+  // Psycho Crusher cancela em super (ele pousa e solta o super, como o Shoryuken → super)
+  const psycho = ch.moves.psycho;
+  ch.moves.psycho = s => { const m = psycho(s); m.suAir = 1; m.cancel = Object.assign({}, m.cancel, { su: 1 }); return m; };
+  // Chute Tesoura passa por cima de projéteis enquanto está no ar
+  const scissor = ch.moves.scissor;
+  ch.moves.scissor = s => { const m = scissor(s); m.inv = Object.assign({}, m.inv, { proj: [3, 32] }); return m; };
 } });
 
 </script>
