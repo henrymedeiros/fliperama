@@ -4291,6 +4291,15 @@ addVersion('roko', { id: 'v0.1', apply(ch) {
 } });
 
 </script>
+<script>/* src/data/versions/mei.js */
+// ===== MEI v0.1 =====
+addVersion('mei', { id: 'v0.1', apply(ch) {
+  // Pernas Relâmpago: quase não empurra no acerto; o oponente fica no lugar e leva todos os chutes
+  const legs = ch.moves.legs;
+  ch.moves.legs = s => { const m = legs(s); m.hits = m.hits.map((h, i) => i < m.hits.length - 1 ? Object.assign({}, h, { push: .25 }) : h); return m; };
+} });
+
+</script>
 <script>/* src/data/endings.js */
 // ===== finais do modo arcade (um por lutador) =====
 const ENDINGS = {
