@@ -4557,6 +4557,17 @@ addVersion('vorhas', { id: '1.2.0', apply(ch) {
       pickup: { mult: 1.3, sp: ['choke', 'rush'], label: 'FACÃO', col: '#d8dce2' } } };
 } });
 
+// ===== JASPER 1.3.0 =====
+addVersion('vorhas', { id: '1.3.0', apply(ch) {
+  // Super NOITE NO ACAMPAMENTO deixa de ser agarrão: avança com o facão e, acertando, prende o oponente numa sequência de cortes.
+  // Como golpe de investida, a Investida que encosta cancela nele
+  ch.moves.super = () => ({ anim: 'chop', super: 1, startup: 8, active: 18, recovery: 24, inv: { strike: [1, 12], proj: [1, 26] }, vel: [[8, 26, 11, null]], ghost: 1, name: 'NOITE NO ACAMPAMENTO',
+    hits: [{ box: [10, 20, 80, 90], dmg: 3, lv: 'SA', cine: 'slasher' }] });
+  // facão pego de volta: a Investida turbinada que cancela no super passa os +30% pro super
+  const pj = ch.vskill.proj;
+  ch.vskill = Object.assign({}, ch.vskill, { proj: Object.assign({}, pj, { pickup: Object.assign({}, pj.pickup, { su: 1 }) }) });
+} });
+
 </script>
 <script>/* src/data/versions/altair.js */
 // ===== ALTAIR 1.0.0 =====
