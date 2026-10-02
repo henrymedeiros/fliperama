@@ -4183,6 +4183,12 @@ addVersion('genoma', { id: '1.0.0', apply(ch) {
   ch.vskill = Object.assign({}, ch.vskill, { hits: ch.vskill.hits.map(h => { const r = Object.assign({}, h, { meterSteal: EX_COST }); delete r.drain; return r; }) });
 } });
 
+// ===== GENOMA 1.1.0 =====
+addVersion('genoma', { id: '1.1.0', apply(ch) {
+  // Absorção rouba 85% do que roubava (85 de barra em vez de 1 barra de EX inteira)
+  ch.vskill = Object.assign({}, ch.vskill, { hits: ch.vskill.hits.map(h => Object.assign({}, h, { meterSteal: Math.round(EX_COST * .85) })) });
+} });
+
 </script>
 <script>/* src/data/versions/kai.js */
 // ===== KAI 1.0.0 =====
