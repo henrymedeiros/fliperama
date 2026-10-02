@@ -1726,7 +1726,7 @@ class Fighter {
     if (key.endsWith(':3') && this.meter < EX_COST) key = key.slice(0, -1) + '2';
     if (mv.super && this.meter < (mv.cost || SUPER_COST)) return;
     mv = getMove(this.ch, key);
-    if (mv.proj && !mv.multiProj && !mv.super && M.projs.filter(p => p.o === this.i && !p.dead).length >= (mv.maxProj || 1)) return;
+    if (mv.proj && !mv.multiProj && !mv.super && M.projs.filter(p => p.o === this.i && !p.dead && !p.p.free).length >= (mv.maxProj || 1)) return;   // projétil 'free' não conta no limite
     this.want = null; this.wantBufT = 0;
     this.in.cbt = !mv.special && !mv.super && !mv.grab ? Object.assign({}, this.in.bt) : null;
     Cmd.consume(this);
@@ -4163,6 +4163,22 @@ addVersion('kai', { id: 'v0.1', apply(ch) {
   const c = ch.cmdNormals.find(n => n.key == '6hp');
   c.move = Object.assign({}, c.move, { vel: [[3, 20, 4.5, null]], cancel: { sp: 1, su: 1 },
     hits: [{ f: [13, 14], box: [14, 70, 88, 26], dmg: 4, lv: 'M', hs: 24 }, { f: [21, 24], box: [14, 70, 96, 26], dmg: 5, lv: 'H', onHit: 2, onBlock: -4 }] });
+} });
+
+</script>
+<script>/* src/data/versions/colt.js */
+// ===== COLT v0.1 =====
+addVersion('colt', { id: 'v0.1', apply(ch) {
+  // Solid Puncher (V-Skill) não conta no limite de projéteis: dá pra ter ele e um Sonic Boom na tela (mas nunca 2 Sonic Booms)
+  ch.vskill = Object.assign({}, ch.vskill, { proj: Object.assign({}, ch.vskill.proj, { free: 1 }) });
+  // Flash Kick: mais alcance e mais dano
+  const flash = ch.moves.flash;
+  ch.moves.flash = s => {
+    const m = flash(s);
+    m.vel = m.vel.map(([a, b, vx, vy]) => [a, b, vx + .8, vy]);
+    m.hits = m.hits.map(h => Object.assign({}, h, { box: [h.box[0], h.box[1], h.box[2] + 18, h.box[3] + 10], dmg: h.dmg + 2 }));
+    return m;
+  };
 } });
 
 </script>
