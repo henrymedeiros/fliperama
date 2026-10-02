@@ -4259,6 +4259,17 @@ addVersion('legion', { id: 'v0.1', apply(ch) {
 } });
 
 </script>
+<script>/* src/data/versions/gunter.js */
+// ===== GUNTER v0.1 =====
+addVersion('gunter', { id: 'v0.1', apply(ch) {
+  // Giant Palm Bomber agora é ↓↙← + Soco (antes ↓↘→)
+  ch.specials.find(s => s.id == 'palm').input = '214';
+  // V-Skill nova: JOELHO GIGANTE (como o golpe único do Hugo no SF4) — salta pra frente por cima de projéteis e desce com uma joelhada que acerta alto (overhead)
+  ch.vskill = { anim: 'knee', startup: 8, active: 22, recovery: 0, name: 'JOELHO GIGANTE', vel: [[4, 4, 5, 9]], landEnd: 10, inv: { proj: [2, 26] },
+    hits: [{ f: [12, 40], box: [4, -10, 70, 60], dmg: 9, lv: 'M', high: 1, hs: 20, bs: 12 }] };
+} });
+
+</script>
 <script>/* src/data/endings.js */
 // ===== finais do modo arcade (um por lutador) =====
 const ENDINGS = {
