@@ -1413,6 +1413,7 @@ const Cmd = {
   parrySucceeded(f) { const s = f.in; s.tapF = s.tapD = -99; s.parryLock = s.ic; },
   pressedAgo(f, b) { return f.in.ic - f.in.bt[b]; },
   pressed(f, b, win = BTN_BUF) { return f.in.ic - f.in.bt[b] <= win; },
+  holding(f, b) { const h = f.in.held, on = k => !!(h & (1 << BTN.indexOf(k))); return (b == 'P' ? ['lp', 'mp', 'hp'] : b == 'K' ? ['lk', 'mk', 'hk'] : [].concat(b)).some(on); },
   consume(f) { for (const b of BTN) f.in.bt[b] = -99; f.in.pP.length = 0; f.in.pK.length = 0; },
   // qual botão do tipo (P ou K) foi apertado mais recentemente dentro da janela; em empate, o mais forte
   latest(f, type, win = BTN_BUF) {
@@ -1580,6 +1581,16 @@ const PREJUMP = 4, JUMP_LAND = 3;
 function getMove(ch, key) {
   ch._c = ch._c || {};
   if (ch._c[key]) return ch._c[key];
+  const hk = key.indexOf('^');
+  if (hk > 0) {   // golpe carregado: compila com a chave base (as regras de golpe valem igual) e guarda no cache com o nível
+    const k0 = key.slice(0, hk), src = moveSrc(ch, k0), L = src.hold && src.hold.lv[+key.slice(hk + 1) - 1];
+    if (!L) throw new Error('nível de carga inexistente ' + ch.id + ' ' + key);
+    const m = compileMove(L.apply(src) || src, k0, ch); m.charged = +key.slice(hk + 1); return ch._c[key] = m;
+  }
+  return ch._c[key] = compileMove(moveSrc(ch, key), key, ch);
+}
+// fonte (dados declarativos) de um golpe do lutador
+function moveSrc(ch, key) {
   let src;
   const cmdN = (ch.cmdNormals || []).find(c => c.key == key);
   if (cmdN) src = cmdN.move;
@@ -1597,7 +1608,7 @@ function getMove(ch, key) {
   else if (key == 'super2') src = ch.moves.super2(0);   // Critical Art (só quem tem super2)
   else if (TRAIN_MOVES[key]) src = TRAIN_MOVES[key];
   else { const [k, s] = key.split(':'); const fn = ch.moves[k]; if (!fn) throw new Error('golpe inexistente ' + ch.id + ' ' + key); src = fn(+s || 0); }
-  return ch._c[key] = compileMove(src, key, ch);
+  return src;
 }
 
 class Fighter {
@@ -1727,6 +1738,7 @@ class Fighter {
   startMove(key, o) {
     const m = getMove(this.ch, key), air = this.y > 0;
     if (air) { this.st = 'air'; this.airUsed = true; } else this.setSt('atk');
+    Object.assign(this, { holdT: 0, holdOff: 0 });
     Object.assign(this, { mv: key, t: 0, hitMask: 0, contact: 0, cancelUntil: -1, grabDone: false, armorLeft: m.armor ? (m.armor.hits || 1) : 0, projMask: 0, mvId: (this.mvId || 0) + 1 });
     this.crouch = !!m.crouch;
     { const id = key.includes(':') ? key.split(':')[0] : null, vb = this.vbuff;
@@ -1865,7 +1877,14 @@ class Fighter {
   runMove(o) {
     const fl = { vel: false, hover: false };
     if (!this.mv || (this.st != 'atk' && this.st != 'air')) return fl;
-    const m = this.m; this.t++;
+    let m = this.m; this.t++;
+    if (m.hold && !this.holdOff && this.t == m.hold.f + 1) {
+      if (Cmd.holding(this, m.hold.btn) && this.holdT < m.hold.max) { this.t = m.hold.f; this.holdT++; if (this.holdT % 6 == 0 && !SIM.silent) FX.aura(this, 6); }
+      else {
+        this.holdOff = 1; let lv = 0; m.hold.lv.forEach((L, i) => { if (this.holdT >= L.t) lv = i + 1; });
+        if (lv) { this.mv = this.mv + '^' + lv; m = this.m; if (!SIM.silent) { FX.aura(this, 14); Audio.sfx('superready', .8, this.x); } }
+      }
+    }
     if (m.vel) for (const [a, b, vx, vy] of m.vel) if (this.t >= a && this.t <= b) {
       fl.vel = true;
       this.vx = vx == 'home' ? clamp((o.x - this.x) / 40, -7, 7) : vx == 'dive' ? clamp((o.x - this.x) / 16, -12, 12) : vx * this.face;
@@ -1895,7 +1914,7 @@ class Fighter {
     if (this.t == m.s && m.hits.length) Audio.sfx('whiff', m.hits[0].lv == 'H' ? 1.6 : m.hits[0].lv == 'M' ? 1.25 : 1, this.x);
     if (m.fx == 'elec' && this.t % 6 == 0 && this.t >= m.s && this.t <= m.e) Audio.sfx('elec', 1, this.x);
     if ((m.fx == 'psycho' || m.fx == 'fire' || m.fx == 'ice') && this.t == m.s) Audio.sfx(m.fx == 'ice' ? 'ice' : m.fx, 1, this.x);
-    const exMv = this.mv.endsWith(':3');   // EX: rastro branco mais denso
+    const exMv = this.mv.includes(':3');   // EX: rastro branco mais denso
     if ((m.special || m.after) && this.t % (exMv ? 2 : 3) == 0 && !SIM.silent && typeof Anim != 'undefined') this.trail.push({ pose: Anim.pose(this), x: this.x, y: this.y, face: this.face, a: exMv ? .75 : .5, ex: exMv });
     if (this.st == 'atk' && this.t >= m.dur && this.y <= 0) this.setSt('idle');
     else if (this.st == 'air' && m.air && this.t >= m.dur && m.dur < 90 && !m.hits.length) this.mv = null;
@@ -2077,10 +2096,12 @@ const Combat = {
     if (apex) { a.quickLand = 1; FX.text('ANTI-AÉREO!', o.x, o.y + 160, '#ffd21e'); }
     if (h.crumple && out.ctr == 'punish' && !air && o.hp > 0) { o.setSt('crumple'); o.stun = 48; o.vx = dir * 2; }
     else if (h.kd || h.launch || lnch || air || o.hp <= 0) {
-      o.airReset = air && !h.kd && !h.launch && !lnch && o.st != 'knock' && o.hp > 0;
+      const aL = air && !apex && !lnch && !h.launch && h.airLaunch;
+      o.airReset = air && !h.kd && !h.launch && !lnch && !aL && o.st != 'knock' && o.hp > 0;
       if (o.st == 'knock') o.juggle += h.jAdd || 1; else o.juggle = lnch ? 0 : 1;   // só o lançador deixa o contador em 0 (qualquer especial pega)
       o.kdType = h.kd == 'hard' ? 'hard' : 'soft';
-      const L2 = apex ? { vy: 9, vx: .8 } : lnch || h.launch;
+      const L2 = apex ? { vy: 9, vx: .8 } : lnch || h.launch || aL;
+      if (aL && aL.float) o.floatK = aL.float;
       if (apex) o.floatK = .55;   // cai bem mais devagar: dá tempo de aterrissar e emendar um super
       o.setSt('knock'); o.vy = L2 ? (L2.vy ?? 11) : air ? 6 : 6.5; o.vx = dir * (L2 ? (L2.vx ?? 1.6) : 3.4); o.y = Math.max(o.y, 1);
     } else {
