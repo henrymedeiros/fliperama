@@ -1584,7 +1584,7 @@ function getMove(ch, key) {
   const hk = key.indexOf('^');
   if (hk > 0) {   // golpe carregado: compila com a chave base (as regras de golpe valem igual) e guarda no cache com o nível
     const k0 = key.slice(0, hk), src = moveSrc(ch, k0), L = src.hold && src.hold.lv[+key.slice(hk + 1) - 1];
-    if (!L) throw new Error('nível de carga inexistente ' + ch.id + ' ' + key);
+    if (!L) return ch._c[key] = getMove(ch, k0);   // nível de carga que esta versão do lutador não tem: usa o golpe normal (nunca trava)
     const m = compileMove(L.apply(src) || src, k0, ch); m.charged = +key.slice(hk + 1); return ch._c[key] = m;
   }
   return ch._c[key] = compileMove(moveSrc(ch, key), key, ch);
@@ -6301,7 +6301,16 @@ const AI = {
 <script>/* src/net/net.js */
 // ===== multiplayer online: sala com vários jogadores ("quem ganha fica"), rollback e espectadores =====
 // Topologia em estrela: todos se conectam ao anfitrião (PeerJS/WebRTC), que repassa as mensagens.
-const NET_VERSION = 5, PEER_PREFIX = 'ultraminifighter4-', MAX_ROOM = 8;   // Ultra: salas, servidores e versão separados do Mini Fighter IV
+const NET_VERSION = 6, PEER_PREFIX = 'ultraminifighter4-', MAX_ROOM = 8;   // Ultra: salas, servidores e versão separados do Mini Fighter IV
+// impressão digital do código do jogo (todos os scripts do jogo, menos os dados de voz): dois jogadores com códigos diferentes
+// (ex.: um com a página aberta antes de uma atualização) teriam simulações diferentes, então a conexão é recusada
+let BUILD_ID = null;
+function buildId() {
+  if (BUILD_ID) return BUILD_ID;
+  let h = 2166136261;
+  for (const sc of document.querySelectorAll('script')) { const t = sc.textContent; if (!t.startsWith('/* src/') || t.startsWith('/* src/audio/voicedata.js')) continue; for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 16777619); } }
+  return BUILD_ID = (h >>> 0).toString(36);
+}
 const Room = { members: [], queue: [], fighters: [], phase: 'lobby', sel: [0, 1], ready: [false, false], simple: [false, false], last: null, chars: {} };
 const memberName = id => (Room.members.find(m => m.id == id) || {}).name || '?';
 
@@ -6342,7 +6351,7 @@ const Net = {
     this.close(true); Object.assign(this, { role: 'guest', code, status: 'Conectando...', viaRelay: false, relayTried: false, peerErr: '' });
     const wire = c => {
       this.conn = c;
-      c.on('open', () => { if (this.conn !== c) return; clearTimeout(this.joinT); this.ready = true; this.viaRelay = !!c.relay; this.error = ''; this.status = c.relay ? 'Conectado (via servidor de apoio)' : 'Conectado!'; c.send({ t: 'hello', v: NET_VERSION, name: this.myName }); });
+      c.on('open', () => { if (this.conn !== c) return; clearTimeout(this.joinT); this.ready = true; this.viaRelay = !!c.relay; this.error = ''; this.status = c.relay ? 'Conectado (via servidor de apoio)' : 'Conectado!'; c.send({ t: 'hello', v: NET_VERSION, b: buildId(), name: this.myName }); });
       c.on('data', d => { if (this.conn === c) this.onMsg(d, 'h'); });
       c.on('close', () => { if (this.conn === c && this.ready) this.lost('O anfitrião fechou a sala (ou a conexão caiu).'); });
       c.on('error', () => { if (this.conn === c && this.ready) this.lost('Conexão perdida.'); });
@@ -6377,7 +6386,7 @@ const Net = {
     c.on('open', () => { if (Room.members.length >= MAX_ROOM) { c.send({ t: 'full' }); setTimeout(() => c.close(), 400); return; } this.conns[id] = c; });
     c.on('data', d => {
       if (d.t == 'hello') {
-        if (d.v != NET_VERSION) { c.send({ t: 'version' }); setTimeout(() => c.close(), 400); return; }
+        if (d.v != NET_VERSION || d.b != buildId()) { c.send({ t: 'version' }); setTimeout(() => c.close(), 400); return; }
         Room.members.push({ id, name: String(d.name || 'Jogador').slice(0, 12), wins: 0 }); Room.queue.push(id);
         c.send({ t: 'welcome', id }); this.broadcastRoom(); Audio.sfx('select');
         return;
@@ -6424,7 +6433,7 @@ const Net = {
     switch (d.t) {
       case 'welcome': this.id = d.id; break;
       case 'full': this.lost('A sala está cheia (máx. ' + MAX_ROOM + ').'); break;
-      case 'version': this.lost('Versões diferentes do jogo. Peça o arquivo atualizado.'); break;
+      case 'version': this.lost('Versões diferentes do jogo: os dois precisam recarregar a página (Ctrl+F5) pra pegar a atualização.'); break;
       case 'room': Object.assign(Room, d.room); Game.onRoom && Game.onRoom(); break;
       case 'ping': if (this.role == 'host') this.sendTo(d.from, { t: 'pong', ts: d.ts }); else this.send('host', { t: 'pong', ts: d.ts }); break;
       case 'pong': { const p = performance.now() - d.ts;
