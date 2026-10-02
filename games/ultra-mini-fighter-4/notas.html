@@ -113,6 +113,14 @@ const TYPES = { buff: ['Buff', 'var(--buff)'], nerf: ['Nerf', 'var(--nerf)'], re
 const C = s => `<span class="cmd">${s}</span>`;
 // notas por lançamento (o mais novo primeiro). Lutador: [id do retrato, nome, [[tipo, mudança], ...], versão do lutador (padrão: a do lançamento)]
 const RELEASES = [{
+  id: 'ajustes-1.1.0', title: 'Ajustes', kind: 'Ajuste de personagens', date: '2026-10-02',
+  chars: [
+    ['colt', 'Colt', [['nerf', 'Solid Puncher (V-Skill): só 1 na tela por vez. Continua dando pra ter 1 Solid Puncher e 1 Sonic Boom ao mesmo tempo.']], '1.1.0'],
+    ['genoma', 'Genoma', [['nerf', 'Absorção (V-Skill) rouba 85% do que roubava (85 de barra em vez de 1 barra de EX inteira).']], '1.1.0'],
+    ['goro', 'Goro', [['nerf', 'Reativação do Músculo de Ferro (Soco durante a V-Skill) não avança mais: é um golpe curto e mais fraco, no lugar.']], '1.1.0'],
+    ['vorhas', 'Jasper', [['buff', 'Soco Forte carregado (imbloqueável) ganha armadura de 1 golpe assim que a carga fica pronta, inclusive enquanto ainda segura o botão.']], '1.1.0'],
+  ]
+}, {
   id: 'valerius-1.1.0', title: 'Valerius 1.1.0', kind: 'Ajuste de personagem', date: '2026-10-02',
   chars: [
     ['valerius', 'Valerius', [['buff', `Metallic Sphere forte (${C('↓↘→ + Soco Forte')}, a de 45°) pega quem está no ar e deixa caindo devagar, sem precisar carregar. Combo: esfera forte como anti-aéreo → Chariot Tackle no tempo certo, com o oponente já caindo → super (Dominant Crush).`]], '1.1.0'],
