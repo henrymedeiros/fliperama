@@ -113,6 +113,11 @@ const TYPES = { buff: ['Buff', 'var(--buff)'], nerf: ['Nerf', 'var(--nerf)'], re
 const C = s => `<span class="cmd">${s}</span>`;
 // notas por lançamento (o mais novo primeiro). Lutador: [id do retrato, nome, [[tipo, mudança], ...], versão do lutador (padrão: a do lançamento)]
 const RELEASES = [{
+  id: 'valerius-1.1.0', title: 'Valerius 1.1.0', kind: 'Ajuste de personagem', date: '2026-10-02',
+  chars: [
+    ['valerius', 'Valerius', [['buff', `Metallic Sphere forte (${C('↓↘→ + Soco Forte')}, a de 45°) pega quem está no ar e deixa caindo devagar, sem precisar carregar. Combo: esfera forte como anti-aéreo → Chariot Tackle no tempo certo, com o oponente já caindo → super (Dominant Crush).`]], '1.1.0'],
+  ]
+}, {
   id: '1.0.0', title: '1.0.0', kind: 'Reformulação de personagens', date: '2026-10-02',
   chars: [
     ['altair', 'Altair', [['buff', 'Garra com mais alcance em todos os socos (cerca de +20).'], ['ajuste', `Deslize agora sai com ${C('↘ + Chute Forte')} (antes ↘ + Soco Forte).`]]],

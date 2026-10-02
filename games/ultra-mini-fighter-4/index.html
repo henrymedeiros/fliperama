@@ -4104,6 +4104,14 @@ addVersion('valerius', { id: '1.0.0', apply(ch) {
     vel: [[8, 26, 11, null]], hits: [{ box: [10, 30, 74, 100], dmg: 3, lv: 'SA', cine: 'dominant' }] });
 } });
 
+// ===== VALERIUS 1.1.0 =====
+addVersion('valerius', { id: '1.1.0', apply(ch) {
+  // Metallic Sphere forte (a de 45°, sem precisar carregar) como anti-aéreo: quem é pego no ar sobe e cai devagar,
+  // e dá pra emendar a Chariot Tackle (que joga pro super): esfera forte → Chariot Tackle → super
+  const sphere = ch.moves.sphere;
+  ch.moves.sphere = s => { const m = sphere(s); if (s == 2) Object.assign(m.proj, { airLaunch: { vy: 8, vx: .6, float: .55 }, jSet: 0 }); return m; };
+} });
+
 </script>
 <script>/* src/data/versions/crow.js */
 // ===== CROW 1.0.0 =====
