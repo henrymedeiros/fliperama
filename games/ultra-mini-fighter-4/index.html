@@ -4015,6 +4015,15 @@ function cloneChar(o) {
   if (o && typeof o == 'object') { const r = {}; for (const k in o) if (k != '_c') r[k] = cloneChar(o[k]); return r; }
   return o;
 }
+// auxiliar das versões: feixes (Kamehameha, Optic Blast...) com menos acertos e o MESMO dano total, pra dar pra aparar
+function beamFewerHits(ch, k = .5) {
+  const wrap = fn => s => {
+    const m = fn(s);
+    for (const p of m.projs || (m.proj ? [m.proj] : [])) if (p.beam && (p.hits || 1) > 2) { const n = Math.max(2, Math.round(p.hits * k)); p.dmg = p.dmg * p.hits / n; p.gap = Math.round((p.gap || 4) * p.hits / n); p.hits = n; }
+    return m;
+  };
+  for (const id in ch.moves) ch.moves[id] = wrap(ch.moves[id]);
+}
 const VER_CACHE = {};
 // lutador na versão pedida ('base' ou ausente = a base; versão desconhecida também cai na base)
 function charVer(ci, vid) {
