@@ -555,7 +555,7 @@ const Audio = {
     try {
       if (speechSynthesis.speaking && !force) return;
       speechSynthesis.cancel(); const v = ch.voice || {}, u = new SpeechSynthesisUtterance(String(id).replace(/_/g, ' '));
-      u.rate = 1.3; u.pitch = (typeof v == 'number' ? v : v.pitch) || 1; u.volume = settings.volVoice ?? 1; u.lang = 'en-US'; speechSynthesis.speak(u);
+      u.rate = v.shoutRate || 1.3; u.pitch = (typeof v == 'number' ? v : v.pitch) || 1; u.volume = settings.volVoice ?? 1; u.lang = v.lang || 'en-US'; speechSynthesis.speak(u);
     } catch (e) {}
   },
   // esforço (e), dor (h), nocaute (ko), frase de vitória (win)
@@ -576,7 +576,7 @@ const Audio = {
     if (!force && (now - (this.lineT[f.i] || 0) < 1600 || speechSynthesis.speaking)) return;
     this.lineT[f.i] = now;
     const v = f.ch.voice || {}, txt = arr[Math.random() * arr.length | 0];
-    const go = () => { try { if (force) speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(txt); u.rate = v.rate || 1.05; u.pitch = v.pitch || 1; u.volume = settings.volVoice ?? 1; u.lang = 'en-US'; speechSynthesis.speak(u); } catch (e) {} };
+    const go = () => { try { if (force) speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(txt); u.rate = v.rate || 1.05; u.pitch = v.pitch || 1; u.volume = settings.volVoice ?? 1; u.lang = v.lang || 'en-US'; speechSynthesis.speak(u); } catch (e) {} };
     if (delay) setTimeout(go, delay * 1000); else go();
   }
 };
@@ -2267,7 +2267,7 @@ const Combat = {
         }
         continue;
       }
-      if (pr.gapT <= 0 && !o.invulTo('proj') && !(o.st == 'knock' && !(pr.p.jLimit > o.juggle))) {
+      if (pr.gapT <= 0 && !(pr.p.activeT && pr.t > pr.p.activeT) && !o.invulTo('proj') && !(o.st == 'knock' && !(pr.p.jLimit > o.juggle))) {
         const box = { x1: pr.x - r, x2: pr.x + r, y1: pr.y - r, y2: pr.y + r };
         if (o.hurt().some(h => overlap(h, box))) {
           const h = Object.assign({ lv: 'SP', idx: 31 }, pr.p, { vx: pr.vx, src: pr.src, kd: pr.left <= 1 && pr.p.kd ? 'soft' : null });
@@ -3973,25 +3973,25 @@ WING_CINES.atchun = '#ffd23a';
 defChar({
   id: 'markito', name: 'MARKITO', title: 'Dourado', style: 'Brutamontes', stats: [5, 2, 4], stage: 'harbor', aura: '#ffc21a',
   quote: 'Ouro não se compra. Ouro se conquista... na porrada.',
-  voice: { pitch: .62, rate: .95, lines: { intro: ['Markito Dourado chegou!'], win: ['Brilha, Markito!', 'Isso aqui é ouro puro.'], ko: ['Meu ouro...'], hurt: ['Ai!', 'Arranhou o ouro!'] } },
+  voice: { pitch: .62, rate: .95, lang: 'pt-BR', shoutRate: 1.05, lines: { intro: ['Markito Dourado chegou!'], win: ['Brilha, Markito!', 'Isso aqui é ouro puro.'], ko: ['Meu ouro...'], hurt: ['Ai!', 'Arranhou o ouro!'] } },
   look: { gloveType: 'bare', skin: '#f2b81c', hair: 'bald', hairC: '#c89010', brow: 'thick', lips: '#e09a12', torso: 'bare', pants: '#c8920c', shorts: 1, legs: 'bare', sleeve: 'none', glove: '#f2b81c', feet: 'bare', build: 1.38 },
   palettes: [{}, { skin: '#c8ccd4', glove: '#c8ccd4', lips: '#a8acb8', pants: '#8a8e98' }, { skin: '#b0682a', glove: '#b0682a', lips: '#904e1a', pants: '#7a4418' }, { skin: '#f0a890', glove: '#f0a890', lips: '#d87a6a', pants: '#c86a5a' }],
   sz: 1.12, hp: 108, walkF: 3.1, walkB: 2.6, jumpV: 14, jumpX: 3.9, heavy: 1, stance: [54, 6, 34, 96, 18, 88, 18, 0, -20, 0, 0],
   specials: [{ id: 'ohm', input: '623', btn: 'P' }, { id: 'prumblex', input: '236', btn: 'P' }, { id: 'trumblex', input: '63214', btn: 'P' }],
   moves: {
     // Ohm Fodass: Shoryuken dourado
-    ohm: s => { const m = Kit.dp({ dmg: [11], vy: [11, 12.5, 14, 14] })(s); m.name = 'Ohm Fodass'; m.fx = 'hamon'; m.fxCol = '#ffd23a'; return m; },
+    ohm: s => { const m = Kit.dp({ dmg: [11], vy: [11, 12.5, 14, 14], shout: 'Ohm_Fodass' })(s); m.name = 'Ohm Fodass'; m.fx = 'hamon'; m.fxCol = '#ffd23a'; return m; },
     // Prumblex: avança em linha reta e solta um soco
-    prumblex: s => Object.assign(Kit.rush({ anim: 'straight', vx: [7, 8.5, 10, 11], dmg: [10, 11, 12, 13], onBlock: -4 })(s), { name: 'Prumblex' }),
+    prumblex: s => Object.assign(Kit.rush({ anim: 'straight', vx: [7, 8.5, 10, 11], dmg: [10, 11, 12, 13], onBlock: -4, shout: 'Prumblex' })(s), { name: 'Prumblex' }),
     // Trumblex: agarrão de comando com muito dano
-    trumblex: s => Object.assign(Kit.cmdGrab({ anim: 'grab', type: 'slam', range: [66, 72, 78, 84], dmg: [22, 24, 26, 29] })(s), { name: 'Trumblex' }),
+    trumblex: s => Object.assign(Kit.cmdGrab({ anim: 'grab', type: 'slam', range: [66, 72, 78, 84], dmg: [22, 24, 26, 29], shout: 'Trumblex' })(s), { name: 'Trumblex' }),
     // ATCHUNPRUMBLEX: abre as asas douradas, voa reto até o oponente e, se pegar, bate de todos os lados
-    super: () => ({ anim: 'rush', super: 1, name: 'ATCHUNPRUMBLEX', wings: '#ffd23a', startup: 10, active: 24, recovery: 26, inv: { strike: [1, 14], throw: [1, 14], proj: [1, 20] },
+    super: () => ({ anim: 'rush', super: 1, name: 'ATCHUNPRUMBLEX', shout: 'Atchunprumblex', wings: '#ffd23a', startup: 10, active: 24, recovery: 26, inv: { strike: [1, 14], throw: [1, 14], proj: [1, 20] },
       hover: [11, 34], vel: [[7, 10, 2, 9], [11, 34, 12, null]], landEnd: 12, hits: [{ box: [0, -44, 92, 130], dmg: 3, lv: 'SA', cine: 'atchun' }] }),
   },
   // V-Skill Trabuco Dourado: brota do chão embaixo do oponente (aviso brilhando no chão antes) e joga ele pra cima
-  vskill: { anim: 'flex', startup: 14, active: 1, recovery: 22, name: 'TRABUCO DOURADO',
-    proj: { f: 14, atOpp: 1, delay: 16, vx: 0, r: 34, life: 26, dmg: 9, hs: 22, bs: 12, shape: 'trabuco', lv: 'SP', launch: { vy: 11 }, kd: 1, ghost: 1, keep: 1, yOff: 50 } },
+  vskill: { anim: 'flex', startup: 14, active: 1, recovery: 22, name: 'TRABUCO DOURADO', shout: 'Trabuco',
+    proj: { f: 14, atOpp: 1, delay: 16, vx: 0, r: 34, life: 76, activeT: 34, dmg: 9, hs: 22, bs: 12, shape: 'trabuco', snd: 'quake', lv: 'SP', launch: { vy: 11 }, kd: 1, ghost: 1, keep: 1, yOff: 50 } },
   ai: { aa: 'ohm', grab: 'trumblex', enders: ['prumblex'], rush: 1, poke: 'smk', bnb: ['clp', 'cmp'] }
 });
 
@@ -5467,7 +5467,7 @@ function drawBuffAura(c, f, col, k) {
   c.restore();
 }
 function drawFighter(c, f, pz, tint) {
-  const ch = f.ch, L0 = f.look || ch.look, L1a = f.mode && ch.modeLook ? Object.assign({}, L0, ch.modeLook) : L0, L1b = M.projs && M.projs.some(q => q.o === f.i && !q.dead && q.p.weaponOut) ? Object.assign({}, L1a, { weapon: null }) : L1a, wg = (f.m && f.m.wings) || (f.st == 'cine' && f.cine && WING_CINES[f.cine.type]), L1 = wg ? Object.assign({}, L1b, { wings: wg, wingsBig: 1 }) : L1b, L = f.aura ? Object.assign({}, L1, { skin: '#4a4250', glove: L1.gloveType == 'bare' ? '#4a4250' : L1.glove }) : L1, p = pz.p.slice(), fl = pz.flip ? -1 : 1, rot = pz.rot, T = M.frame;
+  const ch = f.ch, L0 = f.look || ch.look, L1a = f.mode && ch.modeLook ? Object.assign({}, L0, ch.modeLook) : L0, L1b = M.projs && M.projs.some(q => q.o === f.i && !q.dead && q.p.weaponOut) ? Object.assign({}, L1a, { weapon: null }) : L1a, wg = (f.m && f.m.wings) || (f.st == 'cine' && f.cine && WING_CINES[f.cine.type]), L1 = wg ? Object.assign({}, L1b, { wings: wg, wingsAngel: 1 }) : L1b, L = f.aura ? Object.assign({}, L1, { skin: '#4a4250', glove: L1.gloveType == 'bare' ? '#4a4250' : L1.glove }) : L1, p = pz.p.slice(), fl = pz.flip ? -1 : 1, rot = pz.rot, T = M.frame;
   const B = L.build || 1, K = B * (L.thin ? .8 : 1), fem = !!L.fem;
   const idle = f.st == 'idle' && !f.walking && !f.crouch;
   if (idle) { const b = Math.sin(T * .08 + f.i * 2) * 1.6; p[0] += b; p[3] += b * 1.3; p[5] += b * 1.3; }
@@ -5544,7 +5544,23 @@ function drawFighter(c, f, pz, tint) {
     const tipA = vadd(q, vmul(dir, 16 * K)), n2 = vperp(dir);
     parts.push({ col: '#c8ccd4', path: c => polyPath(c, [vadd(q, vmul(n2, 5)), tipA, vsub(q, vmul(n2, 5))]) });
   }
-  if (L.wings) for (const k of [0, 1]) {
+  if (L.wings && L.wingsAngel) for (const k of [1, 0]) {
+    // asa de anjo: "osso" da asa subindo pra trás (ombro → munheca → ponta) e penas compridas, uma a uma, caindo em leque pra baixo e pra trás;
+    // por cima, a faixa de penas pequenas (coberteiras). A de trás é menor e mais escura; as duas batem
+    const z = k ? .8 : 1, flap = Math.sin(T * .45 + k * .7) * .35, col = k ? shade(L.wings, .78) : L.wings, dark = shade(L.wings, k ? .45 : .55);
+    const bone = t => t < .5 ? [lerp(.95, 1.5, t * 2), lerp(-shW * .4, -shW - 34 * z, t * 2)] : [lerp(1.5, 1.95 * z + .1, (t - .5) * 2), lerp(-shW - 34 * z, -shW - 62 * z, (t - .5) * 2)];
+    const N = 9;
+    for (let i = N - 1; i >= 0; i--) {
+      const t = .12 + .88 * i / (N - 1), [bu, bv] = bone(t), ln = (.55 + .75 * t) * z, lv = (10 + 30 * t) * z;
+      const b = Pt(bu, bv), tp = Pt(bu - ln + flap * t, bv - lv - flap * 30 * t), d = vnorm(vsub(tp, b)), n = { x: -d.y, y: d.x }, w = (5.5 + 2.5 * t) * z;
+      const pts = [vadd(b, vmul(n, w)), vadd(vadd(b, vmul(vsub(tp, b), .55)), vmul(n, w * 1.1)), tp, vadd(vadd(b, vmul(vsub(tp, b), .55)), vmul(n, -w * 1.1)), vadd(b, vmul(n, -w))];
+      parts.push({ col: i % 2 ? col : shade(col, .92), path: c => smoothClosed(c, pts), det: c => { c.strokeStyle = dark; c.lineWidth = 1; c.beginPath(); c.moveTo(b.x, b.y); c.lineTo(tp.x, tp.y); c.stroke(); } });
+    }
+    const cov = []; for (let i = 0; i <= 8; i++) { const [u, v] = bone(i / 8); cov.push(Pt(u + .06, v + 2)); }
+    for (let i = 8; i >= 0; i--) { const [u, v] = bone(i / 8); cov.push(Pt(u - .22 * z - (i % 2) * .05, v - 8 * z)); }
+    parts.push({ col: shade(col, 1.08), path: c => smoothClosed(c, cov), det: c => { c.strokeStyle = 'rgba(255,255,230,.75)'; c.lineWidth = 2; c.beginPath(); cov.slice(0, 9).forEach((p, i) => i ? c.lineTo(p.x, p.y) : c.moveTo(p.x, p.y)); c.stroke(); } });
+  }
+  else if (L.wings) for (const k of [0, 1]) {
     const big = L.wingsBig ? 2.2 : 1, fl2 = Math.sin(T * (L.wingsBig ? .5 : .15) + k) * 3 * big, a0 = Pt(.92, -shW * .5), pts = [a0, Pt(1.05 + k * .08 + (big - 1) * .35, -shW - 16 * big - fl2), Pt(.55, -shW - 20 * big - k * 4 - fl2), Pt(.1, -shW - 8 * big), Pt(.45, -shW * .6)];
     parts.push({ col: k ? shade(L.wings, .7) : L.wings, path: c => smoothClosed(c, pts), det: c => { c.strokeStyle = shade(L.wings, .45); c.lineWidth = 1.2; for (const q of [pts[1], pts[2], pts[3]]) { c.beginPath(); c.moveTo(a0.x, a0.y); c.lineTo(q.x, q.y); c.stroke(); } } });
   }
@@ -6034,14 +6050,15 @@ function drawProj(c, pr) {
       break;
     }
     case 'trabuco': {
-      if (pr.gapT > 0 && T < 16) { c.globalCompositeOperation = 'lighter'; c.fillStyle = 'rgba(255,200,40,.55)'; c.beginPath(); c.ellipse(0, pr.y, 32, 7, 0, 0, 7); c.fill(); break; }   // aviso no chão
-      const k = Math.min(1, Math.max(0, (T - 16)) / 5) * Math.min(1, pr.life / 6), h = 118 * k, gy = pr.y, w = 15;
-      const g = c.createLinearGradient(-w, 0, w, 0); g.addColorStop(0, '#a8740a'); g.addColorStop(.45, '#ffe27a'); g.addColorStop(1, '#b8820e');
-      c.fillStyle = g; c.strokeStyle = '#6a4a08'; c.lineWidth = 1.6;
+      if (pr.gapT > 0 && T < 16) { const own0 = M.f[pr.o]; c.globalCompositeOperation = 'lighter'; c.fillStyle = shade((own0 && own0.look && own0.look.skin) || '#f2b81c', 1); c.globalAlpha = .55; c.beginPath(); c.ellipse(0, pr.y, 32, 7, 0, 0, 7); c.fill(); break; }   // aviso no chão (na cor dele)
+      const own = M.f[pr.o], sk = (own && own.look && own.look.skin) || '#f2b81c';
+      const k = easeOut(Math.min(1, Math.max(0, T - 16) / 14)) * Math.min(1, pr.life / 20), h = 118 * k, gy = pr.y, w = 15;
+      const g = c.createLinearGradient(-w, 0, w, 0); g.addColorStop(0, shade(sk, .62)); g.addColorStop(.45, shade(sk, 1.3)); g.addColorStop(1, shade(sk, .72));
+      c.fillStyle = g; c.strokeStyle = shade(sk, .4); c.lineWidth = 1.6;
       for (const sx of [-13, 13]) { c.beginPath(); c.arc(sx, gy - 6, 12 * Math.min(1, k * 2), 0, 7); c.fill(); c.stroke(); }
       if (h > 4) { c.beginPath(); c.moveTo(-w, gy - 6); c.lineTo(-w, gy - h); c.lineTo(w, gy - h); c.lineTo(w, gy - 6); c.closePath(); c.fill(); c.stroke();
         c.beginPath(); c.ellipse(0, gy - h, w * 1.25, 15, 0, Math.PI, 0); c.closePath(); c.fill(); c.stroke();
-        c.strokeStyle = '#7a5408'; c.beginPath(); c.moveTo(-w * 1.2, gy - h + 1); c.quadraticCurveTo(0, gy - h + 6, w * 1.2, gy - h + 1); c.stroke();
+        c.strokeStyle = shade(sk, .45); c.beginPath(); c.moveTo(-w * 1.2, gy - h + 1); c.quadraticCurveTo(0, gy - h + 6, w * 1.2, gy - h + 1); c.stroke();
         c.globalCompositeOperation = 'lighter'; c.fillStyle = 'rgba(255,240,170,.5)'; c.fillRect(-w * .45, gy - h + 4, 4, h - 14); }
       break;
     }
