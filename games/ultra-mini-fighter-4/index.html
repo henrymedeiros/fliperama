@@ -2295,7 +2295,8 @@ const Match = {
   create(c0, c1, stageId, opts = {}) {
     const ctl = opts.ctrl || ['human', 'human'], pal = opts.pal || [0, c0 == c1 ? 1 : 0];
     const sim = opts.simple || [false, false];
-    M.f = [new Fighter(0, CHARS[c0], ctl[0], pal[0], sim[0]), new Fighter(1, CHARS[c1], ctl[1], pal[1], sim[1])];
+    const ver = opts.ver || [];
+    M.f = [new Fighter(0, charVer(c0, ver[0]), ctl[0], pal[0], sim[0]), new Fighter(1, charVer(c1, ver[1]), ctl[1], pal[1], sim[1])];
     M.training = opts.mode == 'training'; M.stageId = stageId; M.round = 1; M.frame = 0; M.projSeq = 0; M.tcfg = opts.tcfg || null; M.tcalm = 0;
     this.newRound();
   },
@@ -3973,6 +3974,33 @@ defChar({
   // Dario: Space Ripper EX atravessa 2 vezes
   ex('dario', 'eyes', m => { m.proj = Object.assign({}, m.proj, { hits: 2, gap: 4, dmg: 5 }); });
 })();
+
+</script>
+<script>/* src/data/versions.js */
+// ===== versões por lutador =====
+// A BASE é o jogo que continua melhorando. Cada lutador pode ganhar iterações (v0.1, v0.2…), escolhidas na seleção de personagem.
+// Cada versão parte da anterior do MESMO lutador (v0.2 = v0.1 + mudanças novas). Cada versão de cada lutador fica num bloco
+// próprio (src/data/versions/<id>.js) e num commit próprio: dá pra remover a versão de um lutador sem mexer nos outros.
+const CHAR_VERSIONS = {};   // id → [{ id: 'v0.1', apply(ch) }]
+function addVersion(id, v) { if (!charById(id)) throw new Error('versão de lutador inexistente: ' + id); (CHAR_VERSIONS[id] = CHAR_VERSIONS[id] || []).push(v); }
+function versionsOf(ci) { const ch = CHARS[ci]; return ch ? ['base'].concat((CHAR_VERSIONS[ch.id] || []).map(v => v.id)) : ['base']; }
+function newestVer(ci) { const v = versionsOf(ci); return v[v.length - 1]; }
+const verLabel = v => !v || v == 'base' ? 'BASE' : v;
+// cópia profunda do lutador (as funções dos golpes são compartilhadas; o cache de golpes compilados não vem junto)
+function cloneChar(o) {
+  if (Array.isArray(o)) return o.map(cloneChar);
+  if (o && typeof o == 'object') { const r = {}; for (const k in o) if (k != '_c') r[k] = cloneChar(o[k]); return r; }
+  return o;
+}
+const VER_CACHE = {};
+// lutador na versão pedida ('base' ou ausente = a base; versão desconhecida também cai na base)
+function charVer(ci, vid) {
+  const base = CHARS[ci], list = CHAR_VERSIONS[base.id] || [], n = list.findIndex(v => v.id == vid);
+  if (n < 0) return base;
+  const key = base.id + '@' + vid; if (VER_CACHE[key]) return VER_CACHE[key];
+  const ch = cloneChar(base); for (let i = 0; i <= n; i++) list[i].apply(ch);
+  ch.ver = vid; return VER_CACHE[key] = ch;
+}
 
 </script>
 <script>/* src/data/endings.js */
@@ -5809,7 +5837,7 @@ const AI = {
 <script>/* src/net/net.js */
 // ===== multiplayer online: sala com vários jogadores ("quem ganha fica"), rollback e espectadores =====
 // Topologia em estrela: todos se conectam ao anfitrião (PeerJS/WebRTC), que repassa as mensagens.
-const NET_VERSION = 4, PEER_PREFIX = 'ultraminifighter4-', MAX_ROOM = 8;   // Ultra: salas, servidores e versão separados do Mini Fighter IV
+const NET_VERSION = 5, PEER_PREFIX = 'ultraminifighter4-', MAX_ROOM = 8;   // Ultra: salas, servidores e versão separados do Mini Fighter IV
 const Room = { members: [], queue: [], fighters: [], phase: 'lobby', sel: [0, 1], ready: [false, false], simple: [false, false], last: null, chars: {} };
 const memberName = id => (Room.members.find(m => m.id == id) || {}).name || '?';
 
@@ -5938,8 +5966,8 @@ const Net = {
       case 'pong': { const p = performance.now() - d.ts;
         if (this.role == 'host') { const o = this.pingOf[d.from]; this.pingOf[d.from] = Math.round(o == null ? p : o * .7 + p * .3); break; }
         this.pings.push(p); if (this.pings.length > 5) this.pings.shift(); this.ping = Math.round(this.pings.reduce((a, b) => a + b, 0) / this.pings.length); break; }
-      case 'sel': if (!(d.i === 0 || d.i === 1) || !Number.isInteger(d.c) || d.c < 0 || d.c > CHARS.length) break; Room.sel[d.i] = d.c; Room.ready[d.i] = !!d.r; Room.simple = Room.simple || [false, false]; Room.simple[d.i] = !!d.s; if (this.role == 'host') { this.broadcastRoom(); this.startIfReady(); } break;
-      case 'start': Game.startOnline(d.c[0], d.c[1], d.st); break;
+      case 'sel': if (!(d.i === 0 || d.i === 1) || !Number.isInteger(d.c) || d.c < 0 || d.c > CHARS.length) break; Room.sel[d.i] = d.c; Room.ready[d.i] = !!d.r; Room.simple = Room.simple || [false, false]; Room.simple[d.i] = !!d.s; (Room.ver = Room.ver || ['base', 'base'])[d.i] = d.c < CHARS.length && versionsOf(d.c).includes(d.v) ? d.v : 'base'; if (this.role == 'host') { this.broadcastRoom(); this.startIfReady(); } break;
+      case 'start': Game.startOnline(d.c[0], d.c[1], d.st, d.v); break;
       case 'goSelect': Game.onGoSelect(); break;
       case 'tcfg': {
         if (!Number.isInteger(d.f) || d.f < 0 || !d.c || typeof d.c != 'object') break;
@@ -5965,8 +5993,8 @@ const Net = {
   startIfReady() {
     if (this.role != 'host' || Room.phase != 'select' || !Room.ready[0] || !Room.ready[1]) return;
     Room.phase = 'fight'; Room.fighters.forEach((id, i) => Room.chars[id] = Room.sel[i]);
-    const st = pick(STAGE_IDS), msg = { t: 'start', c: Room.sel.slice(), st };
-    this.broadcastRoom(); setTimeout(() => { this.route(msg, 'h', 'all'); Game.startOnline(msg.c[0], msg.c[1], st); }, 700);
+    const st = pick(STAGE_IDS), msg = { t: 'start', c: Room.sel.slice(), st, v: (Room.ver || ['base', 'base']).slice() };
+    this.broadcastRoom(); setTimeout(() => { this.route(msg, 'h', 'all'); Game.startOnline(msg.c[0], msg.c[1], st, msg.v); }, 700);
   },
   hostMatchOver(wSlot, leftId) {
     if (this.role != 'host' || Room.phase != 'fight') return;
@@ -6676,23 +6704,35 @@ const Menus = {
       if (mi.l) col = (col + GRID_COLS - 1) % GRID_COLS; if (mi.r) col = (col + 1) % GRID_COLS; if (mi.u) row = (row + rows - 1) % rows; if (mi.d) row = (row + 1) % rows;
       const ns = Math.min(n - 1, row * GRID_COLS + col); if (ns != s) { g.sel[slot] = ns; Audio.cursor(slot); if (online) this.netSel(slot, ns, false); }
       if (mi.ok || mi.hp || mi.hk) {
-        if (g.sel[slot] >= CHARS.length) g.sel[slot] = Math.random() * CHARS.length | 0;   // aleatório
+        const rnd = g.sel[slot] >= CHARS.length;
+        if (rnd) g.sel[slot] = Math.random() * CHARS.length | 0;   // aleatório
         g.pal[slot] = mi.hk ? 3 : mi.hp ? 2 : mi.lk ? 1 : 0; g.pal[slot] %= CHARS[g.sel[slot]].palettes.length;
+        g.ver[slot] = g.mode == 'trials' ? 'base' : newestVer(g.sel[slot]);
+        if (!rnd && g.mode != 'trials' && versionsOf(g.sel[slot]).length > 1) { g.vpick[slot] = true; Audio.sfx('select'); return; }   // escolhe a versão antes de ficar pronto
         g.ready[slot] = true; Audio.sfx('select'); Audio.say('n_' + CHARS[g.sel[slot]].id); if (online) this.netSel(slot, g.sel[slot], true); }
+    };
+    // seletor de versão do lutador escolhido: ←→ troca, confirmar fica pronto, voltar desiste
+    const pickVer = (mi, slot) => {
+      if (!g.vpick[slot]) return false;
+      const vs = versionsOf(g.sel[slot]); let k = vs.indexOf(g.ver[slot]); if (k < 0) k = vs.length - 1;
+      if (mi.l || mi.r) { k = (k + (mi.l ? vs.length - 1 : 1)) % vs.length; g.ver[slot] = vs[k]; Audio.cursor(slot); }
+      if (mi.back) { g.vpick[slot] = false; Audio.sfx('back'); return true; }
+      if (mi.ok || mi.hp || mi.hk) { g.vpick[slot] = false; g.ready[slot] = true; Audio.sfx('select'); Audio.say('n_' + CHARS[g.sel[slot]].id); if (online) this.netSel(slot, g.sel[slot], true); }
+      return true;
     };
     if (online) {
       g.sel = Room.sel.slice(); g.ready = Room.ready.slice();
       const mi = selIn(0, true), me = Room.fighters.indexOf(Net.id);
       if (g.escEdge) return this.leaveRoom();
       if (me < 0) return;                          // espectador: só assiste
-      if (!g.ready[me]) move(mi, me); else if (mi.back) this.netSel(me, g.sel[me], false);
+      if (!g.ready[me]) { if (!pickVer(mi, me)) move(mi, me); } else if (mi.back) this.netSel(me, g.sel[me], false);
       return;
     } else if (two) for (let i = 0; i < 2; i++) {
       const mi = selIn(i, false);
-      if (!g.ready[i]) { move(mi, i); if (i == 0 && mi.back) { Audio.sfx('back'); g.go('mode'); } } else if (mi.back) g.ready[i] = false;
+      if (!g.ready[i]) { if (!pickVer(mi, i)) { move(mi, i); if (i == 0 && mi.back) { Audio.sfx('back'); g.go('mode'); } } } else if (mi.back) g.ready[i] = false;
     } else {
       const mi = selIn(0, true), slot = !g.ready[0] ? 0 : g.mode == 'training' && !g.ready[1] ? 1 : -1;
-      if (slot >= 0) { move(mi, slot); if (mi.back) { if (slot == 1) g.ready[0] = false; else { Audio.sfx('back'); g.go('mode'); } } }
+      if (slot >= 0) { if (!pickVer(mi, slot)) { move(mi, slot); if (mi.back) { if (slot == 1) g.ready[0] = false; else { Audio.sfx('back'); g.go('mode'); } } } }
       else if (mi.back) g.ready[g.mode == 'training' ? 1 : 0] = false;
     }
     const done = g.mode == 'arcade' || g.mode == 'trials' ? g.ready[0] : g.ready[0] && g.ready[1];
@@ -6707,7 +6747,7 @@ const Menus = {
       } else { g.stageSel = STAGE_IDS.length; g.go('stagesel'); }
     }
   },
-  netSel(i, c, r) { const s = (settings.controls || [])[0] == 'simple'; Room.sel[i] = c; Room.ready[i] = r; (Room.simple = Room.simple || [false, false])[i] = s; Net.send('all', { t: 'sel', i, c, r, s }); if (Net.role == 'host') { Net.broadcastRoom(); Net.startIfReady(); } },
+  netSel(i, c, r) { const s = (settings.controls || [])[0] == 'simple', v = Game.ver[i] || newestVer(c); Room.sel[i] = c; Room.ready[i] = r; (Room.simple = Room.simple || [false, false])[i] = s; (Room.ver = Room.ver || ['base', 'base'])[i] = v; Net.send('all', { t: 'sel', i, c, r, s, v }); if (Net.role == 'host') { Net.broadcastRoom(); Net.startIfReady(); } },
   changeOpt(k, mi, mus) {
     const d = mi.l ? -1 : 1;
     if (k == 'diff') settings.diff = (settings.diff + (mi.l ? DIFF.length - 1 : 1)) % DIFF.length;
@@ -6830,7 +6870,7 @@ const Tourney = {
     const A = this.players[m.a], B = this.players[m.b], g = Game;
     g.simulating = true; SIM.silent = true;
     try {
-      Match.create(A.ch, B.ch, 'temple', { ctrl: ['cpu', 'cpu'], pal: [0, A.ch == B.ch ? 1 : 0] });
+      Match.create(A.ch, B.ch, 'temple', { ctrl: ['cpu', 'cpu'], pal: [0, A.ch == B.ch ? 1 : 0], ver: [newestVer(A.ch), newestVer(B.ch)] });
       for (let f = 0; !M.matchOver && f < 60 * 60 * 8; f++) { const [a, b] = M.f; Match.step(AI.think(a, b), AI.think(b, a)); }
     } finally { g.simulating = false; SIM.silent = false; }
     const [a, b] = M.f, aw = a.wins > b.wins || (a.wins == b.wins && a.hp >= b.hp);
@@ -7171,7 +7211,11 @@ Object.assign(Menus, {
     }
   },
   drawSelect(c) {
-    const g = Game, arc = g.mode == 'arcade' || g.mode == 'trials', online = g.mode == 'online', RND = CHARS.length, ch0 = CHARS[g.sel[0]];
+    const g = Game, arc = g.mode == 'arcade' || g.mode == 'trials', online = g.mode == 'online', RND = CHARS.length;
+    // versão mostrada de cada lado: a escolhida (no seletor ou pronto) ou a mais nova
+    const me = online ? Room.fighters.indexOf(Net.id) : -1;
+    const verOf = slot => { const ci = g.sel[slot]; if (!CHARS[ci]) return 'base'; if (g.mode == 'trials') return 'base'; const v = online && slot != me ? (Room.ver || [])[slot] : g.ver[slot]; return (g.vpick[slot] || g.ready[slot]) && v ? v : newestVer(ci); };
+    const shown = slot => CHARS[g.sel[slot]] ? charVer(g.sel[slot], verOf(slot)) : null, ch0 = shown(0);
     this.bg(c, ch0 ? ch0.aura : '#889'); this.header(c, online ? 'ESCOLHA SEU LUTADOR · ONLINE' : 'ESCOLHA SEU LUTADOR');
     // arte grande estilo SF (cortada pela grade), nome grande embaixo
     const side = (slot, x, face) => {
@@ -7184,6 +7228,17 @@ Object.assign(Menus, {
       txt(c, ch.name, x, 324, 38, rd ? '#ffd21e' : '#fff', 'center', 6);
       ui(c, online ? memberName(Room.fighters[slot]) + (Room.fighters[slot] == Net.id ? ' (você)' : '') : ch.title, x, 340, 14, online ? '#ffd21e' : '#bcd', 'center', 3);
       if (rd) { c.fillStyle = 'rgba(0,0,0,.6)'; c.fillRect(x - 60, 262, 120, 24); txt(c, 'PRONTO!', x, 282, 20, '#6f6', 'center', 3); }
+      // versão: seletor (←→) depois de escolher, ou só a etiqueta da versão
+      const vs = g.mode == 'trials' ? ['base'] : versionsOf(g.sel[slot]), v = verOf(slot);
+      if (g.vpick[slot] && (!online || slot == me)) {
+        const pulse = .75 + .25 * Math.sin(UIF * .25);
+        c.fillStyle = 'rgba(0,0,0,.78)'; c.fillRect(x - 130, 206, 260, 52); c.strokeStyle = ch.aura; c.lineWidth = 2; c.strokeRect(x - 130, 206, 260, 52);
+        ui(c, 'VERSÃO', x, 222, 13, '#bcd', 'center', 2);
+        c.save(); c.globalAlpha = pulse; txt(c, '◄  ' + verLabel(v) + '  ►', x, 250, 26, '#ffd21e', 'center', 4); c.restore();
+      } else if (vs.length > 1) {
+        const lb = verLabel(v) + (v == vs[vs.length - 1] && v != 'base' ? ' · NOVA' : ''), w = 12 + lb.length * 8;
+        c.fillStyle = 'rgba(0,0,0,.65)'; c.fillRect(x - w / 2, 76, w, 20); ui(c, lb, x, 91, 13, v == 'base' ? '#bcd' : '#ffd21e', 'center', 2);
+      }
     };
     side(0, 140, 1);
     if (arc) { txt(c, '?', 820, 300, 160, 'rgba(255,255,255,.12)', 'center', 0); txt(c, 'CPU', 820, 112, 40, '#888', 'center', 6); } else side(1, 820, -1);
@@ -7196,7 +7251,7 @@ Object.assign(Menus, {
       });
       moveList(ch).slice(0, 4).forEach(([n, how], i) => { ui(c, n, x + 10, 206 + i * 32, 15, '#ffd21e'); ui(c, how, x + 10, 222 + i * 32, 13, '#dde'); });
     };
-    info(ch0, 283); if (!arc) info(CHARS[g.sel[1]], 487);
+    info(ch0, 283); if (!arc) info(shown(1), 487);
     else { c.fillStyle = 'rgba(0,0,0,.45)'; c.fillRect(487, 92, 190, 244); if (g.mode == 'trials') { ui(c, 'DESAFIOS DE COMBO', 582, 190, 18, '#9cf', 'center'); ui(c, 'combos validados pelo jogo', 582, 216, 16, '#aab', 'center'); } else { ui(c, 'Adversários aleatórios', 582, 190, 18, '#99a', 'center'); ui(c, 'Chefe final: KAISER', 582, 216, 18, '#c8f', 'center'); } ui(c, DIFF[settings.diff].name, 582, 262, 26, '#f96', 'center', 3); }
     const cw = 37, gap = 4, gx = W / 2 - (GRID_COLS * (cw + gap) - gap) / 2, gy = 344, rows = Math.ceil((RND + 1) / GRID_COLS);
     c.fillStyle = 'rgba(0,0,0,.55)'; c.fillRect(gx - 8, gy - 8, GRID_COLS * (cw + gap) + 11, rows * (cw + gap) + 11);
@@ -7213,7 +7268,7 @@ Object.assign(Menus, {
       });
     }
     const meS = online ? Room.fighters.indexOf(Net.id) : 0;
-    const tip = g.mode == 'training' && g.ready[0] && !g.ready[1] ? 'Escolha o BONECO de treino' : online && meS < 0 ? 'Você está na fila — assistindo à escolha · Esc sai da sala' : online && g.ready[meS] ? 'Aguardando o rival...' : '←→↑↓ escolher · cor: Soco Fraco / Chute Fraco / Soco Forte / Chute Forte · Esc voltar';
+    const tip = g.vpick.some(Boolean) ? 'VERSÃO DO LUTADOR: ←→ trocar · confirmar com qualquer soco/chute fraco ou forte · Soco Médio / Esc voltar' : g.mode == 'training' && g.ready[0] && !g.ready[1] ? 'Escolha o BONECO de treino' : online && meS < 0 ? 'Você está na fila — assistindo à escolha · Esc sai da sala' : online && g.ready[meS] ? 'Aguardando o rival...' : '←→↑↓ escolher · cor: Soco Fraco / Chute Fraco / Soco Forte / Chute Forte · Esc voltar';
     this.hint(c, tip);
   },
   thumbs: null,
@@ -7797,11 +7852,11 @@ const Training = {
 };
 
 const Game = {
-  scene: 'title', mode: 'arcade', t: 0, idx: 0, sel: [0, 1], pal: [0, 0], ready: [false, false], ladder: [], stage: 0, result: null, showMoves: false,
+  scene: 'title', mode: 'arcade', t: 0, idx: 0, sel: [0, 1], pal: [0, 0], ready: [false, false], ver: [null, null], vpick: [false, false], ladder: [], stage: 0, result: null, showMoves: false,
   stageSel: 0, trans: null, idle: 0, attract: false, quitAsk: false, netMsg: '', rematch: [false, false], lastStage: 'temple', kPrev: {}, introFx: {}, vShake: 0,
   get online() { return this.mode == 'online'; },
   go(s, cb) { if (this.trans) return; this.trans = { to: s, t: 0, dur: 13, cb }; },
-  goNow(s) { this.scene = s; this.t = 0; this.idx = 0; this.pauseOpt = false; if (s != 'title') Audio.stopIntro(); if (s != 'fight' && s != 'pause') Audio.stopAmbience(); },
+  goNow(s) { this.scene = s; this.t = 0; this.idx = 0; this.pauseOpt = false; if (s == 'select') this.vpick = [false, false]; if (s != 'title') Audio.stopIntro(); if (s != 'fight' && s != 'pause') Audio.stopAmbience(); },
   musicFor(s) { return { title: 'title', mode: 'select', options: 'select', padtest: 'select', select: 'charselect', stagesel: 'charselect', tsetup: 'select', bracket: 'select', champion: 'title', online: 'select', lobby: 'select', vs: 'charselect', continue: 'select', ending: 'title', gameover: 'title', howto: 'select' }[s]; },
 
   startMatch(c1, c2, stageId) {
@@ -7810,17 +7865,19 @@ const Game = {
     if (c1 == c2 && pal[0] == pal[1]) pal[1] = (pal[0] + 1) % Math.max(2, CHARS[c2].palettes.length);
     const sid = stageId || CHARS[c2].stage || 'temple';
     const simple = ctl.map((c, i) => c == 'human' && (settings.controls || [])[this.mode == 'versus' || this.mode == 'tourney' ? i : 0] == 'simple' && this.mode != 'tutorial' && this.mode != 'trials');
-    const mopts = { mode: this.mode == 'tutorial' || this.mode == 'trials' ? 'training' : this.mode, ctrl: ctl, pal, simple };
+    const fixedBase = this.mode == 'tutorial' || this.mode == 'trials';   // desafios valem para a base (combos validados nela)
+    const vOf = (ci, i) => fixedBase ? 'base' : this.attract || this.mode == 'tourney' || ctl[i] == 'cpu' ? newestVer(ci) : versionsOf(ci).includes(this.ver[i]) ? this.ver[i] : newestVer(ci);
+    const mopts = { mode: this.mode == 'tutorial' || this.mode == 'trials' ? 'training' : this.mode, ctrl: ctl, pal, simple, ver: [vOf(c1, 0), vOf(c2, 1)] };
     Stage.set(sid); Match.create(c1, c2, sid, mopts);
     // gravação para replay (a simulação é determinística: basta guardar os comandos de cada quadro)
     this.replaying = false; this.rec = this.attract || mopts.mode == 'training' ? null : { c1, c2, sid, opts: JSON.parse(JSON.stringify(mopts)), frames: [] };
     Voice.preload(CHARS[c1].id + '/'); Voice.preload(CHARS[c2].id + '/');
     this.go('fight', () => { Music.play(Stage.def.music); Audio.ambience(Stage.def.amb); });
   },
-  startOnline(c0, c1, stageId) {
+  startOnline(c0, c1, stageId, vers) {
     this.mode = 'online'; this.attract = false; this.quitAsk = false; this.forfeitMsg = '';
     this.tmenu = false; this.tmoves = false;
-    Stage.set(stageId); Match.create(c0, c1, stageId, { mode: Room.train ? 'training' : 'online', tcfg: Room.train ? Object.assign({ hp: true, meter: true }, Room.tcfg) : null, ctrl: ['human', 'human'], pal: [0, c0 == c1 ? 1 : 0], simple: (Room.simple || [false, false]).map(Boolean) });
+    Stage.set(stageId); Match.create(c0, c1, stageId, { mode: Room.train ? 'training' : 'online', tcfg: Room.train ? Object.assign({ hp: true, meter: true }, Room.tcfg) : null, ctrl: ['human', 'human'], pal: [0, c0 == c1 ? 1 : 0], simple: (Room.simple || [false, false]).map(Boolean), ver: [0, 1].map(i => { const c = [c0, c1][i], v = (vers || [])[i]; return versionsOf(c).includes(v) ? v : 'base'; }) });
     Voice.preload(CHARS[c0].id + '/'); Voice.preload(CHARS[c1].id + '/');
     M.f.forEach((f, i) => f.netName = memberName(Room.fighters[i]));
     const slot = Room.fighters.indexOf(Net.id); if (slot >= 0) Net.begin(slot); else Net.beginSpec();
