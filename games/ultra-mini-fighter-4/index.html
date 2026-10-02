@@ -7147,6 +7147,47 @@ const HUD = {
 // ===== lógica das telas (título, modos, seleção, palco, online, pausa, resultados) =====
 const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.random() * (i + 1) | 0; [a[i], a[j]] = [a[j], a[i]]; } return a; };
 const GRID_COLS = 12;   // 44 lutadores + célula aleatória (4 fileiras)
+// lutador secreto: na seleção a célula dele é um cofre dourado (???). Em cima dela, 4 botões na ordem certa abrem o cofre;
+// cada acerto acende uma moeda e ele fala um golpe, errar volta do começo. Até abrir, fica fora do aleatório, arcade, torneio e título
+const SECRET = { id: 'markito', code: ['lp', 'hp', 'lk', 'hk'], lines: ['Ohm_Fodass', 'Prumblex', 'Trumblex', 'Atchunprumblex'] };
+function isLocked(i) { const ch = CHARS[i]; return !!ch && ch.id == SECRET.id && !(settings.secrets || []).includes(ch.id); }
+function openChars() { return CHARS.map((_, i) => i).filter(i => !isLocked(i)); }
+const Vault = {
+  n: 0, hitT: -99, failT: -99, openT: -99, slot: -1,
+  reset() { this.n = 0; this.slot = -1; },
+  // um botão apertado em cima do cofre (true = abriu agora)
+  press(slot, btn) {
+    const ch = charById(SECRET.id);
+    if (this.slot != slot) { this.slot = slot; this.n = 0; }
+    if (btn == SECRET.code[this.n]) {
+      this.n++; this.hitT = UIF; Audio.shout(ch, SECRET.lines[this.n - 1], null, true);
+      if (this.n < SECRET.code.length) { Audio.sfx('parry'); return false; }
+      settings.secrets = (settings.secrets || []).concat([SECRET.id]); saveSettings();
+      this.openT = UIF; this.reset(); Audio.sfx('superready'); return true;
+    }
+    this.n = btn == SECRET.code[0] ? 1 : 0; this.failT = UIF; Audio.sfx('block');
+    if (this.n) Audio.shout(ch, SECRET.lines[0], null, true);
+    return false;
+  },
+  // silhueta preta com brilho dourado (o lutador ainda trancado)
+  silhouette(c, ch, x, face) {
+    const S = 2, cv = this.cv || (this.cv = document.createElement('canvas')); cv.width = 400 * S; cv.height = 272 * S;
+    const c2 = cv.getContext('2d'); c2.setTransform(S, 0, 0, S, 0, 0); c2.translate(200 - x, -70);
+    puppet(c2, ch, x, 520, 2.35 / Math.max(1, ch.sz), face, undefined, { st: 'idle', look: ch.look });
+    c2.setTransform(1, 0, 0, 1, 0, 0); c2.globalCompositeOperation = 'source-in'; c2.fillStyle = '#0b0906'; c2.fillRect(0, 0, cv.width, cv.height); c2.globalCompositeOperation = 'source-over';
+    c.save(); c.shadowColor = '#ffc21a'; c.shadowBlur = 14 + 6 * Math.sin(UIF * .1); c.drawImage(cv, x - 200, 70, 400, 272); c.restore();
+  },
+  // moedas do cofre (acesas = botões certos até agora)
+  coins(c, x, y, slot) {
+    const n = this.slot == slot ? this.n : 0, shake = UIF - this.failT < 14 ? Math.sin(UIF * 2) * 4 : 0;
+    for (let i = 0; i < SECRET.code.length; i++) {
+      const cx = x + (i - 1.5) * 34 + shake, on = i < n, pop = on && i == n - 1 && UIF - this.hitT < 10 ? 1.25 : 1;
+      c.beginPath(); c.arc(cx, y, 12 * pop, 0, 7); c.fillStyle = on ? '#ffc21a' : 'rgba(40,32,16,.9)'; c.fill();
+      c.lineWidth = 2; c.strokeStyle = on ? '#fff3b0' : '#6a5420'; c.stroke();
+      if (on) txt(c, '$', cx, y + 6, 16, '#7a4a00', 'center', 0);
+    }
+  }
+};
 
 const Menus = {
   modes: [['ARCADE', 'Enfrente 6 lutadores da CPU até o chefe final'], ['VERSUS', '2 jogadores no mesmo computador (teclado dividido ou controles)'],
@@ -7349,10 +7390,14 @@ const Menus = {
     const move = (mi, slot) => {
       const s = g.sel[slot], rows = Math.ceil(n / GRID_COLS); let col = s % GRID_COLS, row = (s / GRID_COLS) | 0;
       if (mi.l) col = (col + GRID_COLS - 1) % GRID_COLS; if (mi.r) col = (col + 1) % GRID_COLS; if (mi.u) row = (row + rows - 1) % rows; if (mi.d) row = (row + 1) % rows;
-      const ns = Math.min(n - 1, row * GRID_COLS + col); if (ns != s) { g.sel[slot] = ns; Audio.cursor(slot); if (online) this.netSel(slot, ns, false); }
+      const ns = Math.min(n - 1, row * GRID_COLS + col); if (ns != s) { g.sel[slot] = ns; Audio.cursor(slot); if (online) this.netSel(slot, ns, false); if (Vault.slot == slot) Vault.reset(); }
+      if (isLocked(g.sel[slot])) {                 // cofre: os 6 botões viram a combinação (e não escolhem nem voltam)
+        const b = BTN.find(k => mi[k]); if (b) { mi.back = false; if (Vault.press(slot, b)) Audio.say('n_' + SECRET.id); }
+        return;
+      }
       if (mi.ok || mi.hp || mi.hk) {
         const rnd = g.sel[slot] >= CHARS.length;
-        if (rnd) g.sel[slot] = Math.random() * CHARS.length | 0;   // aleatório
+        if (rnd) g.sel[slot] = pick(openChars());   // aleatório (sem o secreto trancado)
         g.pal[slot] = mi.hk ? 3 : mi.hp ? 2 : 0; g.pal[slot] %= CHARS[g.sel[slot]].palettes.length;
         g.ver[slot] = g.mode == 'trials' ? 'base' : newestVer(g.sel[slot]);
         if (!rnd && g.mode != 'trials' && versionsOf(g.sel[slot]).length > 1) { g.vpick[slot] = true; Audio.sfx('select'); return; }   // escolhe a versão antes de ficar pronto
@@ -7388,8 +7433,8 @@ const Menus = {
       if (g.mode == 'trials') { const ci = g.sel[0]; Trials.prepare(ci); g.startMatch(ci, ci == 4 ? 0 : 4, 'temple'); }
       else if (g.mode == 'arcade') {
         const boss = CHARS.findIndex(c => c.id == 'kaiser');
-        const others = shuffle(CHARS.map((_, i) => i).filter(i => i != g.sel[0] && i != boss)).slice(0, 5);
-        g.ladder = g.sel[0] == boss ? others.concat(shuffle(CHARS.map((_, i) => i).filter(i => i != boss && !others.includes(i))).slice(0, 1)) : others.concat([boss]);
+        const others = shuffle(openChars().filter(i => i != g.sel[0] && i != boss)).slice(0, 5);
+        g.ladder = g.sel[0] == boss ? others.concat(shuffle(openChars().filter(i => i != boss && !others.includes(i))).slice(0, 1)) : others.concat([boss]);
         g.stage = 0; g.go('vs');
       } else { g.stageSel = STAGE_IDS.length; g.go('stagesel'); }
     }
@@ -7450,7 +7495,7 @@ const Tourney = {
   size: 4, ent: [], row: 0, rounds: null, players: null, cur: null, last: null,
   CTRL: ['cpu', 'p1', 'p2'],
   setup() {
-    const me = Math.min(Game.sel[0] || 0, CHARS.length - 1), pool = shuffle(CHARS.map((_, i) => i).filter(i => i != me));   // sem lutador repetido
+    const me = isLocked(Game.sel[0]) || !CHARS[Game.sel[0]] ? 0 : Game.sel[0] || 0, pool = shuffle(openChars().filter(i => i != me));   // sem lutador repetido
     this.size = 4; this.row = 0; this.last = null;
     this.ent = Array.from({ length: 8 }, (_, i) => ({ ctrl: i == 0 ? 'p1' : 'cpu', ch: i == 0 ? me : pool[i - 1] }));
   },
@@ -7461,14 +7506,14 @@ const Tourney = {
     const r = this.row, e = r >= 1 && r <= this.size ? this.ent[r - 1] : null;
     if (r == 0 && (mi.l || mi.r || mi.ok)) { this.size = this.size == 4 ? 8 : 4; Audio.sfx('move'); this.row = 0; }
     if (e) {
-      if (mi.l || mi.r) { e.ch = (e.ch + (mi.l ? CHARS.length - 1 : 1)) % CHARS.length; Audio.sfx('move'); }
+      if (mi.l || mi.r) { do e.ch = (e.ch + (mi.l ? CHARS.length - 1 : 1)) % CHARS.length; while (isLocked(e.ch)); Audio.sfx('move'); }
       if (mi.ok) {                                   // CPU → 1P → 2P (cada jogador humano só em um participante)
         const nx = this.CTRL[(this.CTRL.indexOf(e.ctrl) + 1) % 3];
         if (nx != 'cpu') for (const o of this.ent) if (o.ctrl == nx) o.ctrl = 'cpu';
         e.ctrl = nx; Audio.sfx('select');
       }
     }
-    if (mi.ok && r == this.size + 1) { const used = this.ent.filter(o => o.ctrl != 'cpu').map(o => o.ch), pool = shuffle(CHARS.map((_, i) => i).filter(i => !used.includes(i))); for (const o of this.ent) if (o.ctrl == 'cpu') o.ch = pool.pop(); Audio.sfx('select'); }
+    if (mi.ok && r == this.size + 1) { const used = this.ent.filter(o => o.ctrl != 'cpu').map(o => o.ch), pool = shuffle(openChars().filter(i => !used.includes(i))); for (const o of this.ent) if (o.ctrl == 'cpu') o.ch = pool.pop(); Audio.sfx('select'); }
     if (mi.ok && r == this.size + 2) { Audio.sfx('select'); this.begin(); g.go('bracket'); }
     if ((mi.ok && r == this.size + 3) || mi.back) { Audio.sfx('back'); g.go('mode'); }
   },
@@ -7787,7 +7832,7 @@ Object.assign(Menus, {
         // elenco em rodízio: 9 lutadores por vez
         const NT = 9, grp = Math.floor(T / 300), fadeK = Math.min(1, (T % 300) / 20, (300 - T % 300) / 20);
         c.save(); c.globalAlpha = fadeK;
-        for (let i = 0; i < NT; i++) { const ch = CHARS[(grp * NT + i) % CHARS.length], x = 70 + i * 103, bob = Math.sin(T * .06 + i) * 3; puppet(c, ch, x, GROUND_SY + 36 + bob, 1.05, i < 4 ? 1 : -1, i % 3 == 0 ? P.win : undefined, { st: i % 3 == 0 ? 'win' : 'idle', look: ch.look }); }
+        const OC = openChars(); for (let i = 0; i < NT; i++) { const ch = CHARS[OC[(grp * NT + i) % OC.length]], x = 70 + i * 103, bob = Math.sin(T * .06 + i) * 3; puppet(c, ch, x, GROUND_SY + 36 + bob, 1.05, i < 4 ? 1 : -1, i % 3 == 0 ? P.win : undefined, { st: i % 3 == 0 ? 'win' : 'idle', look: ch.look }); }
         c.restore();
         const k = 1 + Math.sin(T * .05) * .02;
         c.save(); c.translate(W / 2, 64); c.scale(k, k); c.rotate(-.03); gradText(c, 'ULTRA', 0, 0, 64, '#e8fbff', '#2a9dff', 8); c.restore();
@@ -7802,7 +7847,7 @@ Object.assign(Menus, {
       }
       case 'mode': {
         this.bg(c, '#ff8a3a'); this.header(c, 'MODO DE JOGO');
-        const ch = CHARS[Math.floor(T / 150) % CHARS.length], k = Math.min(1, (T % 150) / 20);
+        const OC = openChars(), ch = CHARS[OC[Math.floor(T / 150) % OC.length]], k = Math.min(1, (T % 150) / 20);
         c.save(); c.globalAlpha = k; c.fillStyle = shade(ch.aura, .4); c.beginPath(); c.arc(730, 330, 170, 0, 7); c.fill();
         puppet(c, ch, 730 + (1 - k) * 60, 500, 2.3, -1, P.win, { st: 'win' }); txt(c, ch.name, 730, 150, 40, '#fff', 'center', 6); c.restore();
         this.list(c, this.modes.map(m => m[0]), 90, 96, g.idx, 380, 34, 22);
@@ -7868,6 +7913,10 @@ Object.assign(Menus, {
     const side = (slot, x, face) => {
       const ch = CHARS[g.sel[slot]], rd = g.ready[slot];
       if (!ch) { txt(c, '?', x, 300, 200, 'rgba(255,255,255,.2)', 'center', 0); txt(c, 'ALEATÓRIO', x, 330, 34, '#fff', 'center', 6); return; }
+      if (isLocked(g.sel[slot]) && !rd) {
+        Vault.silhouette(c, ch, x, face); Vault.coins(c, x, 112, slot);
+        txt(c, '???', x, 324, 38, '#ffc21a', 'center', 6); ui(c, 'COFRE TRANCADO', x, 340, 14, '#bca', 'center', 3); return;
+      }
       const k = 2.35 / Math.max(1, ch.sz);
       c.save(); c.beginPath(); c.rect(x - 200, 70, 400, 272); c.clip();
       puppet(c, ch, x, 520, k, face, rd ? P.win : undefined, { st: rd ? 'win' : 'idle', look: lookOf(ch, rd ? g.pal[slot] || 0 : 0) }); c.restore();
@@ -7893,6 +7942,11 @@ Object.assign(Menus, {
     const info = (ch, x) => {
       c.fillStyle = 'rgba(0,0,0,.6)'; c.fillRect(x, 92, 190, 244); c.strokeStyle = ch ? ch.aura : '#666'; c.lineWidth = 2; c.strokeRect(x, 92, 190, 244);
       if (!ch) { ui(c, 'ALEATÓRIO', x + 95, 200, 20, '#fff', 'center'); ui(c, 'o jogo escolhe por você', x + 95, 224, 14, '#aab', 'center'); return; }
+      if (isLocked(CHARS.indexOf(ch))) {
+        ui(c, 'LUTADOR SECRETO', x + 95, 114, 17, '#ffc21a', 'center');
+        ['Um cofre dourado.', 'Quatro botões abrem,', 'na ordem certa.', '', 'Cada acerto acende', 'uma moeda.', 'Errou? Volta do começo.'].forEach((l, i) => ui(c, l, x + 95, 150 + i * 24, 14, i < 3 ? '#fff' : '#bcd', 'center'));
+        return;
+      }
       ui(c, ch.style.toUpperCase(), x + 95, 114, 17, ch.aura, 'center');
       ['PODER', 'VELOCIDADE', 'DEFESA'].forEach((n, i) => {
         ui(c, n, x + 10, 138 + i * 19, 13, '#ccd'); for (let k = 0; k < 5; k++) { c.fillStyle = k < ch.stats[i] ? ch.aura : '#2a2a3a'; c.fillRect(x + 96 + k * 17, 128 + i * 19, 14, 9); }
@@ -7905,7 +7959,12 @@ Object.assign(Menus, {
     c.fillStyle = 'rgba(0,0,0,.55)'; c.fillRect(gx - 8, gy - 8, GRID_COLS * (cw + gap) + 11, rows * (cw + gap) + 11);
     for (let i = 0; i <= RND; i++) {
       const ch = CHARS[i], x = gx + (i % GRID_COLS) * (cw + gap), y = gy + ((i / GRID_COLS) | 0) * (cw + gap);
-      if (ch) { portrait(c, ch, x, y, cw, cw, 1, '#0c0c14'); c.strokeStyle = '#3a3a5a'; c.lineWidth = 2; c.strokeRect(x, y, cw, cw); ui(c, ch.name, x + cw / 2, y + cw - 3, 9, '#fff', 'center', 3); }
+      if (ch && isLocked(i)) {                      // cofre dourado com brilho passando de vez em quando
+        const gr = c.createLinearGradient(x, y, x + cw, y + cw); gr.addColorStop(0, '#3a2a08'); gr.addColorStop(1, '#120c02'); c.fillStyle = gr; c.fillRect(x, y, cw, cw);
+        const gl = (UIF % 180) / 40; if (gl < 1) { c.save(); c.beginPath(); c.rect(x, y, cw, cw); c.clip(); c.fillStyle = 'rgba(255,230,150,.35)'; c.beginPath(); const sx = x - cw + gl * cw * 2.4; c.moveTo(sx, y + cw); c.lineTo(sx + 10, y + cw); c.lineTo(sx + 26, y); c.lineTo(sx + 16, y); c.fill(); c.restore(); }
+        c.strokeStyle = UIF - Vault.failT < 14 ? '#f44' : '#8a6a1a'; c.lineWidth = 2; c.strokeRect(x, y, cw, cw);
+        txt(c, '?', x + cw / 2, y + cw / 2 + 9, 26, '#ffc21a', 'center', 4); ui(c, '???', x + cw / 2, y + cw - 3, 9, '#ffc21a', 'center', 3);
+      } else if (ch) { portrait(c, ch, x, y, cw, cw, 1, '#0c0c14'); c.strokeStyle = '#3a3a5a'; c.lineWidth = 2; c.strokeRect(x, y, cw, cw); ui(c, ch.name, x + cw / 2, y + cw - 3, 9, '#fff', 'center', 3); }
       else { c.fillStyle = '#1a1a2a'; c.fillRect(x, y, cw, cw); c.strokeStyle = '#3a3a5a'; c.lineWidth = 2; c.strokeRect(x, y, cw, cw); txt(c, '?', x + cw / 2, y + cw / 2 + 11, 30, '#ffd21e', 'center', 4); }
       const cur = [0, 1].filter(s => g.sel[s] == i && (s == 0 || !arc) && (g.mode != 'training' || s == 0 || g.ready[0]));
       cur.forEach((s, k) => {
@@ -7916,8 +7975,16 @@ Object.assign(Menus, {
       });
     }
     const meS = online ? Room.fighters.indexOf(Net.id) : 0;
-    const tip = g.vpick.some(Boolean) ? 'VERSÃO DO LUTADOR: ←→ trocar · confirmar com qualquer soco/chute fraco ou forte · Soco Médio / Esc voltar' : g.mode == 'training' && g.ready[0] && !g.ready[1] ? 'Escolha o BONECO de treino' : online && meS < 0 ? 'Você está na fila — assistindo à escolha · Esc sai da sala' : online && g.ready[meS] ? 'Aguardando o rival...' : '←→↑↓ escolher · cor: Soco ou Chute Fraco / Soco Forte / Chute Forte · Esc voltar';
+    const tip = g.vpick.some(Boolean) ? 'VERSÃO DO LUTADOR: ←→ trocar · confirmar com qualquer soco/chute fraco ou forte · Soco Médio / Esc voltar' : g.mode == 'training' && g.ready[0] && !g.ready[1] ? 'Escolha o BONECO de treino' : online && meS < 0 ? 'Você está na fila — assistindo à escolha · Esc sai da sala' : online && g.ready[meS] ? 'Aguardando o rival...' : isLocked(g.sel[Math.max(0, meS)]) ? 'COFRE DOURADO: descubra a combinação com os botões de soco e chute · ←→↑↓ sair · Esc voltar' : '←→↑↓ escolher · cor: Soco ou Chute Fraco / Soco Forte / Chute Forte · Esc voltar';
     this.hint(c, tip);
+    const ot = UIF - Vault.openT;
+    if (ot < 150) {
+      const a = ot < 10 ? ot / 10 : Math.max(0, 1 - (ot - 90) / 60);
+      c.save(); c.globalAlpha = a * .35; c.fillStyle = '#ffc21a'; c.fillRect(0, 0, W, H); c.globalAlpha = a;
+      c.fillStyle = 'rgba(0,0,0,.75)'; c.fillRect(0, H / 2 - 62, W, 110);
+      gradText(c, 'MARKITO DOURADO', W / 2, H / 2 + 2, 60 * (1 + Math.max(0, 1 - ot / 12) * .3), '#fff7c0', '#ffa000');
+      ui(c, 'LUTADOR SECRETO DESBLOQUEADO!', W / 2, H / 2 + 34, 20, '#fff', 'center', 4); c.restore();
+    }
   },
   thumbs: null,
   makeThumbs() {
@@ -8659,7 +8726,7 @@ const Game = {
   },
   startAttract() {
     this.attract = true; this.mode = 'arcade';
-    const a = Math.random() * CHARS.length | 0; let b = Math.random() * CHARS.length | 0; if (b == a) b = (b + 1) % CHARS.length;
+    const OC = shuffle(openChars()), a = OC[0], b = OC[1];
     this.startMatch(a, b, pick(STAGE_IDS));
   },
   update() {
