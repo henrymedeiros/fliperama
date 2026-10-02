@@ -4070,6 +4070,26 @@ addVersion('valerius', { id: 'v0.1', apply(ch) {
 } });
 
 </script>
+<script>/* src/data/versions/crow.js */
+// ===== CROW v0.1 =====
+// Hanging Chain como no SFV: a corrente é um GOLPE (dá pra defender e aparar), não mais um agarrão.
+// Se acertar, enrola o oponente, puxa e bate no chão. Fraco e médio vão retos (médio mais longe); forte sobe em 45° (anti-aéreo)
+CINE_SCRIPTS.hchain = (c, a, o, s, K) => {
+  M.dim = 0;   // é especial, não super: não escurece a tela
+  const tx = clamp(a.x + a.face * 72 * s, 30, STAGE_W - 30);
+  if (c.t <= 14) { o.x = lerp(o.x, tx, .28); o.y = lerp(o.y, 40, .3); o.cineRot = 0; }                       // puxa pela corrente
+  else if (c.t <= 30) { const u = (c.t - 14) / 16; o.x = tx; o.y = 40 + Math.sin(u * Math.PI) * 110; o.cineRot = u * Math.PI; }   // ergue e gira por cima
+  if (c.t == 31) { o.y = 0; o.cineRot = 0; FX.shock(o.x); FX.dust(o.x, 0, 20); Audio.sfx('slam', 1, o.x); K.cineHit(a, o, 3, 1); return true; }
+};
+addVersion('crow', { id: 'v0.1', apply(ch) {
+  ch.moves.chain = s => {
+    const up = s == 2, len = S3(s, [165, 205, 175, 215]);
+    return { anim: 'throwk', startup: S3(s, [12, 14, 11, 11]), active: 5, recovery: S3(s, [24, 27, 27, 22]), shout: 'hangingchain', chainVis: 1, chainLen: len, chainUp: up ? 1 : 0,
+      hits: [{ box: up ? [24, 96, 130, 130] : [30, 48, len - 30, 54], dmg: S3(s, [12, 13, 14, 16]), lv: 'SP', cine: 'hchain', onBlock: S3(s, [-7, -9, -10, -4]) }] };
+  };
+} });
+
+</script>
 <script>/* src/data/endings.js */
 // ===== finais do modo arcade (um por lutador) =====
 const ENDINGS = {
@@ -8164,8 +8184,10 @@ const Game = {
     const x0 = f.x + f.face * 34 * f.sz, y0 = f.y + 94 * f.sz;
     if (m && m.chainVis && f.st == 'atk') {
       const k = f.t <= m.e ? Math.min(1, f.t / Math.max(1, m.s)) : Math.max(0, 1 - (f.t - m.e) / 8); if (k <= 0) return;
-      x1 = f.x + f.face * m.grab.range * f.sz * k; y1 = f.y + 74 * f.sz;
+      const len = m.grab ? m.grab.range : m.chainLen || 150, up = m.chainUp ? .7 : 0;   // corrente-golpe (chainLen) pode subir em 45°
+      x1 = f.x + f.face * len * f.sz * k * (up || 1); y1 = f.y + (74 + len * up * k) * f.sz;
     } else if (f.st == 'throw' && f.thr && f.thr.chain) { x1 = o.x; y1 = o.y + 72 * o.sz; }
+    else if (f.st == 'cine' && f.cine && f.cine.type == 'hchain') { x1 = o.x; y1 = o.y + 72 * o.sz; }
     else return;
     const d = Math.hypot(x1 - x0, y1 - y0), n = Math.max(2, Math.floor(d / 9)), ang = Math.atan2(-(y1 - y0), x1 - x0), sag = Math.min(18, d * .08);
     c.save(); c.lineWidth = 2.2;
