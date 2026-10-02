@@ -1666,8 +1666,8 @@ class Fighter {
       if (suProj && !cancel) return isSu ? w : null;
       if (cancel || airCancel) {
         if (isSu) { if (!m.cancel.su || m.super) return null; }
-        else if (isSp) { if (!m.cancel.sp || m.special) return null; }
-        else if (!(m.cancel.chains && m.cancel.chains.includes(w))) return null;
+        else if (isSp) { if (m.cancel.into ? !m.cancel.into.includes(w.split(':')[0]) : (!m.cancel.sp || m.special)) return null; }
+        else if (!(m.cancel.chains && m.cancel.chains.includes(w)) && !(m.cancel.into && m.cancel.into.includes(w))) return null;
       } else if (conv && !isSp && !isSu) return null;
       return w;
     }
@@ -1687,10 +1687,12 @@ class Fighter {
     if (suProj && !cancel) return null;
     // especiais: o comando mais complexo vence; empate → o último passo mais recente
     const canSp = !cancel || m.cancel.sp || m.special;
-    if (canSp && !(cancel && m.special)) {
+    const into = cancel && m.special && m.cancel.into;   // especial que cancela só em certos especiais
+    if (canSp && (!(cancel && m.special) || into)) {
       let best = null, bc = -1, bt = -1;
       for (const sp of ch.specials) {
         if (sp.air == 'only' ? !air : sp.air == 'ok' ? false : air) continue;
+        if (into && !into.includes(sp.id)) continue;
         const b = sp.btn == 'P' ? P : sp.btn == 'K' ? K : Cmd.pressed(this, sp.btn) ? sp.btn : null;
         if (!b) continue;
         const mt = Cmd.motion(this, sp.input, this.in.bt[b]); if (mt == null) continue;
@@ -1704,6 +1706,7 @@ class Fighter {
         return best.id + ':' + s;
       }
     }
+    if (into && into.includes('vskill') && ch.vskill && this.vsOk() && Cmd.comboConv(this, 'mp', 'mk')) return 'vskill';
     if (cancel || airCancel) { const nk = this.normalKey(air); return nk && m.cancel.chains && m.cancel.chains.includes(nk) ? nk : null; }
     if (!air) {
       if (ch.vskill && this.vsOk() && Cmd.comboConv(this, 'mp', 'mk')) return 'vskill';
@@ -3981,8 +3984,9 @@ defChar({
   moves: {
     // Ohm Fodass: Shoryuken dourado
     ohm: s => { const m = Kit.dp({ dmg: [11], vy: [11, 12.5, 14, 14], shout: 'Ohm_Fodass' })(s); m.name = 'Ohm Fodass'; m.fx = 'hamon'; m.fxCol = '#ffd23a'; return m; },
-    // Prumblex: avança em linha reta e solta um soco
-    prumblex: s => Object.assign(Kit.rush({ anim: 'straight', vx: [7, 8.5, 10, 11], dmg: [10, 11, 12, 13], onBlock: -4, shout: 'Prumblex' })(s), { name: 'Prumblex' }),
+    // Prumblex: avança em linha reta e solta um soco; encostando (acerto ou defesa), cancela em Ohm Fodass ou na V-Skill
+    prumblex: s => { const m = Kit.rush({ anim: 'straight', vx: [7, 8.5, 10, 11], dmg: [10, 11, 12, 13], onBlock: -4, shout: 'Prumblex' })(s); m.name = 'Prumblex'; m.cancel = Object.assign({}, m.cancel, { into: ['ohm', 'vskill'] });
+      const h = Object.assign({}, m.hits[0], { box: [0, 10, 56, 76], onHit: 2, push: 1.5 }); delete h.kd; m.hits = [h]; return m; },   // não derruba e bate de perto: o oponente fica em pé ao alcance do cancelamento
     // Trumblex: agarrão de comando com muito dano
     trumblex: s => Object.assign(Kit.cmdGrab({ anim: 'grab', type: 'slam', range: [66, 72, 78, 84], dmg: [22, 24, 26, 29], shout: 'Trumblex' })(s), { name: 'Trumblex' }),
     // ATCHUNPRUMBLEX: abre as asas douradas, voa reto até o oponente e, se pegar, bate de todos os lados
@@ -3990,7 +3994,7 @@ defChar({
       hover: [11, 34], vel: [[7, 10, 2, 9], [11, 34, 12, null]], landEnd: 12, hits: [{ box: [0, -44, 92, 130], dmg: 3, lv: 'SA', cine: 'atchun' }] }),
   },
   // V-Skill Trabuco Dourado: brota do chão embaixo do oponente (aviso brilhando no chão antes) e joga ele pra cima
-  vskill: { anim: 'flex', startup: 14, active: 1, recovery: 22, name: 'TRABUCO DOURADO', shout: 'Trabuco',
+  vskill: { anim: 'flex', airOk: 1, hover: [1, 14], startup: 14, active: 1, recovery: 22, name: 'TRABUCO DOURADO', shout: 'Trabuco',
     proj: { f: 14, atOpp: 1, delay: 16, vx: 0, r: 34, life: 76, activeT: 34, dmg: 9, hs: 22, bs: 12, shape: 'trabuco', snd: 'quake', lv: 'SP', launch: { vy: 11 }, kd: 1, ghost: 1, keep: 1, yOff: 50 } },
   ai: { aa: 'ohm', grab: 'trumblex', enders: ['prumblex'], rush: 1, poke: 'smk', bnb: ['clp', 'cmp'] }
 });
