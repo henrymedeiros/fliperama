@@ -4210,6 +4210,26 @@ addVersion('rodney', { id: 'v0.1', apply(ch) {
 } });
 
 </script>
+<script>/* src/data/versions/kazan.js */
+// ===== KAZAN v0.1 =====
+addVersion('kazan', { id: 'v0.1', apply(ch) {
+  // Electric Wind God Fist: fraco sai parado, médio avança um pouco, forte avança mais.
+  // Se pegar alguém no ar, ele sobe e cai devagar: dá pra emendar outro EWGF ou o Spinning Demon (fraco ou EX)
+  const ewgf = ch.moves.ewgf;
+  ch.moves.ewgf = s => {
+    const m = ewgf(s), vx = S3(s, [0, 3, 5.5, 4]);
+    if (vx) m.vel = [[1, m.startup + 2, vx, null]];
+    m.hits = m.hits.map(h => { const r = Object.assign({}, h, { kd: 'soft', airLaunch: { vy: 8, vx: .5, float: .55 }, jSet: 0 }); delete r.launch; return r; });
+    return m;
+  };
+  // Hell Sweep como no Tekken: projeta o Kazan pra frente rente ao chão (passa por baixo de projéteis) acertando baixo
+  const hs = ch.moves.hellsweep;
+  ch.moves.hellsweep = s => { const m = hs(s); m.vel = [[2, m.startup + 2, S3(s, [6, 7, 8, 8]), null]]; m.hurtShape = 'flat'; m.inv = Object.assign({}, m.inv, { proj: [1, m.startup + m.active + 8] }); return m; };
+  // Devil Blaster com menos acertos e o mesmo dano total (dá pra aparar)
+  beamFewerHits(ch);
+} });
+
+</script>
 <script>/* src/data/endings.js */
 // ===== finais do modo arcade (um por lutador) =====
 const ENDINGS = {
