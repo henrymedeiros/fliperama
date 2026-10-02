@@ -4410,6 +4410,19 @@ addVersion('yura', { id: '1.0.0', apply(ch) {
   ch.moves.shiku = s => { const m = shiku(s); m.follow = [{ btn: 'K', key: 'yk1', from: 6, to: 60, onHit: 1 }]; return m; };
 } });
 
+// ===== YURA 1.1.0 =====
+addVersion('yura', { id: '1.1.0', apply(ch) {
+  // Tensenrin como no SFV/SF6: roda de cata-vento (gira de ponta-cabeça em espacate, com um anel de rastro), não mais um giro horizontal.
+  // Fraco: roda pra frente rente ao chão, chutando · Médio e forte: sobem em diagonal (anti-aéreo) · EX: invencível no começo
+  ch.moves.rrk = s => {
+    const st = S3(s, [7, 8, 9, 6]), n = S3(s, [3, 3, 4, 4]);
+    const vel = s == 0 ? [[st, st + 14, 5.5, null]] : [[st, st, S3(s, [0, 3.2, 2.6, 3]), S3(s, [0, 9.5, 11.5, 11.5])]];
+    return { anim: 'tensen', roll: .84, ring: 96, name: 'Tensenrin', shout: 'fuharenkyaku', startup: st, active: s == 0 ? 16 : 20, recovery: s == 0 ? 14 : 0, landEnd: s == 0 ? undefined : 12,
+      vel, inv: s == 3 ? { strike: [1, 10], throw: [1, 10] } : {},
+      hits: multi(n, st, s == 0 ? 5 : 4, 2, { box: [-20, s == 0 ? 10 : 40, 100, s == 0 ? 110 : 100], dmg: S3(s, [3.6, 4, 3.4, 3.4]), lv: 'SP', hs: 18, bs: 8, lastKd: 1 }) };
+  };
+} });
+
 </script>
 <script>/* src/data/versions/kongo.js */
 // ===== KONGO 1.0.0 =====
