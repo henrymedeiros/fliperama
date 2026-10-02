@@ -2117,6 +2117,7 @@ const Combat = {
     touch(1);
     if (h.meterGain && !proj) a.meter = Math.min(METER_MAX, a.meter + h.meterGain);
     a.meter = Math.min(METER_MAX, a.meter + (proj ? 4 : L.meter + (m && m.special ? 2 : 0))); o.meter = Math.min(METER_MAX, o.meter + 3);
+    if (h.meterSteal && !proj) { const st = Math.min(o.meter, h.meterSteal); o.meter -= st; a.meter = Math.min(METER_MAX, a.meter + st); if (st > 0) FX.text('-' + Math.round(st) + ' EX', o.x, o.y + 160, '#6cf'); }   // rouba barra
     if (out.ctr == 'punish') { FX.banner('PUNISH COUNTER', a.i, '#f6a'); Audio.sfx('counter', 1.3, px); }
     else if (out.ctr) { FX.banner('COUNTER', a.i, '#f84'); Audio.sfx('counter', 1, px); }
     if (!M.firstHit) { M.firstHit = a.i + 1; FX.banner('FIRST ATTACK', a.i, '#ff6a3a'); }
@@ -4142,6 +4143,16 @@ addVersion('goen', { id: 'v0.1', apply(ch) {
 addVersion('optik', { id: 'v0.1', apply(ch) {
   // Optic Blast (alto, baixo, aéreo) e o super com menos acertos e o mesmo dano total: dá pra aparar
   beamFewerHits(ch);
+} });
+
+</script>
+<script>/* src/data/versions/genoma.js */
+// ===== GENOMA v0.1 =====
+addVersion('genoma', { id: 'v0.1', apply(ch) {
+  // Kamehameha e o super com menos acertos e o mesmo dano total: dá pra aparar
+  beamFewerHits(ch);
+  // V-Skill Absorção: no acerto rouba 1 barra de EX do oponente (em vez de vida)
+  ch.vskill = Object.assign({}, ch.vskill, { hits: ch.vskill.hits.map(h => { const r = Object.assign({}, h, { meterSteal: EX_COST }); delete r.drain; return r; }) });
 } });
 
 </script>
