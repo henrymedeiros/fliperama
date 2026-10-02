@@ -7440,7 +7440,13 @@ Object.assign(Menus, {
       });
       this.hint(c, '←→ alterar · Soco Médio / Esc voltar'); return;
     }
-    if (g.showMoves) {
+    if (g.showMoves) { this.drawMoves(c); return; }
+    gradText(c, 'PAUSA', W / 2, 100, 64, '#fff', '#9cf');
+    { const it = this.pauseItems(), h = Math.min(44, Math.floor((H - 150) / it.length) - 8); this.list(c, it.map(i => i[0]), W / 2 - 230, 124, g.idx, 460, h, Math.min(28, Math.round(h * .62))); }
+  },
+  // lista de golpes dos dois lutadores (pausa e menu do treino online)
+  drawMoves(c) {
+    {
       this.header(c, 'LISTA DE GOLPES');
       M.f.forEach((f, i) => {
         const x = i ? 492 : 28; txt(c, f.ch.name, x, 118, 30, f.ch.aura, 'left', 4);
@@ -7450,14 +7456,12 @@ Object.assign(Menus, {
       c.fillStyle = 'rgba(0,0,0,.6)'; c.fillRect(0, H - 88, W, 60);
       ui(c, 'EX: especial com 2 botões ou L1/L2 no controle (1 barra) · SUPER: comando + 2 barras · ARREMESSO: Soco Fraco + Chute Fraco', W / 2, H - 66, 14, '#ffd21e', 'center', 3);
       ui(c, 'PARRY: toque → (↓ em golpe baixo) no impacto · ↓ + Soco Forte no contra-ataque/punição/anti-aéreo LANÇA: emende especial, EX ou super no ar', W / 2, H - 44, 14, '#ddd', 'center', 3);
-      return;
     }
-    gradText(c, 'PAUSA', W / 2, 100, 64, '#fff', '#9cf');
-    { const it = this.pauseItems(), h = Math.min(44, Math.floor((H - 150) / it.length) - 8); this.list(c, it.map(i => i[0]), W / 2 - 230, 124, g.idx, 460, h, Math.min(28, Math.round(h * .62))); }
   },
   drawTMenu(c) {
     const g = Game, it = g.tItems();
     c.fillStyle = 'rgba(0,0,10,.7)'; c.fillRect(0, 0, W, H);
+    if (g.tmoves) { c.fillStyle = 'rgba(0,0,10,.85)'; c.fillRect(0, 0, W, H); this.drawMoves(c); this.hint(c, 'Esc / Enter / Soco Médio voltar ao menu — a luta continua por trás (você fica parado)'); return; }
     gradText(c, 'TREINO ONLINE', W / 2, 96, 52, '#fff', '#3cf');
     this.list(c, it.map(i => i[0]), W / 2 - 240, 126, g.tIdx || 0, 480, 46, 24);
     this.hint(c, '↑↓ escolher · ←→ / Enter alterar · Esc fechar — a luta continua por trás (você fica parado)');
@@ -7815,7 +7819,7 @@ const Game = {
   },
   startOnline(c0, c1, stageId) {
     this.mode = 'online'; this.attract = false; this.quitAsk = false; this.forfeitMsg = '';
-    this.tmenu = false;
+    this.tmenu = false; this.tmoves = false;
     Stage.set(stageId); Match.create(c0, c1, stageId, { mode: Room.train ? 'training' : 'online', tcfg: Room.train ? Object.assign({ hp: true, meter: true }, Room.tcfg) : null, ctrl: ['human', 'human'], pal: [0, c0 == c1 ? 1 : 0], simple: (Room.simple || [false, false]).map(Boolean) });
     Voice.preload(CHARS[c0].id + '/'); Voice.preload(CHARS[c1].id + '/');
     M.f.forEach((f, i) => f.netName = memberName(Room.fighters[i]));
@@ -7824,11 +7828,12 @@ const Game = {
   },
   tItems() {
     const c = Room.tcfg || { hp: true, meter: true };
-    return [['VIDA: ' + (c.hp ? 'RECARREGA' : 'NORMAL'), 'hp'], ['BARRA DE SUPER: ' + (c.meter ? 'SEMPRE CHEIA' : 'NORMAL'), 'meter'], ['RESETAR POSIÇÕES', 'reset'], ['TROCAR PERSONAGEM', 'select'], ['SAIR DA SALA', 'quit'], ['FECHAR MENU', 'close']];
+    return [['VIDA: ' + (c.hp ? 'RECARREGA' : 'NORMAL'), 'hp'], ['BARRA DE SUPER: ' + (c.meter ? 'SEMPRE CHEIA' : 'NORMAL'), 'meter'], ['LISTA DE GOLPES', 'moves'], ['RESETAR POSIÇÕES', 'reset'], ['TROCAR PERSONAGEM', 'select'], ['SAIR DA SALA', 'quit'], ['FECHAR MENU', 'close']];
   },
   // menu do treino online (só o anfitrião); devolve true se saiu da luta
   tmenuUpdate() {
     const mi = menuInput(0, true), it = this.tItems(), n = it.length;
+    if (this.tmoves) { if (mi.back || mi.ok) { this.tmoves = false; Audio.sfx('back'); } return false; }   // lista de golpes aberta: qualquer confirmação volta ao menu
     if (mi.u) { this.tIdx = (this.tIdx + n - 1) % n; Audio.sfx('move'); } if (mi.d) { this.tIdx = (this.tIdx + 1) % n; Audio.sfx('move'); }
     if (mi.back) { this.tmenu = false; Audio.sfx('back'); return false; }
     const id = it[this.tIdx][1], c = Room.tcfg || { hp: true, meter: true };
@@ -7837,6 +7842,7 @@ const Game = {
     switch (id) {
       case 'hp': Net.trainSet({ hp: !c.hp, meter: c.meter }); break;
       case 'meter': Net.trainSet({ hp: c.hp, meter: !c.meter }); break;
+      case 'moves': this.tmoves = true; break;
       case 'reset': Net.trainSet({ reset: true }); this.tmenu = false; break;
       case 'select': this.tmenu = false; Net.active = false; Net.hostStartSelect(); return true;
       case 'quit': this.tmenu = false; Net.close(); this.netMsg = 'Você saiu da sala.'; this.go('online'); Music.play('select'); return true;
@@ -7876,7 +7882,7 @@ const Game = {
   fightUpdate() {
     const [a, b] = M.f;
     if (this.mode == 'online') {
-      if (M.training && Net.role == 'host') { if (this.escEdge) { this.tmenu = !this.tmenu; this.tIdx = 0; this.quitAsk = false; menuInput(0, true); } else if (this.tmenu && this.tmenuUpdate()) return; }
+      if (M.training && Net.role == 'host') { if (this.escEdge && this.tmoves) { this.tmoves = false; Audio.sfx('back'); } else if (this.escEdge) { this.tmenu = !this.tmenu; this.tIdx = 0; this.quitAsk = false; menuInput(0, true); } else if (this.tmenu && this.tmenuUpdate()) return; }
       else if (this.escEdge) this.quitAsk = !this.quitAsk;
       if (this.quitAsk && Input.held('Enter')) { Net.close(); this.quitAsk = false; this.netMsg = 'Você saiu da sala.'; this.go('online'); Music.play('select'); return; }
       Net.tick(); this.visual(); return;
