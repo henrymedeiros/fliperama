@@ -4197,6 +4197,19 @@ addVersion('goro', { id: 'v0.1', apply(ch) {
 } });
 
 </script>
+<script>/* src/data/versions/rodney.js */
+// ===== RODNEY v0.1 =====
+addVersion('rodney', { id: 'v0.1', apply(ch) {
+  // Buffalo Headbutt fraco como anti-aéreo: quem está no ar sobe e cai devagar, e dá pra emendar outro Headbutt ou o Dash Punch (juggle)
+  const buff = ch.moves.buff;
+  ch.moves.buff = s => {
+    const m = buff(s); if (s != 0) return m;
+    m.hits = m.hits.map(h => { const r = Object.assign({}, h, { airLaunch: { vy: 10.5, vx: .3, float: .5 }, jSet: 0 }); delete r.launch; return r; });
+    return m;
+  };
+} });
+
+</script>
 <script>/* src/data/endings.js */
 // ===== finais do modo arcade (um por lutador) =====
 const ENDINGS = {
