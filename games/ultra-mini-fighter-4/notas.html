@@ -113,6 +113,11 @@ const TYPES = { buff: ['Buff', 'var(--buff)'], nerf: ['Nerf', 'var(--nerf)'], re
 const C = s => `<span class="cmd">${s}</span>`;
 // notas por lançamento (o mais novo primeiro). Lutador: [id do retrato, nome, [[tipo, mudança], ...], versão do lutador (padrão: a do lançamento)]
 const RELEASES = [{
+  id: 'jasper-1.2.0', title: 'Jasper 1.2.0', kind: 'Ajuste de personagem', date: '2026-10-02',
+  chars: [
+    ['vorhas', 'Jasper', [['rework', 'V-Skill nova: Facão Arremessado (no lugar do Implacável). Joga o facão num arco; se acertar, machuca. Se errar, ele fica cravado no chão por uns segundos (só 1 por vez).'], ['buff', 'Passando por cima do facão cravado, o Jasper pega de volta e a próxima investida (↓↘→ + Soco) ou agarrão de comando bate 30% mais forte.']], '1.2.0'],
+  ]
+}, {
   id: 'ajustes-1.1.0', title: 'Ajustes', kind: 'Ajuste de personagens', date: '2026-10-02',
   chars: [
     ['colt', 'Colt', [['nerf', 'Solid Puncher (V-Skill): só 1 na tela por vez. Continua dando pra ter 1 Solid Puncher e 1 Sonic Boom ao mesmo tempo.']], '1.1.0'],
