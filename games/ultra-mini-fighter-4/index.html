@@ -4270,6 +4270,27 @@ addVersion('gunter', { id: 'v0.1', apply(ch) {
 } });
 
 </script>
+<script>/* src/data/versions/roko.js */
+// ===== ROKO v0.1 =====
+addVersion('roko', { id: 'v0.1', apply(ch) {
+  // ↓↘→ + Soco vira o LANÇA-CHAMAS (curto alcance, como o do Alek e do Joe); o Mega Buster passa pra carga ←→ + Soco
+  ch.specials = ch.specials.filter(s => s.id != 'charge').map(s => s.id == 'buster' ? Object.assign({}, s, { input: '[4]6' }) : s);
+  ch.specials.push({ id: 'flamer', input: '236', btn: 'P', name: 'Lança-Chamas' });
+  ch.moves.flamer = s => ({ anim: 'buster', name: 'Lança-Chamas', fx: 'fire', startup: 12, active: 16, recovery: S3(s, [20, 20, 20, 18]),
+    proj: { f: 12, vx: S3(s, [.8, 1.2, 1.6, 1.8]), r: 28, life: S3(s, [20, 24, 28, 28]), dmg: 3, hits: s == 3 ? 4 : 3, gap: 7, shape: 'flame', col: '#ff6a1a', glow: '#ffe08a', yOff: 92, ahead: 34, hs: 20, bs: 10, lv: 'SP' } });
+  // Charge Shot vira a V-Skill: segurando Soco Médio + Chute Médio carrega (mais acertos, mais dano, tiro maior)
+  const shot = (hits, r, dmg) => ({ f: 10, vx: 8, r, life: 120, dmg, hits, gap: 6, hs: 22, bs: 12, col: '#6af0ff', glow: '#e0ffff', lv: 'SP', yOff: 92 });
+  ch.vskill = { anim: 'buster', name: 'CHARGE SHOT', startup: 10, active: 1, recovery: 22, proj: shot(1, 18, 7),
+    hold: { f: 5, max: 60, btn: ['mp', 'mk'], lv: [{ t: 20, apply: m => { m.proj = shot(2, 24, 6); return m; } }, { t: 45, apply: m => { m.proj = shot(3, 32, 5.5); m.proj.kd = 1; return m; } }] } };
+  // Rush Coil com efeito de fogo
+  const coil = ch.moves.coil;
+  ch.moves.coil = s => { const m = coil(s); m.fx = 'fire'; return m; };
+  // Hyper Mega Buster com menos acertos e o mesmo dano total (dá pra aparar)
+  beamFewerHits(ch);
+  ch.ai = Object.assign({}, ch.ai, { enders: ['flamer', 'buster'] });
+} });
+
+</script>
 <script>/* src/data/endings.js */
 // ===== finais do modo arcade (um por lutador) =====
 const ENDINGS = {
