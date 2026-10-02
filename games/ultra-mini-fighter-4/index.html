@@ -4257,7 +4257,7 @@ addVersion('kori', { id: 'v0.1', apply(ch) {
 addVersion('legion', { id: 'v0.1', apply(ch) {
   // Teleporte no ar (↓↙← + Chute no pulo ou levitando): some, reaparece na mesma altura (fraco na frente, médio/forte atrás) e cai
   ch.specials.push({ id: 'atele', input: '214', btn: 'K', air: 'only', name: 'Teleporte Aéreo' });
-  ch.moves.atele = s => ({ anim: 'tele', air: 1, startup: 99, dur: 30, inv: { strike: [1, 22], throw: [1, 22], proj: [1, 22] }, ghost: 1, fade: [3, 18], hover: [1, 22], tele: { f: 11, behind: s >= 1, front: s == 0 } });
+  ch.moves.atele = s => ({ anim: 'tele', name: 'Teleporte Aéreo', air: 1, startup: 99, dur: 30, inv: { strike: [1, 22], throw: [1, 22], proj: [1, 22] }, ghost: 1, fade: [3, 18], hover: [1, 22], tele: { f: 11, behind: s >= 1, front: s == 0 } });
 } });
 
 </script>
