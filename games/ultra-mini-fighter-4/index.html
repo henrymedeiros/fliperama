@@ -7338,7 +7338,7 @@ const Menus = {
       if (mi.ok || mi.hp || mi.hk) {
         const rnd = g.sel[slot] >= CHARS.length;
         if (rnd) g.sel[slot] = Math.random() * CHARS.length | 0;   // aleatório
-        g.pal[slot] = mi.hk ? 3 : mi.hp ? 2 : mi.lk ? 1 : 0; g.pal[slot] %= CHARS[g.sel[slot]].palettes.length;
+        g.pal[slot] = mi.hk ? 3 : mi.hp ? 2 : 0; g.pal[slot] %= CHARS[g.sel[slot]].palettes.length;
         g.ver[slot] = g.mode == 'trials' ? 'base' : newestVer(g.sel[slot]);
         if (!rnd && g.mode != 'trials' && versionsOf(g.sel[slot]).length > 1) { g.vpick[slot] = true; Audio.sfx('select'); return; }   // escolhe a versão antes de ficar pronto
         g.ready[slot] = true; Audio.sfx('select'); Audio.say('n_' + CHARS[g.sel[slot]].id); if (online) this.netSel(slot, g.sel[slot], true); }
@@ -7901,7 +7901,7 @@ Object.assign(Menus, {
       });
     }
     const meS = online ? Room.fighters.indexOf(Net.id) : 0;
-    const tip = g.vpick.some(Boolean) ? 'VERSÃO DO LUTADOR: ←→ trocar · confirmar com qualquer soco/chute fraco ou forte · Soco Médio / Esc voltar' : g.mode == 'training' && g.ready[0] && !g.ready[1] ? 'Escolha o BONECO de treino' : online && meS < 0 ? 'Você está na fila — assistindo à escolha · Esc sai da sala' : online && g.ready[meS] ? 'Aguardando o rival...' : '←→↑↓ escolher · cor: Soco Fraco / Chute Fraco / Soco Forte / Chute Forte · Esc voltar';
+    const tip = g.vpick.some(Boolean) ? 'VERSÃO DO LUTADOR: ←→ trocar · confirmar com qualquer soco/chute fraco ou forte · Soco Médio / Esc voltar' : g.mode == 'training' && g.ready[0] && !g.ready[1] ? 'Escolha o BONECO de treino' : online && meS < 0 ? 'Você está na fila — assistindo à escolha · Esc sai da sala' : online && g.ready[meS] ? 'Aguardando o rival...' : '←→↑↓ escolher · cor: Soco ou Chute Fraco / Soco Forte / Chute Forte · Esc voltar';
     this.hint(c, tip);
   },
   thumbs: null,
