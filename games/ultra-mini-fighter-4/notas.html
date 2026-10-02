@@ -113,6 +113,13 @@ const TYPES = { novo: ['Novo', 'var(--novo)'], buff: ['Buff', 'var(--buff)'], ne
 const C = s => `<span class="cmd">${s}</span>`;
 // notas por lançamento (o mais novo primeiro). Lutador: [id do retrato, nome, [[tipo, mudança], ...], versão do lutador (padrão: a do lançamento)]
 const RELEASES = [{
+  id: 'jasper-1.3.0', title: 'Jasper 1.3.0', kind: 'Ajuste de personagem', date: '2026-10-02',
+  chars: [
+    ['vorhas', 'Jasper', [['rework', `Super Noite no Acampamento (${C('↓↘→↓↘→ + Soco')}) não é mais agarrão: ele avança com o facão e, acertando, prende o oponente numa sequência de cortes.`],
+      ['buff', `A Investida (${C('↓↘→ + Soco')}) que encosta cancela no super, então agora dá combo.`],
+      ['buff', 'Com o facão pego de volta, a investida turbinada (+30%) que cancela no super passa o bônus pro super, que também bate 30% mais forte.']], '1.3.0'],
+  ]
+}, {
   id: 'markito', title: 'Novo lutador', kind: 'Markito Dourado', date: '2026-10-02',
   chars: [
     ['markito', 'Markito Dourado', [['novo', 'O 44º lutador: brutamontes de ouro, agarrador. Ainda só tem a Base.'],
