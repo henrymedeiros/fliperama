@@ -37,25 +37,45 @@ h1{margin:0;font:400 clamp(30px,7vw,56px)/1.05 var(--display);color:#fff3d6;lett
 .how p{margin:0}
 .how p+p{margin-top:8px}
 .how b{color:var(--ink)}
-.release{margin-top:34px}
+
+/* barra de filtros: fica presa no topo enquanto rola */
+.filters{position:sticky;top:0;z-index:5;margin-top:26px;background:rgba(12,10,18,.88);backdrop-filter:blur(10px);border-block:1px solid var(--line)}
+.filters .in{display:flex;flex-wrap:wrap;gap:10px 12px;align-items:center;padding-block:12px}
+.filters .lbl{font:500 12px/1 var(--mono);color:var(--dim);letter-spacing:.06em;text-transform:uppercase}
+.types{display:flex;flex-wrap:wrap;gap:6px}
+.filter{display:inline-flex;align-items:center;gap:7px;font:500 14px/1 var(--body);color:var(--dim);background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:8px 13px;cursor:pointer}
+.filter i{width:9px;height:9px;border-radius:50%;background:var(--c,var(--coin))}
+.filter:hover{color:var(--ink)}
+.filter[aria-pressed="true"]{color:var(--bg);background:var(--c,var(--coin));border-color:transparent}
+.filter[aria-pressed="true"] i{background:var(--bg)}
+.filter b{font:600 12px/1 var(--mono);opacity:.85}
+.search{flex:1 1 180px;min-width:0;position:relative}
+.search input{width:100%;font:500 14px var(--body);color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:9px 12px 9px 34px}
+.search input::placeholder{color:var(--dim)}
+.search svg{position:absolute;left:11px;top:50%;translate:0 -50%;width:15px;height:15px;color:var(--dim)}
+
+.release{margin-top:28px}
 .rhead{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 14px;border-bottom:1px solid var(--line);padding-bottom:12px}
 .rhead h2{margin:0;font:400 26px/1.1 var(--display);color:var(--ink);letter-spacing:.02em}
 .kind{font:600 12px/1 var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--bg);background:var(--coin);border-radius:6px;padding:6px 8px}
 .date{font:500 13px var(--mono);color:var(--dim)}
-.summary{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 4px}
-.filter{font:500 13px/1 var(--body);color:var(--dim);background:transparent;border:1px solid var(--line);border-radius:999px;padding:8px 12px;cursor:pointer}
-.filter:hover{color:var(--ink)}
-.filter[aria-pressed="true"]{color:var(--bg);background:var(--c,var(--coin));border-color:transparent}
-.filter b{font-weight:600}
 .list{display:grid;gap:12px;margin-top:16px}
-.char{background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--c);border-radius:12px;padding:14px 16px}
-.char h3{margin:0;display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;font:600 18px/1.2 var(--body)}
+.char{display:grid;grid-template-columns:76px 1fr;gap:14px;background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--c);border-radius:12px;padding:14px 16px}
+.char img{width:76px;height:76px;border-radius:10px;border:2px solid var(--c);background:var(--panel-2);display:block}
+.char h3{margin:0;display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;font:600 19px/1.2 var(--body)}
 .tag{font:600 11px/1 var(--mono);letter-spacing:.06em;text-transform:uppercase;border-radius:5px;padding:5px 7px;color:var(--bg);background:var(--c)}
-.char ul{margin:10px 0 0;padding-left:1.15em;display:grid;gap:6px;color:#d9d1ea}
-.char li::marker{color:var(--c)}
+.char ul{margin:10px 0 0;padding:0;list-style:none;display:grid;gap:7px;color:#d9d1ea}
+.char li{display:grid;grid-template-columns:auto 1fr;gap:9px;align-items:baseline}
+.char li .tag{font-size:10px;padding:4px 6px;min-width:58px;text-align:center}
 .cmd{font:500 .92em var(--mono);color:var(--ink);background:var(--panel-2);border:1px solid var(--line);border-radius:5px;padding:1px 5px;white-space:nowrap}
 .empty{color:var(--dim)}
 footer{padding-block:40px 56px;color:var(--dim);font-size:14px}
+@media (max-width:560px){
+  .char{grid-template-columns:52px 1fr;gap:11px;padding:12px}
+  .char img{width:52px;height:52px}
+  .char li{grid-template-columns:1fr;gap:3px}
+  .char li .tag{justify-self:start}
+}
 </style>
 </head>
 <body>
@@ -72,69 +92,101 @@ footer{padding-block:40px 56px;color:var(--dim);font-size:14px}
     <p><b>Como funcionam as versões.</b> O jogo base continua melhorando, e cada lutador pode ganhar iterações (v0.1, v0.2…). Na seleção de personagem, depois de escolher um lutador que tem mais de uma versão, use <span class="cmd">← →</span> pra escolher entre a <b>Base</b> e a versão nova, e confirme. A mais nova já vem marcada, e é a que a CPU usa.</p>
     <p>Online, cada jogador escolhe a versão do próprio lutador e os dois jogam com as mesmas escolhas. Os desafios de combo continuam usando a Base.</p>
   </div>
+</div>
+<div class="filters">
+  <div class="wrap in">
+    <span class="lbl">Filtrar</span>
+    <div class="types" id="types" role="group" aria-label="Filtrar por tipo de mudança"></div>
+    <label class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+      <input id="q" type="search" placeholder="Buscar lutador ou golpe" aria-label="Buscar lutador ou golpe"></label>
+  </div>
+</div>
+<div class="wrap">
   <div id="releases"></div>
   <footer>Patches de personagem (como a v0.1) mudam lutadores; patches gerais mudam mecânicas e qualidade de vida pra todo mundo.</footer>
 </div>
 <script>
-// tipos de mudança
+// tipos de mudança (cada item de cada lutador tem um)
 const TYPES = { buff: ['Buff', 'var(--buff)'], nerf: ['Nerf', 'var(--nerf)'], rework: ['Rework', 'var(--rework)'], ajuste: ['Ajuste', 'var(--ajuste)'] };
-// notas por versão (a mais nova primeiro). Em cada lutador: tipos (o primeiro é o principal) e as mudanças.
+const C = s => `<span class="cmd">${s}</span>`;
+// notas por versão (a mais nova primeiro). Lutador: [id do retrato, nome, [[tipo, mudança], ...]]
 const RELEASES = [{
   id: 'v0.1', title: 'v0.1', kind: 'Patch de personagens', date: '2026-10-02',
   chars: [
-    ['Altair', ['buff', 'ajuste'], ['Garra com mais alcance em todos os socos (cerca de +20).', 'Deslize agora sai com <span class="cmd">↘ + Chute Forte</span> (antes ↘ + Soco Forte).']],
-    ['Colt', ['buff'], ['Solid Puncher (V-Skill) não conta mais no limite de projéteis: dá pra ter ele e um Sonic Boom na tela ao mesmo tempo (nunca dois Sonic Booms).', 'Flash Kick com mais alcance e mais dano.']],
-    ['Crow', ['rework'], ['Hanging Chain virou golpe como no SFV: dá pra defender e aparar (antes era agarrão).', 'Fraco e médio vão retos e alcançam mais; o forte sobe em 45° como anti-aéreo (quem está no ar não defende, mas pode aparar).', 'Se acertar, a corrente enrola, puxa e bate o oponente no chão.']],
-    ['Falko', ['rework'], ['Show Me Your Moves agora só bufa golpes "Falcon" (Falcon Punch, Falcon Kick no chão e no ar, Raptor Boost e Falcon Dive).', 'O bônus some se o Falko apanhar antes de usar.', 'Com o bônus guardado, segurar o Falcon Punch carrega um soco que não dá pra defender.']],
-    ['Genoma', ['rework'], ['Absorção (V-Skill) rouba 1 barra de EX do oponente no acerto, em vez de vida.', 'Kamehameha e o super com menos acertos e o mesmo dano total: dá pra aparar.']],
-    ['Goen', ['nerf', 'ajuste'], ['Carregar Ki não enche mais segurando: cada uso dá 1/9 da barra (3 usos = 1/3 da barra de super).', 'Masenko, Kamehameha aéreo e super com menos acertos e o mesmo dano total: dá pra aparar.']],
-    ['Goro', ['rework'], ['Lariat como o do Zangief: gira de braços abertos.', '<span class="cmd">↓↘→ + Soco</span> virou a Mão Verde (Banishing Flat): avança com a palma brilhando, apaga projéteis e derruba.', 'Músculo de Ferro como no SFV: tocar = armadura rápida; segurar = anda devagar pra frente aguentando até 3 golpes.']],
-    ['Groove', ['buff'], ['Machine Gun Upper EX joga o oponente mais alto e ele cai devagar: dá pra emendar o Double Rolling Sobat ou o Air Slasher.', 'Mergulho novo: <span class="cmd">↓ + Chute</span> no ar, ângulo mais aberto com a força.']],
-    ['Gunter', ['rework'], ['Giant Palm Bomber agora é <span class="cmd">↓↙← + Soco</span> (antes ↓↘→).', 'V-Skill nova: Joelho Gigante (o golpe único do Hugo no SF4). Salta pra frente por cima de projéteis e desce com uma joelhada que acerta alto (overhead).']],
-    ['Jasper', ['buff'], ['Soco Forte em pé: segurando o botão um tempo, vira um golpe que não dá pra defender, bate mais forte e derruba.']],
-    ['Joe', ['rework'], ['Clacker agora é <span class="cmd">↓↙← + Soco</span> e o Corte Hamon é <span class="cmd">↓↘→ + Soco</span> (invertidos).', 'Overdrive com 3 ângulos pela força: fraco = rasteira deslizando (baixo), médio = chute reto, forte = chute alto anti-aéreo.']],
-    ['Kai', ['buff'], ['Solar Plexus (→ + Soco Forte) avança mais, o soco alcança mais e cancela em especial ou super nos dois acertos.']],
-    ['Kaiser', ['buff'], ['Psycho Crusher cancela em super: ele pousa e solta o super.', 'Chute Tesoura passa por cima de projéteis enquanto está no ar.']],
-    ['Kazan', ['buff'], ['Electric Wind God Fist: fraco sai parado, médio avança um pouco, forte avança mais. Se pegar alguém no ar, o oponente cai devagar e dá pra emendar outro EWGF ou o Spinning Demon (fraco ou EX).', 'Hell Sweep como no Tekken: projeta o Kazan pra frente rente ao chão, passando por baixo de projéteis, acertando baixo.', 'Devil Blaster com menos acertos e o mesmo dano total.']],
-    ['Kongo', ['rework'], ['Super novo: Tapas na Selva. Não é mais agarrão; são vários tapas no chão em volta, emenda depois de especial e lança no fim.', 'O agarrão de comando continua.', 'Kong Giratório agora é <span class="cmd">3 Socos juntos</span> (como o Lariat).', 'Tapa no Chão agora é <span class="cmd">↓↘→ + Soco</span>.', 'Saiu o Soco Gigante.', 'Bater no Peito não enche mais segurando: cada uso dá 1/9 da barra (3 usos = 1/3).']],
-    ['Kori', ['ajuste'], ['Slide agora é <span class="cmd">↓↘→ + Chute</span> (antes ↓↙←).']],
-    ['Legion', ['buff'], ['Teleporte no ar (<span class="cmd">↓↙← + Chute</span> no pulo), também durante a levitação.']],
-    ['Mei', ['buff'], ['Pernas Relâmpago quase não empurram no acerto: o oponente fica no lugar e leva todos os chutes.']],
-    ['Nervo', ['rework', 'buff'], ['Comandos como os do Necro no SF3: Tornado Hook <span class="cmd">←↙↓↘→ + Soco</span>, Flying Viper <span class="cmd">↓↙← + Soco</span>, Snake Fang (agarrão baixo) <span class="cmd">←↙↓↘→ + Chute</span>.', 'A descarga dos 3 socos (Cobra Elétrica) agora é <span class="cmd">↓↙← + Chute</span>.', 'Novo: Electric Shock (<span class="cmd">→↓↘ + Soco</span>), anti-aéreo elétrico que sobe.', 'Novo: Drill Kick no ar (<span class="cmd">↓ + Chute</span>), ângulo muda com a força.', 'Tempestade Magnética quase não empurra no acerto.']],
-    ['Optik', ['ajuste'], ['Optic Blast (alto, baixo e aéreo) e o super com menos acertos e o mesmo dano total: dá pra aparar.']],
-    ['Ravi', ['buff'], ['Golpes no ar alcançam bem mais.', '<span class="cmd">↓ + Soco</span> e <span class="cmd">↓ + Chute</span> no ar com 3 ângulos pela força (fraco quase vertical, forte mais aberto).', 'Teleporte no ar (<span class="cmd">→↓↘ + Soco</span> no pulo), também levitando.']],
-    ['Rodney', ['buff'], ['Buffalo Headbutt fraco como anti-aéreo deixa emendar outro Headbutt ou o Dash Punch.']],
-    ['Roko', ['rework'], ['<span class="cmd">↓↘→ + Soco</span> virou um lança-chamas de curto alcance (como o do Alek e do Joe).', 'O Mega Buster foi pra carga <span class="cmd">(segure ←) → + Soco</span>.', 'Charge Shot virou a V-Skill: segurando, carrega até 3 acertos, com mais dano e tiro maior.', 'Rush Coil com efeito de fogo.', 'Hyper Mega Buster com menos acertos e o mesmo dano total.']],
-    ['Shiro', ['buff', 'rework'], ['Super novo: Dança das Samambaias (<span class="cmd">↓↙←↓↙← + Soco</span>, 2 barras). Uma fileira de ossos sai do chão na frente dele, lança e deixa emendar um especial (combo e anti-aéreo).', 'Dança do Lariço dura mais e alcança mais; tudo cresce com a força (fraco mais rápido e menor). No ar, joga o oponente pra cima e deixa emendar.', 'V-Skill nova: Corrente de Osso. Puxa o oponente pra perto mesmo se ele defender; no acerto deixa emendar combo.']],
-    ['Valerius', ['rework', 'buff'], ['Super novo: Dominant Crush (o do Urien no SFV) no lugar do Aegis Reflector.', 'Chariot Tackle que pega alguém no ar deixa o oponente caindo devagar: dá pra emendar o super.', 'Metallic Sphere como no SFV: fraco reto e lento, médio reto e rápido, forte sobe em 45°. Segurando o soco, carrega uma esfera maior com 2 acertos.', 'A Aura Metálica (V-Skill com armadura e pele escura) já estava na Base.']],
-    ['Yura', ['rework'], ['<span class="cmd">↓↙← + Chute</span> virou o Tensenrin: sobe girando com chutes (anti-aéreo e final de combo).', 'V-Skill nova: Machado da Aranha, um overhead (acerta quem defende agachado) que deixa continuar o combo.', 'Chute mergulho: se acertar, apertar Chute de novo emenda mais chutes, até 5 no total.']],
-    ['Zago', ['buff'], ['Choque Elétrico quase não empurra no acerto: o oponente fica perto pro combo.']],
+    ['altair', 'Altair', [['buff', 'Garra com mais alcance em todos os socos (cerca de +20).'], ['ajuste', `Deslize agora sai com ${C('↘ + Chute Forte')} (antes ↘ + Soco Forte).`]]],
+    ['colt', 'Colt', [['buff', 'Solid Puncher (V-Skill) não conta mais no limite de projéteis: dá pra ter ele e um Sonic Boom na tela ao mesmo tempo (nunca dois Sonic Booms).'], ['buff', 'Flash Kick com mais alcance e mais dano.']]],
+    ['crow', 'Crow', [['rework', 'Hanging Chain virou golpe como no SFV: dá pra defender e aparar (antes era agarrão).'], ['buff', 'Fraco e médio vão retos e alcançam mais; o forte sobe em 45° como anti-aéreo (quem está no ar não defende, mas pode aparar).'], ['rework', 'Se acertar, a corrente enrola, puxa e bate o oponente no chão.']]],
+    ['falko', 'Falko', [['nerf', 'Show Me Your Moves agora só bufa golpes "Falcon" (Falcon Punch, Falcon Kick no chão e no ar, Raptor Boost e Falcon Dive).'], ['nerf', 'O bônus some se o Falko apanhar antes de usar.'], ['buff', 'Com o bônus guardado, segurar o Falcon Punch carrega um soco que não dá pra defender.']]],
+    ['genoma', 'Genoma', [['rework', 'Absorção (V-Skill) rouba 1 barra de EX do oponente no acerto, em vez de vida.'], ['ajuste', 'Kamehameha e o super com menos acertos e o mesmo dano total: dá pra aparar.']]],
+    ['goen', 'Goen', [['nerf', 'Carregar Ki não enche mais segurando: cada uso dá 1/9 da barra (3 usos = 1/3 da barra de super).'], ['ajuste', 'Masenko, Kamehameha aéreo e super com menos acertos e o mesmo dano total: dá pra aparar.']]],
+    ['goro', 'Goro', [['rework', 'Lariat como o do Zangief: gira de braços abertos.'], ['rework', `${C('→↓↘ + Soco')} virou a Mão Verde (Banishing Flat): avança com a palma brilhando, apaga projéteis e derruba.`], ['buff', 'Músculo de Ferro como no SFV: tocar = armadura rápida; segurar = anda devagar pra frente aguentando até 3 golpes.']]],
+    ['groove', 'Groove', [['buff', 'Machine Gun Upper EX joga o oponente mais alto e ele cai devagar: dá pra emendar o Double Rolling Sobat ou o Air Slasher.'], ['buff', `Mergulho novo: ${C('↓ + Chute')} no ar, ângulo mais aberto com a força.`]]],
+    ['gunter', 'Gunter', [['ajuste', `Giant Palm Bomber agora é ${C('↓↙← + Soco')} (antes ↓↘→).`], ['rework', 'V-Skill nova: Joelho Gigante (o golpe único do Hugo no SF4). Salta pra frente por cima de projéteis e desce com uma joelhada que acerta alto (overhead).']]],
+    ['vorhas', 'Jasper', [['buff', 'Soco Forte em pé: segurando o botão um tempo, vira um golpe que não dá pra defender, bate mais forte e derruba.']]],
+    ['joe', 'Joe', [['ajuste', `Clacker agora é ${C('↓↙← + Soco')} e o Corte Hamon é ${C('↓↘→ + Soco')} (invertidos).`], ['rework', 'Overdrive com 3 ângulos pela força: fraco = rasteira deslizando (baixo), médio = chute reto, forte = chute alto anti-aéreo.']]],
+    ['kai', 'Kai', [['buff', 'Solar Plexus (→ + Soco Forte) avança mais, o soco alcança mais e cancela em especial ou super nos dois acertos.']]],
+    ['kaiser', 'Kaiser', [['buff', 'Psycho Crusher cancela em super: ele pousa e solta o super.'], ['buff', 'Chute Tesoura passa por cima de projéteis enquanto está no ar.']]],
+    ['kazan', 'Kazan', [['buff', 'Electric Wind God Fist: fraco sai parado, médio avança um pouco, forte avança mais. Se pegar alguém no ar, o oponente cai devagar e dá pra emendar outro EWGF ou o Spinning Demon (fraco ou EX).'], ['buff', 'Hell Sweep como no Tekken: projeta o Kazan pra frente rente ao chão, passando por baixo de projéteis, acertando baixo.'], ['ajuste', 'Devil Blaster com menos acertos e o mesmo dano total.']]],
+    ['kongo', 'Kongo', [['rework', 'Super novo: Tapas na Selva. Não é mais agarrão; são vários tapas no chão em volta, emenda depois de especial e lança no fim. O agarrão de comando continua.'], ['ajuste', `Kong Giratório agora é ${C('3 Socos juntos')} (como o Lariat).`], ['ajuste', `Tapa no Chão agora é ${C('↓↘→ + Soco')}.`], ['nerf', 'Saiu o Soco Gigante.'], ['nerf', 'Bater no Peito não enche mais segurando: cada uso dá 1/9 da barra (3 usos = 1/3).']]],
+    ['kori', 'Kori', [['ajuste', `Slide agora é ${C('↓↘→ + Chute')} (antes ↓↙←).`]]],
+    ['legion', 'Legion', [['buff', `Teleporte no ar (${C('↓↙← + Chute')} no pulo), também durante a levitação.`]]],
+    ['mei', 'Mei', [['buff', 'Pernas Relâmpago quase não empurram no acerto: o oponente fica no lugar e leva todos os chutes.']]],
+    ['nervo', 'Nervo', [['ajuste', `Comandos como os do Necro no SF3: Tornado Hook ${C('←↙↓↘→ + Soco')}, Flying Viper ${C('↓↙← + Soco')}, Snake Fang (agarrão baixo) ${C('←↙↓↘→ + Chute')}.`], ['ajuste', `A descarga dos 3 socos (Cobra Elétrica) agora é ${C('↓↙← + Chute')}.`], ['buff', `Novo: Electric Shock (${C('→↓↘ + Soco')}), anti-aéreo elétrico que sobe.`], ['buff', `Novo: Drill Kick no ar (${C('↓ + Chute')}), ângulo muda com a força.`], ['buff', 'Tempestade Magnética quase não empurra no acerto.']]],
+    ['optik', 'Optik', [['ajuste', 'Optic Blast (alto, baixo e aéreo) e o super com menos acertos e o mesmo dano total: dá pra aparar.']]],
+    ['ravi', 'Ravi', [['buff', 'Golpes no ar alcançam bem mais.'], ['buff', `${C('↓ + Soco')} e ${C('↓ + Chute')} no ar com 3 ângulos pela força (fraco quase vertical, forte mais aberto).`], ['buff', `Teleporte no ar (${C('→↓↘ + Soco')} no pulo), também levitando.`]]],
+    ['rodney', 'Rodney', [['buff', 'Buffalo Headbutt fraco como anti-aéreo deixa emendar outro Headbutt ou o Dash Punch.']]],
+    ['roko', 'Roko', [['rework', `${C('↓↘→ + Soco')} virou um lança-chamas de curto alcance (como o do Alek e do Joe).`], ['ajuste', `O Mega Buster foi pra carga ${C('(segure ←) → + Soco')}.`], ['rework', 'Charge Shot virou a V-Skill: segurando, carrega até 3 acertos, com mais dano e tiro maior.'], ['ajuste', 'Rush Coil com efeito de fogo.'], ['ajuste', 'Hyper Mega Buster com menos acertos e o mesmo dano total.']]],
+    ['shiro', 'Shiro', [['buff', `Super novo: Dança das Samambaias (${C('↓↙←↓↙← + Soco')}, 2 barras). Uma fileira de ossos sai do chão na frente dele, lança e deixa emendar um especial (combo e anti-aéreo).`], ['buff', 'Dança do Lariço dura mais e alcança mais; tudo cresce com a força (fraco mais rápido e menor). No ar, joga o oponente pra cima e deixa emendar.'], ['rework', 'V-Skill nova: Corrente de Osso. Puxa o oponente pra perto mesmo se ele defender; no acerto deixa emendar combo.']]],
+    ['valerius', 'Valerius', [['rework', 'Super novo: Dominant Crush (o do Urien no SFV) no lugar do Aegis Reflector.'], ['buff', 'Chariot Tackle que pega alguém no ar deixa o oponente caindo devagar: dá pra emendar o super.'], ['rework', 'Metallic Sphere como no SFV: fraco reto e lento, médio reto e rápido, forte sobe em 45°. Segurando o soco, carrega uma esfera maior com 2 acertos.'], ['ajuste', 'A Aura Metálica (V-Skill com armadura e pele escura) já estava na Base.']]],
+    ['yura', 'Yura', [['rework', `${C('↓↙← + Chute')} virou o Tensenrin: sobe girando com chutes (anti-aéreo e final de combo).`], ['rework', 'V-Skill nova: Machado da Aranha, um overhead (acerta quem defende agachado) que deixa continuar o combo.'], ['buff', 'Chute mergulho: se acertar, apertar Chute de novo emenda mais chutes, até 5 no total.']]],
+    ['zago', 'Zago', [['buff', 'Choque Elétrico quase não empurra no acerto: o oponente fica perto pro combo.']]],
   ]
 }];
 
 const $ = id => document.getElementById(id);
-for (const r of RELEASES) {
-  const sec = document.createElement('section'); sec.className = 'release'; sec.id = r.id;
-  sec.innerHTML = `<div class="rhead"><h2>${r.title}</h2><span class="kind">${r.kind}</span><span class="date">${new Date(r.date + 'T12:00').toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })} · ${r.chars.length} lutadores</span></div>`;
-  const sum = document.createElement('div'); sum.className = 'summary'; sum.setAttribute('role', 'group'); sum.setAttribute('aria-label', 'Filtrar por tipo');
-  const list = document.createElement('div'); list.className = 'list';
-  let filter = null;
-  const draw = () => {
-    list.textContent = '';
-    const shown = r.chars.filter(c => !filter || c[1].includes(filter));
-    for (const [name, types, items] of shown) {
-      const el = document.createElement('article'); el.className = 'char'; el.style.setProperty('--c', TYPES[types[0]][1]);
-      el.innerHTML = `<h3>${name}${types.map(t => `<span class="tag" style="--c:${TYPES[t][1]}">${TYPES[t][0]}</span>`).join('')}</h3><ul>${items.map(i => `<li>${i}</li>`).join('')}</ul>`;
+const state = { type: null, q: '' };
+try { const h = location.hash.slice(1); if (TYPES[h]) state.type = h; } catch (e) {}
+const plain = s => s.replace(/<[^>]+>/g, '').toLowerCase();
+// tipos de um lutador, do mais frequente pro menos
+const typesOf = items => { const n = {}; for (const [t] of items) n[t] = (n[t] || 0) + 1; return Object.keys(n).sort((a, b) => n[b] - n[a]); };
+
+function render() {
+  const root = $('releases'); root.textContent = '';
+  for (const r of RELEASES) {
+    const sec = document.createElement('section'); sec.className = 'release'; sec.id = r.id;
+    const shown = [];
+    for (const [id, name, items] of r.chars) {
+      let its = state.type ? items.filter(i => i[0] == state.type) : items;
+      if (state.q) { const q = state.q; its = plain(name).includes(q) ? its : its.filter(i => plain(i[1]).includes(q)); }
+      if (its.length) shown.push([id, name, items, its]);
+    }
+    sec.innerHTML = `<div class="rhead"><h2>${r.title}</h2><span class="kind">${r.kind}</span><span class="date">${new Date(r.date + 'T12:00').toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })} · ${shown.length} de ${r.chars.length} lutadores</span></div>`;
+    const list = document.createElement('div'); list.className = 'list';
+    for (const [id, name, items, its] of shown) {
+      const ty = typesOf(items), main = state.type || ty[0];
+      const el = document.createElement('article'); el.className = 'char'; el.style.setProperty('--c', TYPES[main][1]);
+      el.innerHTML = `<img src="retratos/${id}.webp" alt="" width="76" height="76" loading="lazy">
+        <div><h3>${name}${ty.map(t => `<span class="tag" style="--c:${TYPES[t][1]}">${TYPES[t][0]}</span>`).join('')}</h3>
+        <ul>${its.map(([t, s]) => `<li><span class="tag" style="--c:${TYPES[t][1]}">${TYPES[t][0]}</span><span>${s}</span></li>`).join('')}</ul></div>`;
       list.append(el);
     }
-    if (!shown.length) { const p = document.createElement('p'); p.className = 'empty'; p.textContent = 'Nenhum lutador com esse tipo de mudança nesta versão.'; list.append(p); }
-    [...sum.children].forEach(b => b.setAttribute('aria-pressed', String((b.dataset.t || null) === filter)));
-  };
-  const btn = (label, t, n) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'filter'; if (t) { b.dataset.t = t; b.style.setProperty('--c', TYPES[t][1]); }
-    b.innerHTML = `${label} <b>${n}</b>`; b.addEventListener('click', () => { filter = t; draw(); }); return b; };
-  sum.append(btn('Todos', null, r.chars.length), ...Object.keys(TYPES).map(t => btn(TYPES[t][0], t, r.chars.filter(c => c[1].includes(t)).length)));
-  sec.append(sum, list); $('releases').append(sec); draw();
+    if (!shown.length) { const p = document.createElement('p'); p.className = 'empty'; p.textContent = 'Nada com esse filtro nesta versão.'; list.append(p); }
+    sec.append(list); root.append(sec);
+  }
+  for (const b of $('types').children) b.setAttribute('aria-pressed', String((b.dataset.t || null) === state.type));
 }
+
+// botões de filtro com a contagem de mudanças de cada tipo (somando todas as versões)
+const all = RELEASES.flatMap(r => r.chars.flatMap(c => c[2]));
+const btn = (label, t) => {
+  const b = document.createElement('button'); b.type = 'button'; b.className = 'filter'; if (t) { b.dataset.t = t; b.style.setProperty('--c', TYPES[t][1]); }
+  b.innerHTML = `${t ? '<i></i>' : ''}${label} <b>${t ? all.filter(i => i[0] == t).length : all.length}</b>`;
+  b.addEventListener('click', () => { state.type = t; try { history.replaceState(null, '', t ? '#' + t : location.pathname); } catch (e) {} render(); });
+  return b;
+};
+$('types').append(btn('Tudo', null), ...Object.keys(TYPES).map(t => btn(TYPES[t][0] + 's', t)));
+$('q').addEventListener('input', e => { state.q = e.target.value.trim().toLowerCase(); render(); });
+render();
 </script>
 </body>
 </html>
