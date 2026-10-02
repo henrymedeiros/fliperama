@@ -2256,16 +2256,15 @@ const Combat = {
     }
     M.projs = L.filter(p => !p.dead);
   },
-  // canto: quem está no ar não passa pra trás de quem está no chão encostado na parede (sem espaço pra pousar atrás).
-  // Fica no máximo em cima dele (lado da frente): sem cross up no canto, como no SF
-  cornerLock(a, b) {
+  // cross up no canto: quem pula por cima de alguém encostado na parede passa pra trás dele.
+  // A parede segura o pulo no mesmo x do encostado; ele é empurrado um pouco pra fora e o pulo fica do lado da parede
+  cornerCross(a, b) {
     const busy = f => ['throw', 'thrown', 'cine', 'cineD'].includes(f.st) || (f.m && (f.m.ghost || f.m.tele));
     if (busy(a) || busy(b)) return;
-    const need = 26 * (a.sz + b.sz);
     for (const [f, g] of [[a, b], [b, a]]) {
-      if (f.y > 0 || g.y <= 0) continue;
-      if (f.x - 30 < need && g.x < f.x && g.px >= f.px) g.x = f.x;                       // parede da esquerda
-      else if (STAGE_W - 30 - f.x < need && g.x > f.x && g.px <= f.px) g.x = f.x;        // parede da direita
+      if (f.y > 0 || g.y <= 0 || g.vy >= 0) continue;   // só descendo: quem bate na parede ainda subindo fica na frente
+      if (g.vx < 0 && f.x - 30 < 6 && g.x <= f.x && g.px > f.px) f.x = g.x + 6;                          // parede da esquerda
+      else if (g.vx > 0 && STAGE_W - 30 - f.x < 6 && g.x >= f.x && g.px < f.px) f.x = g.x - 6;          // parede da direita
     }
   },
   pushApart(a, b) {
@@ -2325,7 +2324,7 @@ const Match = {
     M.phaseT++;
     const live = M.phase == 'fight';
     a.update(b, live ? ia : null); b.update(a, live ? ib : null);
-    Combat.cornerLock(a, b); Combat.pushApart(a, b); Combat.limitDistance(a, b);
+    Combat.cornerCross(a, b); Combat.pushApart(a, b); Combat.limitDistance(a, b);
     Combat.resolve(a, b);
     Combat.updProjs();
     for (const f of M.f) if (f.shakeT > 0) f.shakeT--;
