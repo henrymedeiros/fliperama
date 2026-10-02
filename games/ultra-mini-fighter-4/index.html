@@ -4317,6 +4317,15 @@ addVersion('groove', { id: 'v0.1', apply(ch) {
 } });
 
 </script>
+<script>/* src/data/versions/zago.js */
+// ===== ZAGO v0.1 =====
+addVersion('zago', { id: 'v0.1', apply(ch) {
+  // Choque Elétrico quase não empurra no acerto: o oponente fica perto pra continuar o combo
+  const elec = ch.moves.elec;
+  ch.moves.elec = s => { const m = elec(s); m.hits = m.hits.map(h => Object.assign({}, h, { push: .3 })); return m; };
+} });
+
+</script>
 <script>/* src/data/endings.js */
 // ===== finais do modo arcade (um por lutador) =====
 const ENDINGS = {
