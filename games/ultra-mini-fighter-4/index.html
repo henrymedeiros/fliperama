@@ -4504,6 +4504,15 @@ addVersion('vorhas', { id: '1.1.0', apply(ch) {
   ch.normals.shp = Object.assign({}, ch.normals.shp, { hold: Object.assign({}, hold, { lv: [Object.assign({}, lv0, { apply: src => { ap(src); src.armor = { f: [1, 40], hits: 1 }; return src; } })] }) });
 } });
 
+// ===== JASPER 1.2.0 =====
+addVersion('vorhas', { id: '1.2.0', apply(ch) {
+  // V-Skill nova: FACÃO ARREMESSADO — joga o facão num arco; acertando, machuca. Errando, ele fica cravado no chão uns segundos:
+  // passando por cima, o Jasper pega de volta e a próxima investida ou agarrão de comando bate mais forte (só 1 facão por vez)
+  ch.vskill = { anim: 'throwk', name: 'FACÃO ARREMESSADO', startup: 14, active: 1, recovery: 18,
+    proj: { f: 14, vx: 5.2, vy: 8, grav: .45, stick: 1, r: 14, life: 300, dmg: 6, hs: 20, bs: 12, shape: 'machete', lv: 'SP', kind: 'facao', weaponOut: 1, ghost: 1, yOff: 100,
+      pickup: { mult: 1.3, sp: ['choke', 'rush'], label: 'FACÃO', col: '#d8dce2' } } };
+} });
+
 </script>
 <script>/* src/data/versions/altair.js */
 // ===== ALTAIR 1.0.0 =====
