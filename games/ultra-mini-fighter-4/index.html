@@ -2051,6 +2051,7 @@ const Combat = {
       if (proj || (m && (m.special || m.super))) { o.hp = Math.max(0, o.hp - (h.chip ?? Math.max(1, Math.round(h.dmg * (h.lv == 'SA' ? .25 : .18))))); o.hpS = Math.max(o.hpS, o.hp); o.lastDmg = 'C'; }
       if (o.grey > 0) o.greyT = GREY_DELAY;
       o.vx = dir * L.push * (proj ? .6 : 1); if (!proj && (o.x < 45 || o.x > STAGE_W - 45)) a.vx = -dir * L.push * .8;
+      if (h.pullBlock && h.pullTo && o.hp > 0) { o.x = clamp(a.x + a.face * h.pullTo * a.sz, 30, STAGE_W - 30); o.vx = 0; }   // corrente que puxa mesmo na defesa
       a.meter = Math.min(METER_MAX, a.meter + (L.meter >> 1)); o.meter = Math.min(METER_MAX, o.meter + 2);
       M.stop = Math.max(M.stop, rep ? MULTI_STOP : L.stop - 2); o.shakeT = M.stop;
       FX.block(px, py, dir, h.lv); Audio.sfx(h.lv == 'H' || h.lv == 'SA' ? 'blockH' : 'block', 1, px);
@@ -2098,7 +2099,8 @@ const Combat = {
     else if (h.kd || h.launch || lnch || air || o.hp <= 0) {
       const aL = air && !apex && !lnch && !h.launch && h.airLaunch;
       o.airReset = air && !h.kd && !h.launch && !lnch && !aL && o.st != 'knock' && o.hp > 0;
-      if (o.st == 'knock') o.juggle += h.jAdd || 1; else o.juggle = lnch ? 0 : 1;   // só o lançador deixa o contador em 0 (qualquer especial pega)
+      if (o.st == 'knock') o.juggle += h.jAdd || 1; else o.juggle = lnch ? 0 : 1;
+      if (h.jSet != null) o.juggle = h.jSet;   // golpe que zera o contador de juggle (deixa emendar um especial depois)   // só o lançador deixa o contador em 0 (qualquer especial pega)
       o.kdType = h.kd == 'hard' ? 'hard' : 'soft';
       const L2 = apex ? { vy: 9, vx: .8 } : lnch || h.launch || aL;
       if (aL && aL.float) o.floatK = aL.float;
@@ -4090,6 +4092,28 @@ addVersion('crow', { id: 'v0.1', apply(ch) {
 } });
 
 </script>
+<script>/* src/data/versions/shiro.js */
+// ===== SHIRO v0.1 =====
+addVersion('shiro', { id: 'v0.1', apply(ch) {
+  // Dança do Lariço (↓↙← + Chute): dura mais e alcança mais; tudo cresce com a força (fraco: mais rápido, menor e mais fraco).
+  // No chão derruba; em quem está no ar, joga pra cima e cai devagar (juggle)
+  ch.moves.larch = s => {
+    const R = S3(s, [130, 170, 210, 210]), H = S3(s, [120, 140, 160, 160]);
+    return { anim: 'flex', name: 'Dança do Lariço', shout: 'karamatsu', spikes: 1, startup: S3(s, [6, 8, 10, 7]), active: S3(s, [8, 10, 12, 12]), recovery: 24, armor: { f: [1, 10], hits: 1 }, inv: s == 3 ? { strike: [1, 9] } : {},
+      hits: [{ box: [-R / 2 + 15, 0, R, H], dmg: S3(s, [7, 9, 11, 11]), lv: 'SP', kd: 'soft', airLaunch: { vy: 9, vx: .6, float: .55 }, onBlock: -8 }] };
+  };
+  // novo super: DANÇA DAS SAMAMBAIAS (↓↙←↓↙← + Soco, 2 barras) — uma fileira de ossos sai do chão na frente dele.
+  // Lança quem está no chão ou no ar e deixa emendar um especial depois (ferramenta de combo e anti-aéreo)
+  ch.super2 = { input: '214214', btn: 'P', cost: 200 };
+  ch.moves.super2 = () => ({ anim: 'flex', super: 1, cost: 200, name: 'DANÇA DAS SAMAMBAIAS', shout: 'karamatsu', startup: 12, active: 1, recovery: 30, inv: { strike: [1, 12], proj: [1, 12] }, multiProj: 1,
+    projs: [0, 1, 2, 3, 4, 5].map(i => ({ f: 12 + i * 3, ahead: 6 + i * 38, vx: 0, r: 46, life: 16, dmg: 8, hs: 26, bs: 12, shape: 'bonespike', lv: 'SA', yOff: 62, ghost: 1,
+      launch: { vy: 10, vx: .8 }, kd: 1, jSet: 0 })) });
+  // V-Skill nova: CORRENTE DE OSSO — puxa o oponente pra perto mesmo se ele defender; no acerto deixa atordoado pra combo
+  ch.vskill = { anim: 'spearT', startup: 12, active: 1, recovery: 22, name: 'CORRENTE DE OSSO', weapon: 'bone',
+    proj: { f: 12, vx: 11, r: 14, life: 42, dmg: 4, hs: 20, bs: 14, shape: 'spear', bone: 1, lv: 'SP', snd: 'hitM', pullTo: 72, pullStun: 34, pullBlock: 1 } };
+} });
+
+</script>
 <script>/* src/data/endings.js */
 // ===== finais do modo arcade (um por lutador) =====
 const ENDINGS = {
@@ -5442,7 +5466,7 @@ function drawProj(c, pr) {
   if (p.shape == 'spear' && M.f[pr.o]) {
     // corrente até a mão do dono
     const o = M.f[pr.o], hx = o.x + o.face * 40 * o.sz, hy = -(o.y + 96 * o.sz);
-    c.save(); c.strokeStyle = '#8a8a90'; c.lineWidth = 2.2; c.setLineDash([5, 3]); c.beginPath(); c.moveTo(hx, hy); c.quadraticCurveTo((hx + pr.x) / 2, (hy - pr.y) / 2 + 10, pr.x - d * 14, -pr.y); c.stroke(); c.restore();
+    c.save(); c.strokeStyle = p.bone ? '#e8e0c8' : '#8a8a90'; c.lineWidth = 2.2; c.setLineDash([5, 3]); c.beginPath(); c.moveTo(hx, hy); c.quadraticCurveTo((hx + pr.x) / 2, (hy - pr.y) / 2 + 10, pr.x - d * 14, -pr.y); c.stroke(); c.restore();
   }
   if (p.shape == 'kame') {
     // feixe: da origem até a ponta, camadas aditivas (halo largo, corpo, núcleo branco) e bola brilhante na ponta
@@ -5488,7 +5512,7 @@ function drawProj(c, pr) {
   }
   switch (p.shape) {
     case 'spear': {
-      c.fillStyle = '#d8dce2'; c.strokeStyle = '#222'; c.lineWidth = 1.4; c.beginPath(); c.moveTo(18, 0); c.lineTo(2, -7); c.lineTo(6, 0); c.lineTo(2, 7); c.closePath(); c.fill(); c.stroke();
+      c.fillStyle = p.bone ? '#f2ecd8' : '#d8dce2'; c.strokeStyle = '#222'; c.lineWidth = 1.4; c.beginPath(); c.moveTo(18, 0); c.lineTo(2, -7); c.lineTo(6, 0); c.lineTo(2, 7); c.closePath(); c.fill(); c.stroke();
       c.fillStyle = '#6a4a2a'; c.fillRect(-14, -2, 17, 4);
       break;
     }
@@ -5536,6 +5560,11 @@ function drawProj(c, pr) {
       c.globalAlpha = .82; c.fillStyle = '#9adfff'; c.strokeStyle = '#fff'; c.lineWidth = 2;
       c.beginPath(); c.moveTo(-14, 0); c.lineTo(-18, -70); c.lineTo(-8, -118); c.lineTo(8, -120); c.lineTo(18, -72); c.lineTo(14, 0); c.closePath(); c.fill(); c.stroke();
       c.strokeStyle = 'rgba(255,255,255,.7)'; c.beginPath(); c.moveTo(-6, -20); c.lineTo(4, -100); c.stroke();
+      break;
+    }
+    case 'bonespike': {   // ossos saindo do chão
+      const k = Math.min(1, T / 4) * Math.min(1, pr.life / 6), gy = pr.y;
+      for (const [ox, hh, w] of [[-14, .7, 7], [0, 1, 9], [13, .8, 7]]) { const top = gy - 125 * hh * k; c.fillStyle = '#f2ecd8'; c.strokeStyle = '#3a3428'; c.lineWidth = 1.5; c.beginPath(); c.moveTo(ox - w, gy); c.lineTo(ox, top); c.lineTo(ox + w, gy); c.closePath(); c.fill(); c.stroke(); }
       break;
     }
     case 'pillar': {
