@@ -2104,6 +2104,7 @@ const Combat = {
       o.kdType = h.kd == 'hard' ? 'hard' : 'soft';
       const L2 = apex ? { vy: 9, vx: .8 } : lnch || h.launch || aL;
       if (aL && aL.float) o.floatK = aL.float;
+      else if (L2 && L2.float && !apex) o.floatK = L2.float;   // lançamento que cai devagar
       if (apex) o.floatK = .55;   // cai bem mais devagar: dá tempo de aterrissar e emendar um super
       o.setSt('knock'); o.vy = L2 ? (L2.vy ?? 11) : air ? 6 : 6.5; o.vx = dir * (L2 ? (L2.vx ?? 1.6) : 3.4); o.y = Math.max(o.y, 1);
     } else {
@@ -4297,6 +4298,22 @@ addVersion('mei', { id: 'v0.1', apply(ch) {
   // Pernas Relâmpago: quase não empurra no acerto; o oponente fica no lugar e leva todos os chutes
   const legs = ch.moves.legs;
   ch.moves.legs = s => { const m = legs(s); m.hits = m.hits.map((h, i) => i < m.hits.length - 1 ? Object.assign({}, h, { push: .25 }) : h); return m; };
+} });
+
+</script>
+<script>/* src/data/versions/groove.js */
+// ===== GROOVE v0.1 =====
+addVersion('groove', { id: 'v0.1', apply(ch) {
+  // Machine Gun Upper EX joga o oponente mais alto e ele cai devagar: dá pra emendar o Double Rolling Sobat ou o Air Slasher
+  const mgu = ch.moves.mgu;
+  ch.moves.mgu = s => {
+    const m = mgu(s); if (s != 3) return m;
+    const L = m.hits.length - 1; m.hits[L] = Object.assign({}, m.hits[L], { launch: { vy: 10.5, vx: .4, float: .6 }, jSet: 0 }); return m;
+  };
+  // Dive kick: ↓ + Chute no ar, mergulho em diagonal (o ângulo fica mais aberto com a força)
+  ch.specials.push({ id: 'divek', input: '2', btn: 'K', air: 'only', name: 'Mergulho Maximum' });
+  ch.moves.divek = s => ({ anim: 'dive', air: 1, name: 'Mergulho Maximum', startup: 5, active: 60, recovery: 0, vel: [[5, 99, S3(s, [4, 6, 8, 8]), -10]],
+    hits: [{ box: [14, -10, 46, 40], dmg: S3(s, [6, 7, 8, 8]), lv: 'SP', high: 1, hs: 18, bs: 10 }] });
 } });
 
 </script>
