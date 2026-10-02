@@ -4432,6 +4432,19 @@ addVersion('vorhas', { id: 'v0.1', apply(ch) {
 } });
 
 </script>
+<script>/* src/data/versions/altair.js */
+// ===== ALTAIR v0.1 =====
+addVersion('altair', { id: 'v0.1', apply(ch) {
+  // Deslize agora é ↘ + Chute Forte (antes ↘ + Soco Forte)
+  ch.cmdNormals = ch.cmdNormals.map(c => c.key == '3hp' ? Object.assign({}, c, { key: '3hk', btn: 'hk' }) : c);
+  // garra com mais alcance nos socos
+  for (const k of ['slp', 'smp', 'shp', 'clp', 'cmp', 'chp']) {
+    const src = (ch.normals[k] && ch.normals[k].hits) || NORMALS[k].hits;
+    ch.normals[k] = Object.assign({}, ch.normals[k], { hits: src.map((h, i) => Object.assign({}, NORMALS[k].hits[i] || {}, h, { box: [h.box[0], h.box[1], h.box[2] + 22, h.box[3]] })) });
+  }
+} });
+
+</script>
 <script>/* src/data/endings.js */
 // ===== finais do modo arcade (um por lutador) =====
 const ENDINGS = {
