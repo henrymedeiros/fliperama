@@ -7150,9 +7150,9 @@ const HUD = {
 const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.random() * (i + 1) | 0; [a[i], a[j]] = [a[j], a[i]]; } return a; };
 const GRID_COLS = 12;   // 44 lutadores + célula aleatória (4 fileiras)
 // lutador secreto: na seleção a célula dele é um cofre dourado (???). Em cima dela, 4 botões na ordem certa abrem o cofre;
-// cada acerto acende uma moeda, errar volta do começo. Até abrir, fica fora do aleatório, arcade, torneio e título.
+// 8 botões: cada acerto acende uma moeda, errar volta do começo (força bruta leva umas 100 tentativas). Até abrir, fica fora do aleatório, arcade, torneio e título.
 // O cofre fecha de novo toda vez que o jogo abre (nada fica salvo)
-const SECRET = { id: 'markito', code: ['lp', 'hp', 'lk', 'hk'], super: 'Atchunprumblex' };
+const SECRET = { id: 'markito', code: ['mk', 'hp', 'lk', 'lp', 'hk', 'mp', 'hp', 'lk'], super: 'Atchunprumblex' };
 delete settings.secrets;   // desbloqueio salvo da versão antiga (agora não fica salvo)
 function isLocked(i) { const ch = CHARS[i]; return !!ch && ch.id == SECRET.id && !Vault.open; }
 function openChars() { return CHARS.map((_, i) => i).filter(i => !isLocked(i)); }
@@ -7183,8 +7183,8 @@ const Vault = {
   coins(c, x, y, slot) {
     const n = this.slot == slot ? this.n : 0, shake = UIF - this.failT < 14 ? Math.sin(UIF * 2) * 4 : 0;
     for (let i = 0; i < SECRET.code.length; i++) {
-      const cx = x + (i - 1.5) * 34 + shake, on = i < n, pop = on && i == n - 1 && UIF - this.hitT < 10 ? 1.25 : 1;
-      c.beginPath(); c.arc(cx, y, 12 * pop, 0, 7); c.fillStyle = on ? '#ffc21a' : 'rgba(40,32,16,.9)'; c.fill();
+      const cx = x + (i - (SECRET.code.length - 1) / 2) * 30 + shake, on = i < n, pop = on && i == n - 1 && UIF - this.hitT < 10 ? 1.25 : 1;
+      c.beginPath(); c.arc(cx, y, 11 * pop, 0, 7); c.fillStyle = on ? '#ffc21a' : 'rgba(40,32,16,.9)'; c.fill();
       c.lineWidth = 2; c.strokeStyle = on ? '#fff3b0' : '#6a5420'; c.stroke();
       if (on) txt(c, '$', cx, y + 6, 16, '#7a4a00', 'center', 0);
     }
@@ -7946,7 +7946,7 @@ Object.assign(Menus, {
       if (!ch) { ui(c, 'ALEATÓRIO', x + 95, 200, 20, '#fff', 'center'); ui(c, 'o jogo escolhe por você', x + 95, 224, 14, '#aab', 'center'); return; }
       if (isLocked(CHARS.indexOf(ch))) {
         ui(c, 'LUTADOR SECRETO', x + 95, 114, 17, '#ffc21a', 'center');
-        ['Um cofre dourado.', 'Quatro botões abrem,', 'na ordem certa.', '', 'Cada acerto acende', 'uma moeda.', 'Errou? Volta do começo.'].forEach((l, i) => ui(c, l, x + 95, 150 + i * 24, 14, i < 3 ? '#fff' : '#bcd', 'center'));
+        ['Um cofre dourado.', 'Oito botões abrem,', 'na ordem certa.', '', 'Cada acerto acende', 'uma moeda.', 'Errou? Volta do começo.'].forEach((l, i) => ui(c, l, x + 95, 150 + i * 24, 14, i < 3 ? '#fff' : '#bcd', 'center'));
         return;
       }
       ui(c, ch.style.toUpperCase(), x + 95, 114, 17, ch.aura, 'center');
