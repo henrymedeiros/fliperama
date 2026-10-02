@@ -4043,6 +4043,33 @@ addVersion('joe', { id: 'v0.1', apply(ch) {
 } });
 
 </script>
+<script>/* src/data/versions/valerius.js */
+// ===== VALERIUS v0.1 =====
+// Dominant Crush (super do Urien no SFV): investida de ombro; se pegar, prende o oponente numa sequência de golpes e termina com a Chariot Tackle
+CINE_SCRIPTS.dominant = (c, a, o, s, K) => {
+  o.x = clamp(a.x + a.face * 64 * s, 30, STAGE_W - 30);
+  if (c.t % 8 == 0 && c.n < 5) { c.n++; a.x = clamp(a.x + a.face * 8, 30, STAGE_W - 30); K.cineHit(a, o, 4.5); FX.shock(o.x); }
+  if (c.t == 52) { a.x = clamp(a.x + a.face * 24, 30, STAGE_W - 30); K.cineHit(a, o, 14, 1); M.trauma = Math.min(1, (M.trauma || 0) + .4); return true; }
+};
+addVersion('valerius', { id: 'v0.1', apply(ch) {
+  // Metallic Sphere como no SFV: fraco reto e lento, médio reto e rápido, forte sobe em 45°.
+  // Segurando o soco, carrega: solta uma esfera maior com 2 acertos
+  const sphere = ch.moves.sphere;
+  ch.moves.sphere = s => {
+    const m = sphere(s);
+    if (s < 3) Object.assign(m.proj, [{ vx: 3.8, vy: 0 }, { vx: 7.5, vy: 0 }, { vx: 4.6, vy: 4.6, life: 120 }][s]);
+    m.hold = { f: 6, max: 40, btn: 'P', lv: [{ t: 18, apply: src => { Object.assign(src.proj, { hits: 2, gap: 8, r: 27, dmg: 5 }); return src; } }] };
+    return m;
+  };
+  // Chariot Tackle que pega o oponente no ar joga ele pra cima e ele cai devagar: dá tempo de emendar o super
+  const chariot = ch.moves.chariot;
+  ch.moves.chariot = s => { const m = chariot(s); for (const h of m.hits) h.airLaunch = { vy: 9, vx: .8, float: .55 }; return m; };
+  // super: sai o Aegis Reflector, entra o Dominant Crush
+  ch.moves.super = () => ({ anim: 'headbutt', super: 1, startup: 8, active: 18, recovery: 30, inv: { strike: [1, 12], throw: [1, 12], proj: [1, 12] }, name: 'DOMINANT CRUSH', shout: 'chariot',
+    vel: [[8, 26, 11, null]], hits: [{ box: [10, 30, 74, 100], dmg: 3, lv: 'SA', cine: 'dominant' }] });
+} });
+
+</script>
 <script>/* src/data/endings.js */
 // ===== finais do modo arcade (um por lutador) =====
 const ENDINGS = {
