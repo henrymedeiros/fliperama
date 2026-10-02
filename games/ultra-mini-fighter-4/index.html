@@ -4342,6 +4342,28 @@ addVersion('ravi', { id: 'v0.1', apply(ch) {
 } });
 
 </script>
+<script>/* src/data/versions/yura.js */
+// ===== YURA v0.1 =====
+addVersion('yura', { id: 'v0.1', apply(ch) {
+  // ↓↙← + Chute vira o TENSENRIN: sobe girando com chutes (anti-aéreo e final de combo)
+  ch.moves.rrk = s => {
+    const st = S3(s, [7, 8, 9, 6]);
+    return { anim: 'sbk', spin: 1, name: 'Tensenrin', shout: 'fuharenkyaku', startup: st, active: 20, recovery: 0, landEnd: 12,
+      vel: [[st, st, S3(s, [2, 2.6, 3.2, 3]), S3(s, [9, 10.5, 12, 12])]], inv: s == 3 ? { strike: [1, 10] } : {},
+      hits: multi(S3(s, [2, 3, 4, 4]), st, 4, 2, { box: [-10, 50, 76, 90], dmg: S3(s, [5, 4, 3.6, 3.6]), lv: 'SP', hs: 18, bs: 8, lastKd: 1 }) };
+  };
+  // V-Skill nova: CHUTE MACHADO (o overhead da Juri no SF4) — acerta quem defende agachado e dá pra continuar o combo depois
+  ch.vskill = { anim: 'axe', name: 'CHUTE MACHADO', startup: 16, active: 3, recovery: 12, vel: [[2, 12, 3, null]], cancel: { sp: 1, su: 1 },
+    hits: [{ box: [14, 56, 72, 70], dmg: 7, lv: 'M', high: 1, onHit: 7, onBlock: -1, push: .5 }] };
+  // Chute mergulho (Shiku-sen): se acertar, apertar Chute de novo emenda mais chutes (até 5 no total)
+  const kick = n => ({ anim: 'dive', air: 1, name: 'Shiku-sen ' + (n + 1), startup: 3, active: 30, recovery: 0, vel: [[1, 5, -1, 6], [6, 99, 3, -9]],
+    hits: [{ f: [5, 30], box: [14, -10, 52, 44], dmg: 3.5, lv: 'SP', high: 1, hs: 20, bs: 10 }], follow: n < 4 ? [{ btn: 'K', key: 'yk' + (n + 1), from: 5, to: 30, onHit: 1 }] : undefined });
+  ch.extraMoves = Object.assign({}, ch.extraMoves, { yk1: kick(1), yk2: kick(2), yk3: kick(3), yk4: kick(4) });
+  const shiku = ch.moves.shiku;
+  ch.moves.shiku = s => { const m = shiku(s); m.follow = [{ btn: 'K', key: 'yk1', from: 6, to: 60, onHit: 1 }]; return m; };
+} });
+
+</script>
 <script>/* src/data/endings.js */
 // ===== finais do modo arcade (um por lutador) =====
 const ENDINGS = {
