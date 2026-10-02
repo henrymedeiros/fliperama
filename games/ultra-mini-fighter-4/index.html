@@ -2274,7 +2274,7 @@ const Combat = {
           const out = this.judge(owner, o, h, true, pr.x);
           this.apply(owner, o, h, out, pr.x, pr.y, true, null);
           pr.left--; pr.gapT = pr.p.gap || 0; if (pr.p.beam) pr.lock = 1;
-          if (pr.left <= 0) { pr.dead = 1; FX.projEnd(pr); }
+          if (pr.left <= 0) { if (pr.p.keep) pr.gapT = 1e9; else { pr.dead = 1; FX.projEnd(pr); } }   // keep: continua visível até o fim da vida, sem acertar de novo
         }
       }
       if (pr.life <= 0 || pr.x < -80 || pr.x > STAGE_W + 80 || pr.y < -20) pr.dead = 1;
@@ -2524,6 +2524,7 @@ const TRAIN_MOVES = {
 };
 
 // ---- roteiros de cinemática (supers que "prendem" o oponente) ----
+const WING_CINES = {};   // cinemáticas em que o lutador abre asas (tipo → cor)
 const CINE_SCRIPTS = {
   cuts(c, a, o, s, K) {
     if (c.t % 6 == 0 && c.n < 8) { c.n++; a.x = o.x + (c.n % 2 ? 1 : -1) * 70 * s; a.face = o.x > a.x ? 1 : -1; FX.slash(o.x, o.y + 70, c.n); K.cineHit(a, o, 3.5); }
@@ -3959,6 +3960,41 @@ defChar({
   ai: { aa: 'respect', enders: ['rush', 'bat'], rush: 1, poke: 'smk', bnb: ['clp', 'cmp'] }
 });
 
+
+// MARKITO DOURADO: brutamontes de ouro (careca, beição, músculos). Shoryuken, investida de soco reto, agarrão de comando pesado;
+// V-Skill que brota do chão embaixo do oponente; super voando com asas douradas
+CINE_SCRIPTS.atchun = (c, a, o, s, K) => {
+  // voa em volta do oponente batendo de vários lados e termina num mergulho
+  o.y = Math.min(90, o.y + 4);
+  if (c.t % 7 == 0 && c.n < 6) { c.n++; const side = c.n % 2 ? 1 : -1; a.x = clamp(o.x + side * 78 * s, 30, STAGE_W - 30); a.y = 60 + (c.n % 3) * 30; a.face = o.x > a.x ? 1 : -1; FX.slash(o.x, o.y + 70, c.n); K.cineHit(a, o, 4.5); }
+  if (c.t == 50) { a.y = 0; a.x = clamp(o.x - o.face * 70 * s, 30, STAGE_W - 30); a.face = o.x > a.x ? 1 : -1; o.y = 0; FX.shock(o.x); FX.dust(o.x, 0, 24); K.cineHit(a, o, 14, 1); M.trauma = Math.min(1, (M.trauma || 0) + .5); return true; }
+};
+WING_CINES.atchun = '#ffd23a';
+defChar({
+  id: 'markito', name: 'MARKITO', title: 'Dourado', style: 'Brutamontes', stats: [5, 2, 4], stage: 'harbor', aura: '#ffc21a',
+  quote: 'Ouro não se compra. Ouro se conquista... na porrada.',
+  voice: { pitch: .62, rate: .95, lines: { intro: ['Markito Dourado chegou!'], win: ['Brilha, Markito!', 'Isso aqui é ouro puro.'], ko: ['Meu ouro...'], hurt: ['Ai!', 'Arranhou o ouro!'] } },
+  look: { gloveType: 'bare', skin: '#f2b81c', hair: 'bald', hairC: '#c89010', brow: 'thick', lips: '#e09a12', torso: 'bare', pants: '#c8920c', shorts: 1, legs: 'bare', sleeve: 'none', glove: '#f2b81c', feet: 'bare', build: 1.38 },
+  palettes: [{}, { skin: '#c8ccd4', glove: '#c8ccd4', lips: '#a8acb8', pants: '#8a8e98' }, { skin: '#b0682a', glove: '#b0682a', lips: '#904e1a', pants: '#7a4418' }, { skin: '#f0a890', glove: '#f0a890', lips: '#d87a6a', pants: '#c86a5a' }],
+  sz: 1.12, hp: 108, walkF: 3.1, walkB: 2.6, jumpV: 14, jumpX: 3.9, heavy: 1, stance: [54, 6, 34, 96, 18, 88, 18, 0, -20, 0, 0],
+  specials: [{ id: 'ohm', input: '623', btn: 'P' }, { id: 'prumblex', input: '236', btn: 'P' }, { id: 'trumblex', input: '63214', btn: 'P' }],
+  moves: {
+    // Ohm Fodass: Shoryuken dourado
+    ohm: s => { const m = Kit.dp({ dmg: [11], vy: [11, 12.5, 14, 14] })(s); m.name = 'Ohm Fodass'; m.fx = 'hamon'; m.fxCol = '#ffd23a'; return m; },
+    // Prumblex: avança em linha reta e solta um soco
+    prumblex: s => Object.assign(Kit.rush({ anim: 'straight', vx: [7, 8.5, 10, 11], dmg: [10, 11, 12, 13], onBlock: -4 })(s), { name: 'Prumblex' }),
+    // Trumblex: agarrão de comando com muito dano
+    trumblex: s => Object.assign(Kit.cmdGrab({ anim: 'grab', type: 'slam', range: [66, 72, 78, 84], dmg: [22, 24, 26, 29] })(s), { name: 'Trumblex' }),
+    // ATCHUNPRUMBLEX: abre as asas douradas, voa reto até o oponente e, se pegar, bate de todos os lados
+    super: () => ({ anim: 'rush', super: 1, name: 'ATCHUNPRUMBLEX', wings: '#ffd23a', startup: 10, active: 24, recovery: 26, inv: { strike: [1, 14], throw: [1, 14], proj: [1, 20] },
+      hover: [11, 34], vel: [[7, 10, 2, 9], [11, 34, 12, null]], landEnd: 12, hits: [{ box: [0, -44, 92, 130], dmg: 3, lv: 'SA', cine: 'atchun' }] }),
+  },
+  // V-Skill Trabuco Dourado: brota do chão embaixo do oponente (aviso brilhando no chão antes) e joga ele pra cima
+  vskill: { anim: 'flex', startup: 14, active: 1, recovery: 22, name: 'TRABUCO DOURADO',
+    proj: { f: 14, atOpp: 1, delay: 16, vx: 0, r: 34, life: 26, dmg: 9, hs: 22, bs: 12, shape: 'trabuco', lv: 'SP', launch: { vy: 11 }, kd: 1, ghost: 1, keep: 1, yOff: 50 } },
+  ai: { aa: 'ohm', grab: 'trumblex', enders: ['prumblex'], rush: 1, poke: 'smk', bnb: ['clp', 'cmp'] }
+});
+
 </script>
 <script>/* src/data/exfix.js */
 // ===== EX revisados: todo EX muda alguma propriedade do golpe em relação ao forte (mais acertos, armadura, invencibilidade, alcance, derrubada...) =====
@@ -4530,6 +4566,7 @@ addVersion('altair', { id: '1.0.0', apply(ch) {
 <script>/* src/data/endings.js */
 // ===== finais do modo arcade (um por lutador) =====
 const ENDINGS = {
+  markito: 'Markito Dourado derrete o troféu e usa o ouro pra se banhar de novo. Na cidade inteira, uma estátua dele aparece na praça, sem ninguém saber quem a ergueu. Ela brilha até de noite.',
   duke: 'Duke ergue o troféu no topo do dojo e grita para as câmeras: "Número um do universo!". Na manhã seguinte, abre uma academia e fica com metade dos alunos sem pagar.',
   kazan: 'Kazan derruba o pai do alto do penhasco, como prometeu anos atrás. A marca do demônio arde no braço. "Agora o poder é só meu."',
   lao: 'Lao volta para o restaurante da família e serve o melhor frango xadrez da cidade. Na parede, ao lado do cardápio, o cinturão do torneio.',
@@ -5430,7 +5467,7 @@ function drawBuffAura(c, f, col, k) {
   c.restore();
 }
 function drawFighter(c, f, pz, tint) {
-  const ch = f.ch, L0 = f.look || ch.look, L1a = f.mode && ch.modeLook ? Object.assign({}, L0, ch.modeLook) : L0, L1 = M.projs && M.projs.some(q => q.o === f.i && !q.dead && q.p.weaponOut) ? Object.assign({}, L1a, { weapon: null }) : L1a, L = f.aura ? Object.assign({}, L1, { skin: '#4a4250', glove: L1.gloveType == 'bare' ? '#4a4250' : L1.glove }) : L1, p = pz.p.slice(), fl = pz.flip ? -1 : 1, rot = pz.rot, T = M.frame;
+  const ch = f.ch, L0 = f.look || ch.look, L1a = f.mode && ch.modeLook ? Object.assign({}, L0, ch.modeLook) : L0, L1b = M.projs && M.projs.some(q => q.o === f.i && !q.dead && q.p.weaponOut) ? Object.assign({}, L1a, { weapon: null }) : L1a, wg = (f.m && f.m.wings) || (f.st == 'cine' && f.cine && WING_CINES[f.cine.type]), L1 = wg ? Object.assign({}, L1b, { wings: wg, wingsBig: 1 }) : L1b, L = f.aura ? Object.assign({}, L1, { skin: '#4a4250', glove: L1.gloveType == 'bare' ? '#4a4250' : L1.glove }) : L1, p = pz.p.slice(), fl = pz.flip ? -1 : 1, rot = pz.rot, T = M.frame;
   const B = L.build || 1, K = B * (L.thin ? .8 : 1), fem = !!L.fem;
   const idle = f.st == 'idle' && !f.walking && !f.crouch;
   if (idle) { const b = Math.sin(T * .08 + f.i * 2) * 1.6; p[0] += b; p[3] += b * 1.3; p[5] += b * 1.3; }
@@ -5508,7 +5545,7 @@ function drawFighter(c, f, pz, tint) {
     parts.push({ col: '#c8ccd4', path: c => polyPath(c, [vadd(q, vmul(n2, 5)), tipA, vsub(q, vmul(n2, 5))]) });
   }
   if (L.wings) for (const k of [0, 1]) {
-    const fl2 = Math.sin(T * .15 + k) * 3, a0 = Pt(.92, -shW * .5), pts = [a0, Pt(1.05 + k * .08, -shW - 16 - fl2), Pt(.55, -shW - 20 - k * 4 - fl2), Pt(.1, -shW - 8), Pt(.45, -shW * .6)];
+    const big = L.wingsBig ? 2.2 : 1, fl2 = Math.sin(T * (L.wingsBig ? .5 : .15) + k) * 3 * big, a0 = Pt(.92, -shW * .5), pts = [a0, Pt(1.05 + k * .08 + (big - 1) * .35, -shW - 16 * big - fl2), Pt(.55, -shW - 20 * big - k * 4 - fl2), Pt(.1, -shW - 8 * big), Pt(.45, -shW * .6)];
     parts.push({ col: k ? shade(L.wings, .7) : L.wings, path: c => smoothClosed(c, pts), det: c => { c.strokeStyle = shade(L.wings, .45); c.lineWidth = 1.2; for (const q of [pts[1], pts[2], pts[3]]) { c.beginPath(); c.moveTo(a0.x, a0.y); c.lineTo(q.x, q.y); c.stroke(); } } });
   }
   headBack(parts, ch, hd, headAng, f, L);
@@ -5769,6 +5806,7 @@ function headFront(parts, ch, hd, ang, f, LL) {
       else if (win) { c.strokeStyle = '#4a1a14'; c.lineWidth = 1.3; c.beginPath(); c.moveTo(7.8, -6.4); c.quadraticCurveTo(9.6, -8.6, 11.2, -6.2); c.stroke(); }   // sorriso de vitória
       else if (atk) { c.fillStyle = '#fff'; c.strokeStyle = '#3a0808'; c.lineWidth = 1; c.beginPath(); c.moveTo(7.8, -6.3); c.lineTo(10.9, -6.3); c.lineTo(10.6, -8.4); c.lineTo(8, -8.2); c.closePath(); c.fill(); c.stroke(); c.beginPath(); c.moveTo(7.9, -7.3); c.lineTo(10.8, -7.3); c.stroke(); }
       else { c.strokeStyle = L.fem ? '#b04050' : '#4a1a14'; c.lineWidth = L.fem ? 1.8 : 1.2; c.beginPath(); c.moveTo(8.4, -7.4); c.lineTo(10.8, -7); c.stroke(); }
+      if (L.lips) { c.fillStyle = L.lips; c.strokeStyle = shade(L.lips, .55); c.lineWidth = 1; c.beginPath(); c.ellipse(10.4, -6.1, 3.6, 1.9, -.08, 0, 7); c.fill(); c.stroke(); c.beginPath(); c.ellipse(10.2, -8.6, 3.9, 2.3, .06, 0, 7); c.fill(); c.stroke(); c.strokeStyle = shade(L.lips, .4); c.beginPath(); c.moveTo(7, -7.3); c.quadraticCurveTo(10.4, -7.6, 13.6, -7.2); c.stroke(); }   // beição
       if (L.fangs) { c.fillStyle = '#fff'; c.beginPath(); c.moveTo(8.2, -6.6); c.lineTo(9, -9.6); c.lineTo(9.8, -6.6); c.fill(); }
       if (L.facepaint && ch.id == 'taiho') { c.strokeStyle = L.facepaint; c.lineWidth = 1.8; c.beginPath(); c.moveTo(3.5, .5); c.quadraticCurveTo(6, 6.5, 10.5, 4.6); c.moveTo(4, -2); c.quadraticCurveTo(7, -4.5, 9.8, -3); c.stroke(); }
       if (L.facepaint && ch.id == 'ravi') { c.strokeStyle = L.facepaint; c.lineWidth = 1.4; for (const y of [5.5, 7, 8.5]) { c.beginPath(); c.moveTo(3, y); c.lineTo(9.5, y - .8); c.stroke(); } c.fillStyle = '#d42020'; c.beginPath(); c.arc(9.8, 3.8, 1.2, 0, 7); c.fill(); }
@@ -5993,6 +6031,18 @@ function drawProj(c, pr) {
     case 'bonespike': {   // ossos saindo do chão
       const k = Math.min(1, T / 4) * Math.min(1, pr.life / 6), gy = pr.y;
       for (const [ox, hh, w] of [[-14, .7, 7], [0, 1, 9], [13, .8, 7]]) { const top = gy - 125 * hh * k; c.fillStyle = '#f2ecd8'; c.strokeStyle = '#3a3428'; c.lineWidth = 1.5; c.beginPath(); c.moveTo(ox - w, gy); c.lineTo(ox, top); c.lineTo(ox + w, gy); c.closePath(); c.fill(); c.stroke(); }
+      break;
+    }
+    case 'trabuco': {
+      if (pr.gapT > 0 && T < 16) { c.globalCompositeOperation = 'lighter'; c.fillStyle = 'rgba(255,200,40,.55)'; c.beginPath(); c.ellipse(0, pr.y, 32, 7, 0, 0, 7); c.fill(); break; }   // aviso no chão
+      const k = Math.min(1, Math.max(0, (T - 16)) / 5) * Math.min(1, pr.life / 6), h = 118 * k, gy = pr.y, w = 15;
+      const g = c.createLinearGradient(-w, 0, w, 0); g.addColorStop(0, '#a8740a'); g.addColorStop(.45, '#ffe27a'); g.addColorStop(1, '#b8820e');
+      c.fillStyle = g; c.strokeStyle = '#6a4a08'; c.lineWidth = 1.6;
+      for (const sx of [-13, 13]) { c.beginPath(); c.arc(sx, gy - 6, 12 * Math.min(1, k * 2), 0, 7); c.fill(); c.stroke(); }
+      if (h > 4) { c.beginPath(); c.moveTo(-w, gy - 6); c.lineTo(-w, gy - h); c.lineTo(w, gy - h); c.lineTo(w, gy - 6); c.closePath(); c.fill(); c.stroke();
+        c.beginPath(); c.ellipse(0, gy - h, w * 1.25, 15, 0, Math.PI, 0); c.closePath(); c.fill(); c.stroke();
+        c.strokeStyle = '#7a5408'; c.beginPath(); c.moveTo(-w * 1.2, gy - h + 1); c.quadraticCurveTo(0, gy - h + 6, w * 1.2, gy - h + 1); c.stroke();
+        c.globalCompositeOperation = 'lighter'; c.fillStyle = 'rgba(255,240,170,.5)'; c.fillRect(-w * .45, gy - h + 4, 4, h - 14); }
       break;
     }
     case 'pillar': {
@@ -7060,7 +7110,7 @@ const HUD = {
 <script>/* src/ui/menus.js */
 // ===== lógica das telas (título, modos, seleção, palco, online, pausa, resultados) =====
 const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.random() * (i + 1) | 0; [a[i], a[j]] = [a[j], a[i]]; } return a; };
-const GRID_COLS = 11;   // 43 lutadores + célula aleatória (4 fileiras)
+const GRID_COLS = 12;   // 44 lutadores + célula aleatória (4 fileiras)
 
 const Menus = {
   modes: [['ARCADE', 'Enfrente 6 lutadores da CPU até o chefe final'], ['VERSUS', '2 jogadores no mesmo computador (teclado dividido ou controles)'],
