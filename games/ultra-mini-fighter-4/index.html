@@ -1675,7 +1675,7 @@ class Fighter {
     const dashF = free && this.in.dashF == ic, dashB = free && this.in.dashB == ic;
     if (!P && !K) return dashF ? 'dashF' : dashB ? 'dashB' : null;
     // super: só pelo comando (sem atalho de botões)
-    const canSu = (!air || (cancel && m && (m.dpLike || m.suAir))) && this.meter >= SUPER_COST   // Shoryuken que acertou cancela em super mesmo saindo do chão && (!m || !m.super) && (!cancel || m.cancel.su);
+    const canSu = (!air || ch.superAir || (cancel && m && (m.dpLike || m.suAir))) && this.meter >= SUPER_COST   // Shoryuken que acertou cancela em super mesmo saindo do chão && (!m || !m.super) && (!cancel || m.cancel.su);
     if (canSu && ch.super2 && this.meter >= (ch.super2.cost || METER_MAX)) {      // Critical Art: comando próprio, custa 3 barras
       const s2 = ch.super2, b = s2.btn == 'P' ? P : K;
       if (b && Cmd.motion(this, s2.input, this.in.bt[b]) != null) return 'super2';
@@ -1895,7 +1895,7 @@ class Fighter {
       this.vx = vx == 'home' ? clamp((o.x - this.x) / 40, -7, 7) : vx == 'dive' ? clamp((o.x - this.x) / 16, -12, 12) : vx * this.face;
       if (vy != null) { this.vy = vy; if (this.y <= 0 && vy > 0) this.y = .01; }
     }
-    fl.hover = !!(m.hover && this.t >= m.hover[0] && this.t <= m.hover[1]);
+    fl.hover = !!(m.hover && ((this.t >= m.hover[0] && this.t <= m.hover[1]) || (m.homeY && this.y > 0 && this.t < m.hover[0])));
     if (m.drift && this.y > 0 && this.t > 2) this.vx = (this.fx || 0) * m.drift;   // levitação: ← → movem no ar
     if (m.vbuff && this.t == m.vbuff.f) {
       const vb = Object.assign({}, m.vbuff);
@@ -1928,7 +1928,7 @@ class Fighter {
   physics(o, fl) {
     if (this.st == 'cine' || this.st == 'cineD' || this.st == 'thrown') return;
     if (this.y > 0 || this.vy > 0) {
-      if (fl.hover) this.vy = 0;
+      if (fl.hover) this.vy = this.m && this.m.homeY && this.y > 20 ? clamp((Math.max(o.y, 12) - this.y) * .2, -10, 10) : 0;
       else this.vy -= GRAV * (this.st == 'knock' ? .85 * (this.floatK || 1) : (this.st == 'air' || this.st == 'atk') ? (this.ch.grav || 1) : 1);
       this.y += this.vy; this.x += this.vx;
       if (this.y <= 0) { this.y = 0; this.vy = 0; this.onLand(o); }
@@ -3980,7 +3980,7 @@ defChar({
   look: { gloveType: 'bare', skin: '#f2b81c', hair: 'bald', hairC: '#c89010', brow: 'thick', lips: '#e09a12', torso: 'bare', pants: '#c8920c', shorts: 1, legs: 'bare', sleeve: 'none', glove: '#f2b81c', feet: 'bare', build: 1.38 },
   palettes: [{}, { skin: '#c8ccd4', glove: '#c8ccd4', lips: '#a8acb8', pants: '#8a8e98' }, { skin: '#b0682a', glove: '#b0682a', lips: '#904e1a', pants: '#7a4418' }, { skin: '#f0a890', glove: '#f0a890', lips: '#d87a6a', pants: '#c86a5a' }],
   sz: 1.12, hp: 108, walkF: 3.1, walkB: 2.6, jumpV: 14, jumpX: 3.9, heavy: 1, stance: [54, 6, 34, 96, 18, 88, 18, 0, -20, 0, 0],
-  specials: [{ id: 'ohm', input: '623', btn: 'P' }, { id: 'prumblex', input: '236', btn: 'P' }, { id: 'trumblex', input: '63214', btn: 'P' }],
+  specials: [{ id: 'ohm', input: '623', btn: 'P' }, { id: 'prumblex', input: '236', btn: 'P' }, { id: 'trumblex', input: '63214', btn: 'P' }], superAir: 1,
   moves: {
     // Ohm Fodass: Shoryuken dourado
     ohm: s => { const m = Kit.dp({ dmg: [11], vy: [11, 12.5, 14, 14], shout: 'Ohm_Fodass' })(s); m.name = 'Ohm Fodass'; m.fx = 'hamon'; m.fxCol = '#ffd23a'; return m; },
@@ -3990,7 +3990,7 @@ defChar({
     // Trumblex: agarrão de comando com muito dano
     trumblex: s => Object.assign(Kit.cmdGrab({ anim: 'grab', type: 'slam', range: [66, 72, 78, 84], dmg: [22, 24, 26, 29], shout: 'Trumblex' })(s), { name: 'Trumblex' }),
     // ATCHUNPRUMBLEX: abre as asas douradas, voa reto até o oponente e, se pegar, bate de todos os lados
-    super: () => ({ anim: 'rush', super: 1, name: 'ATCHUNPRUMBLEX', shout: 'Atchunprumblex', wings: '#ffd23a', startup: 10, active: 24, recovery: 26, inv: { strike: [1, 14], throw: [1, 14], proj: [1, 20] },
+    super: () => ({ anim: 'rush', super: 1, airOk: 1, homeY: 1, name: 'ATCHUNPRUMBLEX', shout: 'Atchunprumblex', wings: '#ffd23a', startup: 10, active: 24, recovery: 26, inv: { strike: [1, 14], throw: [1, 14], proj: [1, 20] },
       hover: [11, 34], vel: [[7, 10, 2, 9], [11, 34, 12, null]], landEnd: 12, hits: [{ box: [0, -44, 92, 130], dmg: 3, lv: 'SA', cine: 'atchun' }] }),
   },
   // V-Skill Trabuco Dourado: brota do chão embaixo do oponente (aviso brilhando no chão antes) e joga ele pra cima
@@ -6931,7 +6931,7 @@ function moveName(ch, id) { let n = null; try { n = getMove(ch, id + ':1').name;
 // [nome, comando, destaque]
 function moveList(ch) {
   const su = ch.superCmd || { input: '236236', btn: 'P' }, L = [];
-  L.push([getMove(ch, 'super').name || 'SUPER', notation(su.input, su.btn) + '  (2 barras)', 1]);
+  L.push([getMove(ch, 'super').name || 'SUPER', notation(su.input, su.btn) + '  (2 barras' + (ch.superAir ? ', também no ar)' : ')'), 1]);
   if (ch.super2) L.push([getMove(ch, 'super2').name || 'CRITICAL ART', notation(ch.super2.input, ch.super2.btn) + '  (' + Math.round((ch.super2.cost || METER_MAX) / 100) + ' barras)', 1]);
   for (const sp of ch.specials) L.push([moveName(ch, sp.id), (sp.air == 'only' ? '(no ar) ' : '') + notation(sp.input, sp.btn)]);
   if (ch.airThrow) L.push(['Agarrão aéreo (sem escape)', '(no ar) Soco Fraco + Chute Fraco']);
