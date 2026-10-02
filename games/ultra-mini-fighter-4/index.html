@@ -1726,7 +1726,7 @@ class Fighter {
     if (key.endsWith(':3') && this.meter < EX_COST) key = key.slice(0, -1) + '2';
     if (mv.super && this.meter < (mv.cost || SUPER_COST)) return;
     mv = getMove(this.ch, key);
-    if (mv.proj && !mv.multiProj && !mv.super && M.projs.filter(p => p.o === this.i && !p.dead && !p.p.free).length >= (mv.maxProj || 1)) return;   // projétil 'free' não conta no limite
+    if (mv.proj && !mv.multiProj && !mv.super && M.projs.filter(p => p.o === this.i && !p.dead && (mv.proj.kind ? p.p.kind == mv.proj.kind : !p.p.free)).length >= (mv.maxProj || 1)) return;   // 'free' não conta no limite comum; 'kind' tem limite próprio
     this.want = null; this.wantBufT = 0;
     this.in.cbt = !mv.special && !mv.super && !mv.grab ? Object.assign({}, this.in.bt) : null;
     Cmd.consume(this);
@@ -4207,6 +4207,12 @@ addVersion('colt', { id: '1.0.0', apply(ch) {
     m.hits = m.hits.map(h => Object.assign({}, h, { box: [h.box[0], h.box[1], h.box[2] + 18, h.box[3] + 10], dmg: h.dmg + 2 }));
     return m;
   };
+} });
+
+// ===== COLT 1.1.0 =====
+addVersion('colt', { id: '1.1.0', apply(ch) {
+  // Solid Puncher: só 1 na tela por vez (continua não contando no limite do Sonic Boom: no máximo 1 Solid Puncher + 1 Sonic Boom)
+  ch.vskill = Object.assign({}, ch.vskill, { multiProj: 0, proj: Object.assign({}, ch.vskill.proj, { kind: 'solid' }) });
 } });
 
 </script>
