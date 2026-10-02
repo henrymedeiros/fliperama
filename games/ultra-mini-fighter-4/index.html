@@ -4003,15 +4003,31 @@ defChar({
 
 </script>
 <script>/* src/data/versions.js */
-// ===== versões por lutador =====
-// A BASE é o jogo que continua melhorando. Cada lutador pode ganhar iterações (v0.1, v0.2…), escolhidas na seleção de personagem.
-// Cada versão parte da anterior do MESMO lutador (v0.2 = v0.1 + mudanças novas). Cada versão de cada lutador fica num bloco
-// próprio (src/data/versions/<id>.js) e num commit próprio: dá pra remover a versão de um lutador sem mexer nos outros.
-const CHAR_VERSIONS = {};   // id → [{ id: 'v0.1', apply(ch) }]
-function addVersion(id, v) { if (!charById(id)) throw new Error('versão de lutador inexistente: ' + id); (CHAR_VERSIONS[id] = CHAR_VERSIONS[id] || []).push(v); }
-function versionsOf(ci) { const ch = CHARS[ci]; return ch ? ['base'].concat((CHAR_VERSIONS[ch.id] || []).map(v => v.id)) : ['base']; }
+// ===== versões por lutador (versionamento semântico X.Y.Z, cada lutador com o seu) =====
+// A BASE é o jogo que continua melhorando. Em cima dela, cada lutador ganha versões X.Y.Z:
+//   X (major) = reformulação completa do lutador. É o que aparece no seletor da seleção de personagem (BASE, 1, 2…);
+//   Y e Z     = ajustes dentro do mesmo major (Y balanceamento, Z correção/visual). Não aparecem no seletor:
+//               quem escolhe o major joga sempre a última X.Y.Z dele.
+// Cada versão parte da anterior do MESMO lutador (2.0.0 = última 1.Y.Z + mudanças novas). Cada versão de cada lutador fica num
+// bloco próprio (src/data/versions/<id>.js) e num commit próprio ("<lutador> X.Y.Z: ..."), com tag git umf4-<lutador>-X.Y.Z.
+// Nome de cada major no seletor (ex.: { 1: 'OMEGA', 2: 'ALPHA' }); null = mostra a versão (ex.: 1.0.0)
+const MAJOR_LABELS = { 1: null };
+const CHAR_VERSIONS = {};   // id → [{ id: 'X.Y.Z', apply(ch) }], em ordem crescente
+const semv = v => String(v).split('.').map(n => +n || 0);
+const semCmp = (a, b) => { const x = semv(a), y = semv(b); for (let i = 0; i < 3; i++) if ((x[i] || 0) != (y[i] || 0)) return (x[i] || 0) - (y[i] || 0); return 0; };
+function addVersion(id, v) {
+  if (!charById(id)) throw new Error('versão de lutador inexistente: ' + id);
+  if (!/^\d+\.\d+\.\d+$/.test(v.id)) throw new Error('versão tem que ser X.Y.Z: ' + id + ' ' + v.id);
+  const l = CHAR_VERSIONS[id] = CHAR_VERSIONS[id] || []; l.push(v); l.sort((a, b) => semCmp(a.id, b.id));
+}
+// opções do seletor: 'base' e os majors ('1', '2'…)
+function versionsOf(ci) { const ch = CHARS[ci]; return ch ? ['base'].concat([...new Set((CHAR_VERSIONS[ch.id] || []).map(v => String(semv(v.id)[0])))]) : ['base']; }
 function newestVer(ci) { const v = versionsOf(ci); return v[v.length - 1]; }
-const verLabel = v => !v || v == 'base' ? 'BASE' : v;
+// última X.Y.Z de um major do lutador
+function fullVer(ci, major) { const l = ((CHARS[ci] && CHAR_VERSIONS[CHARS[ci].id]) || []).filter(v => String(semv(v.id)[0]) == String(major)); return l.length ? l[l.length - 1].id : null; }
+// nome no seletor: BASE, o nome do major ou a versão completa; verSub = versão completa embaixo de um major com nome
+function verLabel(v, ci) { if (!v || v == 'base') return 'BASE'; return MAJOR_LABELS[v] || (ci != null && fullVer(ci, v)) || v; }
+function verSub(v, ci) { return v && v != 'base' && MAJOR_LABELS[v] && ci != null ? fullVer(ci, v) || '' : ''; }
 // cópia profunda do lutador (as funções dos golpes são compartilhadas; o cache de golpes compilados não vem junto)
 function cloneChar(o) {
   if (Array.isArray(o)) return o.map(cloneChar);
@@ -4032,19 +4048,20 @@ function beamFewerHits(ch, k = .5) {
   for (const id in ch.moves) ch.moves[id] = wrap(ch.moves[id]);
 }
 const VER_CACHE = {};
-// lutador na versão pedida ('base' ou ausente = a base; versão desconhecida também cai na base)
+// lutador na versão pedida: um major ('1' = a última 1.Y.Z) ou uma X.Y.Z exata; 'base', ausente ou desconhecida = a base
 function charVer(ci, vid) {
-  const base = CHARS[ci], list = CHAR_VERSIONS[base.id] || [], n = list.findIndex(v => v.id == vid);
-  if (n < 0) return base;
-  const key = base.id + '@' + vid; if (VER_CACHE[key]) return VER_CACHE[key];
-  const ch = cloneChar(base); for (let i = 0; i <= n; i++) list[i].apply(ch);
-  ch.ver = vid; return VER_CACHE[key] = ch;
+  const base = CHARS[ci], list = CHAR_VERSIONS[base.id] || [];
+  const target = /^\d+$/.test(String(vid)) ? fullVer(ci, vid) : list.some(v => v.id == vid) ? vid : null;
+  if (!target) return base;
+  const key = base.id + '@' + target; if (VER_CACHE[key]) return VER_CACHE[key];
+  const ch = cloneChar(base); for (const v of list) if (semCmp(v.id, target) <= 0) v.apply(ch);
+  ch.ver = String(semv(target)[0]); ch.fullVer = target; return VER_CACHE[key] = ch;
 }
 
 </script>
 <script>/* src/data/versions/joe.js */
-// ===== JOE v0.1 =====
-addVersion('joe', { id: 'v0.1', apply(ch) {
+// ===== JOE 1.0.0 =====
+addVersion('joe', { id: '1.0.0', apply(ch) {
   // Clacker vira ↓↙← e o Corte Hamon vira ↓↘→ (comandos invertidos)
   ch.specials.find(s => s.id == 'clack').input = '214';
   ch.specials.find(s => s.id == 'hslash').input = '236';
@@ -4062,14 +4079,14 @@ addVersion('joe', { id: 'v0.1', apply(ch) {
 
 </script>
 <script>/* src/data/versions/valerius.js */
-// ===== VALERIUS v0.1 =====
+// ===== VALERIUS 1.0.0 =====
 // Dominant Crush (super do Urien no SFV): investida de ombro; se pegar, prende o oponente numa sequência de golpes e termina com a Chariot Tackle
 CINE_SCRIPTS.dominant = (c, a, o, s, K) => {
   o.x = clamp(a.x + a.face * 64 * s, 30, STAGE_W - 30);
   if (c.t % 8 == 0 && c.n < 5) { c.n++; a.x = clamp(a.x + a.face * 8, 30, STAGE_W - 30); K.cineHit(a, o, 4.5); FX.shock(o.x); }
   if (c.t == 52) { a.x = clamp(a.x + a.face * 24, 30, STAGE_W - 30); K.cineHit(a, o, 14, 1); M.trauma = Math.min(1, (M.trauma || 0) + .4); return true; }
 };
-addVersion('valerius', { id: 'v0.1', apply(ch) {
+addVersion('valerius', { id: '1.0.0', apply(ch) {
   // Metallic Sphere como no SFV: fraco reto e lento, médio reto e rápido, forte sobe em 45°.
   // Segurando o soco, carrega: solta uma esfera maior com 2 acertos
   const sphere = ch.moves.sphere;
@@ -4089,7 +4106,7 @@ addVersion('valerius', { id: 'v0.1', apply(ch) {
 
 </script>
 <script>/* src/data/versions/crow.js */
-// ===== CROW v0.1 =====
+// ===== CROW 1.0.0 =====
 // Hanging Chain como no SFV: a corrente é um GOLPE (dá pra defender e aparar), não mais um agarrão.
 // Se acertar, enrola o oponente, puxa e bate no chão. Fraco e médio vão retos (médio mais longe); forte sobe em 45° (anti-aéreo)
 CINE_SCRIPTS.hchain = (c, a, o, s, K) => {
@@ -4099,7 +4116,7 @@ CINE_SCRIPTS.hchain = (c, a, o, s, K) => {
   else if (c.t <= 30) { const u = (c.t - 14) / 16; o.x = tx; o.y = 40 + Math.sin(u * Math.PI) * 110; o.cineRot = u * Math.PI; }   // ergue e gira por cima
   if (c.t == 31) { o.y = 0; o.cineRot = 0; FX.shock(o.x); FX.dust(o.x, 0, 20); Audio.sfx('slam', 1, o.x); K.cineHit(a, o, 3, 1); return true; }
 };
-addVersion('crow', { id: 'v0.1', apply(ch) {
+addVersion('crow', { id: '1.0.0', apply(ch) {
   ch.moves.chain = s => {
     const up = s == 2, len = S3(s, [165, 205, 175, 215]);
     return { anim: 'throwk', startup: S3(s, [12, 14, 11, 11]), active: 5, recovery: S3(s, [24, 27, 27, 22]), shout: 'hangingchain', chainVis: 1, chainLen: len, chainUp: up ? 1 : 0,
@@ -4109,8 +4126,8 @@ addVersion('crow', { id: 'v0.1', apply(ch) {
 
 </script>
 <script>/* src/data/versions/shiro.js */
-// ===== SHIRO v0.1 =====
-addVersion('shiro', { id: 'v0.1', apply(ch) {
+// ===== SHIRO 1.0.0 =====
+addVersion('shiro', { id: '1.0.0', apply(ch) {
   // Dança do Lariço (↓↙← + Chute): dura mais e alcança mais; tudo cresce com a força (fraco: mais rápido, menor e mais fraco).
   // No chão derruba; em quem está no ar, joga pra cima e cai devagar (juggle)
   ch.moves.larch = s => {
@@ -4131,8 +4148,8 @@ addVersion('shiro', { id: 'v0.1', apply(ch) {
 
 </script>
 <script>/* src/data/versions/goen.js */
-// ===== GOEN v0.1 =====
-addVersion('goen', { id: 'v0.1', apply(ch) {
+// ===== GOEN 1.0.0 =====
+addVersion('goen', { id: '1.0.0', apply(ch) {
   // feixes (Masenko, Kamehameha aéreo e o super) com menos acertos e o mesmo dano total: dá pra aparar
   beamFewerHits(ch);
   // Carregar Ki: não enche mais segurando; cada uso dá 1/9 da barra (3 usos = 1/3 da barra de super)
@@ -4141,16 +4158,16 @@ addVersion('goen', { id: 'v0.1', apply(ch) {
 
 </script>
 <script>/* src/data/versions/optik.js */
-// ===== OPTIK v0.1 =====
-addVersion('optik', { id: 'v0.1', apply(ch) {
+// ===== OPTIK 1.0.0 =====
+addVersion('optik', { id: '1.0.0', apply(ch) {
   // Optic Blast (alto, baixo, aéreo) e o super com menos acertos e o mesmo dano total: dá pra aparar
   beamFewerHits(ch);
 } });
 
 </script>
 <script>/* src/data/versions/genoma.js */
-// ===== GENOMA v0.1 =====
-addVersion('genoma', { id: 'v0.1', apply(ch) {
+// ===== GENOMA 1.0.0 =====
+addVersion('genoma', { id: '1.0.0', apply(ch) {
   // Kamehameha e o super com menos acertos e o mesmo dano total: dá pra aparar
   beamFewerHits(ch);
   // V-Skill Absorção: no acerto rouba 1 barra de EX do oponente (em vez de vida)
@@ -4159,8 +4176,8 @@ addVersion('genoma', { id: 'v0.1', apply(ch) {
 
 </script>
 <script>/* src/data/versions/kai.js */
-// ===== KAI v0.1 =====
-addVersion('kai', { id: 'v0.1', apply(ch) {
+// ===== KAI 1.0.0 =====
+addVersion('kai', { id: '1.0.0', apply(ch) {
   // Solar Plexus (→ + Soco Forte): avança mais, o soco alcança mais e cancela em especial/super nos dois acertos
   const c = ch.cmdNormals.find(n => n.key == '6hp');
   c.move = Object.assign({}, c.move, { vel: [[3, 20, 4.5, null]], cancel: { sp: 1, su: 1 },
@@ -4169,8 +4186,8 @@ addVersion('kai', { id: 'v0.1', apply(ch) {
 
 </script>
 <script>/* src/data/versions/colt.js */
-// ===== COLT v0.1 =====
-addVersion('colt', { id: 'v0.1', apply(ch) {
+// ===== COLT 1.0.0 =====
+addVersion('colt', { id: '1.0.0', apply(ch) {
   // Solid Puncher (V-Skill) não conta no limite de projéteis: dá pra ter ele e um Sonic Boom na tela (mas nunca 2 Sonic Booms)
   ch.vskill = Object.assign({}, ch.vskill, { proj: Object.assign({}, ch.vskill.proj, { free: 1 }) });
   // Flash Kick: mais alcance e mais dano
@@ -4185,8 +4202,8 @@ addVersion('colt', { id: 'v0.1', apply(ch) {
 
 </script>
 <script>/* src/data/versions/goro.js */
-// ===== GORO v0.1 =====
-addVersion('goro', { id: 'v0.1', apply(ch) {
+// ===== GORO 1.0.0 =====
+addVersion('goro', { id: '1.0.0', apply(ch) {
   // Lariat como o do Zangief: gira de braços abertos (não mais com as pernas)
   const lariat = ch.moves.lariat;
   ch.moves.lariat = s => { const m = lariat(s); m.anim = 'kongspin'; m.alt = 1; delete m.spin; return m; };
@@ -4200,8 +4217,8 @@ addVersion('goro', { id: 'v0.1', apply(ch) {
 
 </script>
 <script>/* src/data/versions/rodney.js */
-// ===== RODNEY v0.1 =====
-addVersion('rodney', { id: 'v0.1', apply(ch) {
+// ===== RODNEY 1.0.0 =====
+addVersion('rodney', { id: '1.0.0', apply(ch) {
   // Buffalo Headbutt fraco como anti-aéreo: quem está no ar sobe e cai devagar, e dá pra emendar outro Headbutt ou o Dash Punch (juggle)
   const buff = ch.moves.buff;
   ch.moves.buff = s => {
@@ -4213,8 +4230,8 @@ addVersion('rodney', { id: 'v0.1', apply(ch) {
 
 </script>
 <script>/* src/data/versions/kazan.js */
-// ===== KAZAN v0.1 =====
-addVersion('kazan', { id: 'v0.1', apply(ch) {
+// ===== KAZAN 1.0.0 =====
+addVersion('kazan', { id: '1.0.0', apply(ch) {
   // Electric Wind God Fist: fraco sai parado, médio avança um pouco, forte avança mais.
   // Se pegar alguém no ar, ele sobe e cai devagar: dá pra emendar outro EWGF ou o Spinning Demon (fraco ou EX)
   const ewgf = ch.moves.ewgf;
@@ -4233,8 +4250,8 @@ addVersion('kazan', { id: 'v0.1', apply(ch) {
 
 </script>
 <script>/* src/data/versions/kaiser.js */
-// ===== KAISER v0.1 =====
-addVersion('kaiser', { id: 'v0.1', apply(ch) {
+// ===== KAISER 1.0.0 =====
+addVersion('kaiser', { id: '1.0.0', apply(ch) {
   // Psycho Crusher cancela em super (ele pousa e solta o super, como o Shoryuken → super)
   const psycho = ch.moves.psycho;
   ch.moves.psycho = s => { const m = psycho(s); m.suAir = 1; m.cancel = Object.assign({}, m.cancel, { su: 1 }); return m; };
@@ -4245,16 +4262,16 @@ addVersion('kaiser', { id: 'v0.1', apply(ch) {
 
 </script>
 <script>/* src/data/versions/kori.js */
-// ===== KORI v0.1 =====
-addVersion('kori', { id: 'v0.1', apply(ch) {
+// ===== KORI 1.0.0 =====
+addVersion('kori', { id: '1.0.0', apply(ch) {
   // Slide agora é ↓↘→ + Chute (antes ↓↙←)
   ch.specials.find(s => s.id == 'slide').input = '236';
 } });
 
 </script>
 <script>/* src/data/versions/legion.js */
-// ===== LEGION v0.1 =====
-addVersion('legion', { id: 'v0.1', apply(ch) {
+// ===== LEGION 1.0.0 =====
+addVersion('legion', { id: '1.0.0', apply(ch) {
   // Teleporte no ar (↓↙← + Chute no pulo ou levitando): some, reaparece na mesma altura (fraco na frente, médio/forte atrás) e cai
   ch.specials.push({ id: 'atele', input: '214', btn: 'K', air: 'only', name: 'Teleporte Aéreo' });
   ch.moves.atele = s => ({ anim: 'tele', name: 'Teleporte Aéreo', air: 1, startup: 99, dur: 30, inv: { strike: [1, 22], throw: [1, 22], proj: [1, 22] }, ghost: 1, fade: [3, 18], hover: [1, 22], tele: { f: 11, behind: s >= 1, front: s == 0 } });
@@ -4262,8 +4279,8 @@ addVersion('legion', { id: 'v0.1', apply(ch) {
 
 </script>
 <script>/* src/data/versions/gunter.js */
-// ===== GUNTER v0.1 =====
-addVersion('gunter', { id: 'v0.1', apply(ch) {
+// ===== GUNTER 1.0.0 =====
+addVersion('gunter', { id: '1.0.0', apply(ch) {
   // Giant Palm Bomber agora é ↓↙← + Soco (antes ↓↘→)
   ch.specials.find(s => s.id == 'palm').input = '214';
   // V-Skill nova: JOELHO GIGANTE (como o golpe único do Hugo no SF4) — salta pra frente por cima de projéteis e desce com uma joelhada que acerta alto (overhead)
@@ -4273,8 +4290,8 @@ addVersion('gunter', { id: 'v0.1', apply(ch) {
 
 </script>
 <script>/* src/data/versions/roko.js */
-// ===== ROKO v0.1 =====
-addVersion('roko', { id: 'v0.1', apply(ch) {
+// ===== ROKO 1.0.0 =====
+addVersion('roko', { id: '1.0.0', apply(ch) {
   // ↓↘→ + Soco vira o LANÇA-CHAMAS (curto alcance, como o do Alek e do Joe); o Mega Buster passa pra carga ←→ + Soco
   ch.specials = ch.specials.filter(s => s.id != 'charge').map(s => s.id == 'buster' ? Object.assign({}, s, { input: '[4]6' }) : s);
   ch.specials.push({ id: 'flamer', input: '236', btn: 'P', name: 'Lança-Chamas' });
@@ -4294,8 +4311,8 @@ addVersion('roko', { id: 'v0.1', apply(ch) {
 
 </script>
 <script>/* src/data/versions/mei.js */
-// ===== MEI v0.1 =====
-addVersion('mei', { id: 'v0.1', apply(ch) {
+// ===== MEI 1.0.0 =====
+addVersion('mei', { id: '1.0.0', apply(ch) {
   // Pernas Relâmpago: quase não empurra no acerto; o oponente fica no lugar e leva todos os chutes
   const legs = ch.moves.legs;
   ch.moves.legs = s => { const m = legs(s); m.hits = m.hits.map((h, i) => i < m.hits.length - 1 ? Object.assign({}, h, { push: .25 }) : h); return m; };
@@ -4303,8 +4320,8 @@ addVersion('mei', { id: 'v0.1', apply(ch) {
 
 </script>
 <script>/* src/data/versions/groove.js */
-// ===== GROOVE v0.1 =====
-addVersion('groove', { id: 'v0.1', apply(ch) {
+// ===== GROOVE 1.0.0 =====
+addVersion('groove', { id: '1.0.0', apply(ch) {
   // Machine Gun Upper EX joga o oponente mais alto e ele cai devagar: dá pra emendar o Double Rolling Sobat ou o Air Slasher
   const mgu = ch.moves.mgu;
   ch.moves.mgu = s => {
@@ -4319,8 +4336,8 @@ addVersion('groove', { id: 'v0.1', apply(ch) {
 
 </script>
 <script>/* src/data/versions/zago.js */
-// ===== ZAGO v0.1 =====
-addVersion('zago', { id: 'v0.1', apply(ch) {
+// ===== ZAGO 1.0.0 =====
+addVersion('zago', { id: '1.0.0', apply(ch) {
   // Choque Elétrico quase não empurra no acerto: o oponente fica perto pra continuar o combo
   const elec = ch.moves.elec;
   ch.moves.elec = s => { const m = elec(s); m.hits = m.hits.map(h => Object.assign({}, h, { push: .3 })); return m; };
@@ -4328,8 +4345,8 @@ addVersion('zago', { id: 'v0.1', apply(ch) {
 
 </script>
 <script>/* src/data/versions/ravi.js */
-// ===== RAVI v0.1 =====
-addVersion('ravi', { id: 'v0.1', apply(ch) {
+// ===== RAVI 1.0.0 =====
+addVersion('ravi', { id: '1.0.0', apply(ch) {
   // golpes no ar alcançam mais (braços e pernas esticam)
   for (const k of ['jlp', 'jmp', 'jhp', 'jlk', 'jmk', 'jhk']) ch.normals[k] = Object.assign({}, ch.normals[k], { hits: NORMALS[k].hits.map(h => Object.assign({}, h, { box: [h.box[0], h.box[1], Math.round(h.box[2] * 1.6), h.box[3]] })) });
   // ↓ + Soco / Chute no ar: mergulho com 3 ângulos pela força (fraco quase vertical, médio diagonal, forte mais aberto)
@@ -4344,8 +4361,8 @@ addVersion('ravi', { id: 'v0.1', apply(ch) {
 
 </script>
 <script>/* src/data/versions/yura.js */
-// ===== YURA v0.1 =====
-addVersion('yura', { id: 'v0.1', apply(ch) {
+// ===== YURA 1.0.0 =====
+addVersion('yura', { id: '1.0.0', apply(ch) {
   // ↓↙← + Chute vira o TENSENRIN: sobe girando com chutes (anti-aéreo e final de combo)
   ch.moves.rrk = s => {
     const st = S3(s, [7, 8, 9, 6]);
@@ -4366,8 +4383,8 @@ addVersion('yura', { id: 'v0.1', apply(ch) {
 
 </script>
 <script>/* src/data/versions/kongo.js */
-// ===== KONGO v0.1 =====
-addVersion('kongo', { id: 'v0.1', apply(ch) {
+// ===== KONGO 1.0.0 =====
+addVersion('kongo', { id: '1.0.0', apply(ch) {
   // sai o Soco Gigante; Kong Giratório agora é 3 socos juntos (como o Lariat); Tapa no Chão agora é ↓↘→ + Soco
   ch.specials = ch.specials.filter(s => s.id != 'giant').map(s => s.id == 'spin' ? Object.assign({}, s, { input: 'P3', fixed: 1 }) : s.id == 'slap' ? Object.assign({}, s, { input: '236' }) : s);
   delete ch.moves.giant;
@@ -4384,8 +4401,8 @@ addVersion('kongo', { id: 'v0.1', apply(ch) {
 
 </script>
 <script>/* src/data/versions/nervo.js */
-// ===== NERVO v0.1 =====
-addVersion('nervo', { id: 'v0.1', apply(ch) {
+// ===== NERVO 1.0.0 =====
+addVersion('nervo', { id: '1.0.0', apply(ch) {
   // comandos como os do Necro no SF3: Tornado Hook ←↙↓↘→ + Soco, Flying Viper ↓↙← + Soco, Snake Fang (agarrão baixo) ←↙↓↘→ + Chute;
   // a descarga dos 3 socos (Cobra Elétrica) vira ↓↙← + Chute
   const inp = { tornado: ['41236', 'P'], vibora: ['214', 'P'], presa: ['41236', 'K'], cobra: ['214', 'K'] };
@@ -4410,8 +4427,8 @@ addVersion('nervo', { id: 'v0.1', apply(ch) {
 
 </script>
 <script>/* src/data/versions/falko.js */
-// ===== FALKO v0.1 =====
-addVersion('falko', { id: 'v0.1', apply(ch) {
+// ===== FALKO 1.0.0 =====
+addVersion('falko', { id: '1.0.0', apply(ch) {
   // Show Me Your Moves: o bônus só vale para os golpes "Falcon" (Punch, Kick, Kick Aéreo, Raptor Boost, Dive) e some se ele apanhar
   ch.vskill = Object.assign({}, ch.vskill, { vbuff: Object.assign({}, ch.vskill.vbuff, { any: 0, sp: ['punch', 'kick', 'akick', 'raptor', 'dive'], lose: 1 }) });
   // com o bônus guardado, SEGURAR o Falcon Punch carrega um soco que não dá pra defender
@@ -4425,16 +4442,16 @@ addVersion('falko', { id: 'v0.1', apply(ch) {
 
 </script>
 <script>/* src/data/versions/vorhas.js */
-// ===== JASPER v0.1 =====
-addVersion('vorhas', { id: 'v0.1', apply(ch) {
+// ===== JASPER 1.0.0 =====
+addVersion('vorhas', { id: '1.0.0', apply(ch) {
   // Soco Forte em pé: segurando o botão um tempo, vira um golpe que não dá pra defender (e bate mais forte)
   ch.normals.shp = Object.assign({}, ch.normals.shp, { hold: { f: 6, max: 50, btn: 'hp', lv: [{ t: 36, apply: src => { src.hits = src.hits.map(h => Object.assign({}, h, { unblockable: 1, dmg: h.dmg + 3, kd: 'soft' })); return src; } }] } });
 } });
 
 </script>
 <script>/* src/data/versions/altair.js */
-// ===== ALTAIR v0.1 =====
-addVersion('altair', { id: 'v0.1', apply(ch) {
+// ===== ALTAIR 1.0.0 =====
+addVersion('altair', { id: '1.0.0', apply(ch) {
   // Deslize agora é ↘ + Chute Forte (antes ↘ + Soco Forte)
   ch.cmdNormals = ch.cmdNormals.map(c => c.key == '3hp' ? Object.assign({}, c, { key: '3hk', btn: 'hk' }) : c);
   // garra com mais alcance nos socos
@@ -7681,9 +7698,10 @@ Object.assign(Menus, {
         const pulse = .75 + .25 * Math.sin(UIF * .25);
         c.fillStyle = 'rgba(0,0,0,.78)'; c.fillRect(x - 130, 206, 260, 52); c.strokeStyle = ch.aura; c.lineWidth = 2; c.strokeRect(x - 130, 206, 260, 52);
         ui(c, 'VERSÃO', x, 222, 13, '#bcd', 'center', 2);
-        c.save(); c.globalAlpha = pulse; txt(c, '◄  ' + verLabel(v) + '  ►', x, 250, 26, '#ffd21e', 'center', 4); c.restore();
+        c.save(); c.globalAlpha = pulse; txt(c, '◄  ' + verLabel(v, g.sel[slot]) + '  ►', x, 250, 26, '#ffd21e', 'center', 4); c.restore();
+        const sub = verSub(v, g.sel[slot]); if (sub) ui(c, sub, x, 270, 12, '#bcd', 'center', 2);
       } else if (vs.length > 1) {
-        const lb = verLabel(v) + (v == vs[vs.length - 1] && v != 'base' ? ' · NOVA' : ''), w = 12 + lb.length * 8;
+        const lb = verLabel(v, g.sel[slot]) + (v == vs[vs.length - 1] && v != 'base' ? ' · NOVA' : ''), w = 12 + lb.length * 8;
         c.fillStyle = 'rgba(0,0,0,.65)'; c.fillRect(x - w / 2, 76, w, 20); ui(c, lb, x, 91, 13, v == 'base' ? '#bcd' : '#ffd21e', 'center', 2);
       }
     };

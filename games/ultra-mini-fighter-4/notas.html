@@ -63,6 +63,7 @@ h1{margin:0;font:400 clamp(30px,7vw,56px)/1.05 var(--display);color:#fff3d6;lett
 .char{display:grid;grid-template-columns:76px 1fr;gap:14px;background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--c);border-radius:12px;padding:14px 16px}
 .char img{width:76px;height:76px;border-radius:10px;border:2px solid var(--c);background:var(--panel-2);display:block}
 .char h3{margin:0;display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;font:600 19px/1.2 var(--body)}
+.char h3 .ver{font:500 13px/1 var(--mono);color:var(--dim);border:1px solid var(--line);border-radius:5px;padding:4px 6px}
 .tag{font:600 11px/1 var(--mono);letter-spacing:.06em;text-transform:uppercase;border-radius:5px;padding:5px 7px;color:var(--bg);background:var(--c)}
 .char ul{margin:10px 0 0;padding:0;list-style:none;display:grid;gap:7px;color:#d9d1ea}
 .char li{display:grid;grid-template-columns:auto 1fr;gap:9px;align-items:baseline}
@@ -89,7 +90,8 @@ footer{padding-block:40px 56px;color:var(--dim);font-size:14px}
     <p class="sub">Ultra Mini Fighter IV · buffs, nerfs e reworks de cada versão</p>
   </header>
   <div class="how">
-    <p><b>Como funcionam as versões.</b> O jogo base continua melhorando, e cada lutador pode ganhar iterações (v0.1, v0.2…). Na seleção de personagem, depois de escolher um lutador que tem mais de uma versão, use <span class="cmd">← →</span> pra escolher entre a <b>Base</b> e a versão nova, e confirme. A mais nova já vem marcada, e é a que a CPU usa.</p>
+    <p><b>Como funcionam as versões.</b> O jogo base continua melhorando, e cada lutador tem a própria versão no formato <span class="cmd">X.Y.Z</span>. O <b>X</b> é uma reformulação completa do lutador; <b>Y</b> e <b>Z</b> são ajustes menores dentro dela (balanceamento e correções).</p>
+    <p>Na seleção de personagem, depois de escolher um lutador, use <span class="cmd">← →</span> pra escolher entre a <b>Base</b> e as reformulações (1, 2…), e confirme. Cada reformulação já vem com os ajustes mais recentes dela. A mais nova já vem marcada, e é a que a CPU usa.</p>
     <p>Online, cada jogador escolhe a versão do próprio lutador e os dois jogam com as mesmas escolhas. Os desafios de combo continuam usando a Base.</p>
   </div>
 </div>
@@ -103,15 +105,15 @@ footer{padding-block:40px 56px;color:var(--dim);font-size:14px}
 </div>
 <div class="wrap">
   <div id="releases"></div>
-  <footer>Patches de personagem (como a v0.1) mudam lutadores; patches gerais mudam mecânicas e qualidade de vida pra todo mundo.</footer>
+  <footer>Versões de lutador (como a 1.0.0) mudam um personagem; as melhorias gerais de mecânica e qualidade de vida entram direto na Base, pra todo mundo.</footer>
 </div>
 <script>
 // tipos de mudança (cada item de cada lutador tem um)
 const TYPES = { buff: ['Buff', 'var(--buff)'], nerf: ['Nerf', 'var(--nerf)'], rework: ['Rework', 'var(--rework)'], ajuste: ['Ajuste', 'var(--ajuste)'] };
 const C = s => `<span class="cmd">${s}</span>`;
-// notas por versão (a mais nova primeiro). Lutador: [id do retrato, nome, [[tipo, mudança], ...]]
+// notas por lançamento (o mais novo primeiro). Lutador: [id do retrato, nome, [[tipo, mudança], ...], versão do lutador (padrão: a do lançamento)]
 const RELEASES = [{
-  id: 'v0.1', title: 'v0.1', kind: 'Patch de personagens', date: '2026-10-02',
+  id: '1.0.0', title: '1.0.0', kind: 'Reformulação de personagens', date: '2026-10-02',
   chars: [
     ['altair', 'Altair', [['buff', 'Garra com mais alcance em todos os socos (cerca de +20).'], ['ajuste', `Deslize agora sai com ${C('↘ + Chute Forte')} (antes ↘ + Soco Forte).`]]],
     ['colt', 'Colt', [['buff', 'Solid Puncher (V-Skill) não conta mais no limite de projéteis: dá pra ter ele e um Sonic Boom na tela ao mesmo tempo (nunca dois Sonic Booms).'], ['buff', 'Flash Kick com mais alcance e mais dano.']]],
@@ -155,18 +157,18 @@ function render() {
   for (const r of RELEASES) {
     const sec = document.createElement('section'); sec.className = 'release'; sec.id = r.id;
     const shown = [];
-    for (const [id, name, items] of r.chars) {
+    for (const [id, name, items, ver] of r.chars) {
       let its = state.type ? items.filter(i => i[0] == state.type) : items;
       if (state.q) { const q = state.q; its = plain(name).includes(q) ? its : its.filter(i => plain(i[1]).includes(q)); }
-      if (its.length) shown.push([id, name, items, its]);
+      if (its.length) shown.push([id, name, items, its, ver || r.id]);
     }
     sec.innerHTML = `<div class="rhead"><h2>${r.title}</h2><span class="kind">${r.kind}</span><span class="date">${new Date(r.date + 'T12:00').toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })} · ${shown.length} de ${r.chars.length} lutadores</span></div>`;
     const list = document.createElement('div'); list.className = 'list';
-    for (const [id, name, items, its] of shown) {
+    for (const [id, name, items, its, ver] of shown) {
       const ty = typesOf(items), main = state.type || ty[0];
       const el = document.createElement('article'); el.className = 'char'; el.style.setProperty('--c', TYPES[main][1]);
       el.innerHTML = `<img src="retratos/${id}.webp" alt="" width="76" height="76" loading="lazy">
-        <div><h3>${name}${ty.map(t => `<span class="tag" style="--c:${TYPES[t][1]}">${TYPES[t][0]}</span>`).join('')}</h3>
+        <div><h3>${name}<span class="ver">${ver}</span>${ty.map(t => `<span class="tag" style="--c:${TYPES[t][1]}">${TYPES[t][0]}</span>`).join('')}</h3>
         <ul>${its.map(([t, s]) => `<li><span class="tag" style="--c:${TYPES[t][1]}">${TYPES[t][0]}</span><span>${s}</span></li>`).join('')}</ul></div>`;
       list.append(el);
     }
