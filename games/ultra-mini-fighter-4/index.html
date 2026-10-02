@@ -1879,11 +1879,12 @@ class Fighter {
     if (!this.mv || (this.st != 'atk' && this.st != 'air')) return fl;
     let m = this.m; this.t++;
     if (m.hold && !this.holdOff && this.t == m.hold.f + 1) {
-      if (Cmd.holding(this, m.hold.btn) && this.holdT < m.hold.max && (!m.hold.boosted || this.boostMv === this.mvId)) { this.t = m.hold.f; this.holdT++; if (this.holdT % 6 == 0 && !SIM.silent) FX.aura(this, 6); }
-      else {
-        this.holdOff = 1; let lv = 0; m.hold.lv.forEach((L, i) => { if (this.holdT >= L.t) lv = i + 1; });
-        if (lv) { this.mv = this.mv + '^' + lv; m = this.m; if (!SIM.silent) { FX.aura(this, 14); Audio.sfx('superready', .8, this.x); } }
-      }
+      // o nível vale assim que é alcançado, ainda segurando (a armadura do nível já protege durante a carga)
+      const lvAt = n => { let lv = 0; m.hold.lv.forEach((L, i) => { if (n >= L.t) lv = i + 1; }); return lv; };
+      const setLv = lv => { const k = this.mv.split('^')[0] + (lv ? '^' + lv : ''); if (k == this.mv) return; this.mv = k; m = this.m;
+        if (m.armor) this.armorLeft = Math.max(this.armorLeft, m.armor.hits || 1); if (!SIM.silent) { FX.aura(this, 14); Audio.sfx('superready', .8, this.x); } };
+      if (Cmd.holding(this, m.hold.btn) && this.holdT < m.hold.max && (!m.hold.boosted || this.boostMv === this.mvId)) { this.t = m.hold.f; this.holdT++; if (this.holdT % 6 == 0 && !SIM.silent) FX.aura(this, 6); setLv(lvAt(this.holdT)); }
+      else { this.holdOff = 1; setLv(lvAt(this.holdT)); }
     }
     if (m.vel) for (const [a, b, vx, vy] of m.vel) if (this.t >= a && this.t <= b) {
       fl.vel = true;
