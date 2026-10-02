@@ -4326,6 +4326,22 @@ addVersion('zago', { id: 'v0.1', apply(ch) {
 } });
 
 </script>
+<script>/* src/data/versions/ravi.js */
+// ===== RAVI v0.1 =====
+addVersion('ravi', { id: 'v0.1', apply(ch) {
+  // golpes no ar alcançam mais (braços e pernas esticam)
+  for (const k of ['jlp', 'jmp', 'jhp', 'jlk', 'jmk', 'jhk']) ch.normals[k] = Object.assign({}, ch.normals[k], { hits: NORMALS[k].hits.map(h => Object.assign({}, h, { box: [h.box[0], h.box[1], Math.round(h.box[2] * 1.6), h.box[3]] })) });
+  // ↓ + Soco / Chute no ar: mergulho com 3 ângulos pela força (fraco quase vertical, médio diagonal, forte mais aberto)
+  const ang = [[2, -9], [4.5, -7], [7, -5]];
+  ch.cmdNormals = ch.cmdNormals.filter(c => c.key != 'j2mk' && c.key != 'j2hp');
+  ['lp', 'mp', 'hp'].forEach((b, i) => ch.cmdNormals.push({ key: 'j2' + b, dir: [1, 2, 3], btn: b, air: true, move: { anim: 'drill', air: 1, startup: 6, active: 40, recovery: 0, vel: [[6, 99, ang[i][0], ang[i][1]]], hits: [{ box: [14, 20, 70, 40], dmg: 6 + i, lv: 'H', high: 1, hs: 18, bs: 12 }] } }));
+  ['lk', 'mk', 'hk'].forEach((b, i) => ch.cmdNormals.push({ key: 'j2' + b, dir: [1, 2, 3], btn: b, air: true, move: { anim: 'dive', air: 1, startup: 5, active: 40, recovery: 0, vel: [[5, 99, ang[i][0], ang[i][1]]], hits: [{ box: [14, -10, 70, 40], dmg: 6 + i, lv: 'M', high: 1, hs: 16, bs: 10 }] } }));
+  // Teleporte no ar (→↓↘ + Soco no pulo ou levitando): reaparece na mesma altura (fraco na frente, médio/forte atrás)
+  ch.specials.push({ id: 'atele', input: '623', btn: 'P', air: 'only', name: 'Teleporte Aéreo' });
+  ch.moves.atele = s => ({ anim: 'tele', air: 1, startup: 99, dur: 32, inv: { strike: [1, 24], throw: [1, 24], proj: [1, 24] }, ghost: 1, fade: [3, 20], hover: [1, 24], tele: { f: 12, behind: s >= 1, front: s == 0 } });
+} });
+
+</script>
 <script>/* src/data/endings.js */
 // ===== finais do modo arcade (um por lutador) =====
 const ENDINGS = {
