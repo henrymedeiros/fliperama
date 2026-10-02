@@ -1625,7 +1625,7 @@ class Fighter {
       combo: 0, comboDmg: 0, comboScale: 1, starterL: false, juggle: 0, airReset: false, airUsed: false,
       hitMask: 0, contact: 0, cancelUntil: -1, grabDone: false, armorLeft: 0, projMask: 0, throwInv: 0, throwBack: false,
       flash: 0, flashCol: 0, shakeT: 0, cine: null, thr: null, cineRot: 0, parryFx: 0, want: null, in: Cmd.fresh(),
-      mode: 0, modeT: 0, tStop: 0, frozen: 0, sPrev: 0, sStep: 0, wantBuf: null, wantBufT: 0, bounced: 0, lastDmg: 'V', grey: 0, greyT: 0, airVs: false, mvId: 0, lastSrc: '', floatK: 0, quickLand: 0, vbuff: null, boostMv: -1, boostMult: 1, boostCol: '', aura: 0, auraMv: -1 });
+      mode: 0, modeT: 0, tStop: 0, frozen: 0, sPrev: 0, sStep: 0, wantBuf: null, wantBufT: 0, bounced: 0, lastDmg: 'V', grey: 0, greyT: 0, airVs: false, mvId: 0, lastSrc: '', floatK: 0, quickLand: 0, vbuff: null, boostMv: -1, boostMult: 1, boostCol: '', boostSu: false, aura: 0, auraMv: -1 });
     this.trail = [];
   }
   get m() { return this.mv ? getMove(this.ch, this.mv) : null; }
@@ -1741,12 +1741,14 @@ class Fighter {
   }
   startMove(key, o) {
     const m = getMove(this.ch, key), air = this.y > 0;
+    const chainSu = m.super && this.st == 'atk' && this.contact && this.boostSu && this.boostMv >= 0 && this.boostMv === this.mvId;   // especial turbinado cancelado em super: o super herda o bônus
     if (air) { this.st = 'air'; this.airUsed = true; } else this.setSt('atk');
     Object.assign(this, { holdT: 0, holdOff: 0 });
     Object.assign(this, { mv: key, t: 0, hitMask: 0, contact: 0, cancelUntil: -1, grabDone: false, armorLeft: m.armor ? (m.armor.hits || 1) : 0, projMask: 0, mvId: (this.mvId || 0) + 1 });
     this.crouch = !!m.crouch;
     { const id = key.includes(':') ? key.split(':')[0] : null, vb = this.vbuff;
-      if (vb && !m.super && (vb.any ? (m.hits.length || m.proj || m.projs) : id && m.special && (!vb.sp || vb.sp.includes(id)))) { this.boostMv = this.mvId; this.boostMult = vb.mult; this.boostCol = vb.col; this.vbuff = null; }
+      if (vb && !m.super && (vb.any ? (m.hits.length || m.proj || m.projs) : id && m.special && (!vb.sp || vb.sp.includes(id)))) { this.boostMv = this.mvId; this.boostMult = vb.mult; this.boostCol = vb.col; this.boostSu = !!vb.su; this.vbuff = null; }
+      if (chainSu) { this.boostMv = this.mvId; this.boostSu = false; }
       const au = this.ch.vskill && this.ch.vskill.aura;
       if (this.aura && au && id && au.sp.includes(id)) { this.auraMv = this.mvId; this.armorLeft = Math.max(this.armorLeft, 1); } }
     if (key == 'throw') this.throwBack = this.holdBack;
@@ -1903,7 +1905,7 @@ class Fighter {
         const g = this.grey, add = .35 * Math.min(1, g / (this.ch.healMax || 25 * HPK)), prev = this.vbuff && this.vbuff.label == vb.label ? this.vbuff.mult - 1 : 0;
         this.grey = 0; this.greyT = 0; vb.mult = 1 + Math.min(.5, prev ? prev + add : .15 + add);
       }
-      this.vbuff = { mult: vb.mult, sp: vb.sp || null, any: !!vb.any, label: vb.label, col: vb.col, lose: !!vb.lose };
+      this.vbuff = { mult: vb.mult, sp: vb.sp || null, any: !!vb.any, label: vb.label, col: vb.col, lose: !!vb.lose, su: !!vb.su };
       if (!SIM.silent) { FX.aura(this, 12); Audio.sfx('superready', 1, this.x); }
     }
     if (m.aura && this.t == m.aura.f) { this.aura = 1; if (!SIM.silent) { FX.aura(this, 12); Audio.sfx('armor', 1, this.x); } }
@@ -2198,12 +2200,13 @@ const Combat = {
   },
   // ---------- cinemáticas de super ----------
   startCine(a, o, type, g) {
-    a.setSt('cine'); a.mv = null; a.cine = { type, t: 0, n: 0, dmg: (g && g.dmg) || 0, c0: a.combo || 0 }; o.setSt('cineD'); o.mv = null; o.vx = o.vy = 0;
+    const am = a.m, boost = am && am.super && a.boostMv >= 0 && a.boostMv === a.mvId ? a.boostMult : 1;
+    a.setSt('cine'); a.mv = null; a.cine = { type, t: 0, n: 0, dmg: (g && g.dmg) || 0, c0: a.combo || 0, boost }; o.setSt('cineD'); o.mv = null; o.vx = o.vy = 0;
     a.combo = a.combo || 0; M.dim = 90; M.shake = 6; Audio.sfx('hitH', 1, o.x);
   },
   cineHit(a, o, d, big) {
     a.combo++; if (a.combo == 1) a.starterL = false;
-    const dmg = Math.max(1, Math.round(d * HPK * Math.max(.5, SCALE[Math.min(a.combo - 1 - ((a.cine && a.cine.c0) || 0), 9)])));
+    const dmg = Math.max(1, Math.round(d * HPK * ((a.cine && a.cine.boost) || 1) * Math.max(.5, SCALE[Math.min(a.combo - 1 - ((a.cine && a.cine.c0) || 0), 9)])));
     o.hp = Math.max(0, o.hp - dmg); o.grey = 0; o.greyT = 0; o.lastDmg = 'S'; a.comboDmg += dmg; a.stats.dmg += dmg; a.stats.hits++; a.stats.maxCombo = Math.max(a.stats.maxCombo, a.combo); o.flash = 2; o.shakeT = 4;
     M.comboShow = { f: a.i, n: a.combo, dmg: a.comboDmg, t: 90 };
     FX.hit(o.x + rnd(-20, 20), o.y + rnd(40, 110) * o.sz, a.face, big ? 2 : 1, big ? 'SA' : 'H'); Audio.sfx(big ? 'hitS' : 'hitM', 1, o.x);
@@ -2265,7 +2268,7 @@ const Combat = {
       }
       if (pr.landed && pr.p.pickup) {   // cravado no chão: não machuca; o dono pega passando por cima e ganha o bônus
         if (owner.y <= 0 && Math.abs(owner.x - pr.x) < 34 * owner.sz && owner.st != 'down' && owner.st != 'knock') {
-          const pk = pr.p.pickup; owner.vbuff = { mult: pk.mult, sp: pk.sp || null, any: !!pk.any, label: pk.label, col: pk.col, lose: !!pk.lose };
+          const pk = pr.p.pickup; owner.vbuff = { mult: pk.mult, sp: pk.sp || null, any: !!pk.any, label: pk.label, col: pk.col, lose: !!pk.lose, su: !!pk.su };
           pr.dead = 1; if (!SIM.silent) { FX.aura(owner, 12); Audio.sfx('superready', 1, owner.x); }
         }
         continue;
@@ -2615,6 +2618,7 @@ Object.assign(CINE_SCRIPTS, {
     if (c.t == 52) { a.y = 0; a.x = clamp(o.x - o.face * 80, 30, STAGE_W - 30); a.face = o.x > a.x ? 1 : -1; K.cineHit(a, o, 11, 1); return true; }
   },
   rolling: cineFlurry({ every: 7, n: 6, dmg: 3.6, fin: 54, finDmg: 13, dist: 58, adv: 1.6 }),
+  slasher: cineFlurry({ every: 5, n: 8, dmg: 2.8, fin: 52, finDmg: 12, dist: 58, adv: 1, fx: (a, o, c) => FX.slash(o.x, o.y + 50 + (c.n % 3) * 25, c.n), finFx: (a, o) => { FX.slash(o.x, o.y + 80, 9); FX.shock(o.x); } }),
   jackhammer: (c, a, o, s, K) => {
     o.x = clamp(a.x + a.face * 64 * s, 30, STAGE_W - 30);
     if (c.t % 8 == 0 && c.n < 5) { c.n++; K.cineHit(a, o, 4); FX.dust(o.x, 0, 8); M.trauma = Math.min(1, M.trauma + .15); }
@@ -4686,7 +4690,7 @@ const Anim = {
           case 'shinryu': p = ANIM.dp.A; flip = ((c.t >> 2) % 2) == 1; break;
           case 'somersault': p = ANIM.flash.A; rot = (c.t % 24) / 24 * Math.PI * 2; break;
           case 'thunder': p = ANIM.roll.A; rot = -c.t * .5; break;
-          case 'fatal': case 'cabin': p = (c.t >> 2) % 2 ? ANIM.chop.A : ANIM.chop.W; break;
+          case 'fatal': case 'cabin': case 'slasher': p = (c.t >> 2) % 2 ? ANIM.chop.A : ANIM.chop.W; break;
           case 'frozen': case 'soulcrush': p = ANIM.reflect.A; break;
           case 'jaw': case 'hammer': case 'gigas': case 'bullrev': p = c.t < 30 ? ANIM.grab.A : ANIM.throwA.A; break;
           case 'tigerdest': p = ANIM.knee.A; break;
