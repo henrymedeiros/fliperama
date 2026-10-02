@@ -4019,7 +4019,11 @@ function cloneChar(o) {
 function beamFewerHits(ch, k = .5) {
   const wrap = fn => s => {
     const m = fn(s);
-    for (const p of m.projs || (m.proj ? [m.proj] : [])) if (p.beam && (p.hits || 1) > 2) { const n = Math.max(2, Math.round(p.hits * k)); p.dmg = p.dmg * p.hits / n; p.gap = Math.round((p.gap || 4) * p.hits / n); p.hits = n; }
+    for (const p of m.projs || (m.proj ? [m.proj] : [])) if (p.beam && (p.hits || 1) > 2) {
+      // dano por acerto compensa o escalonamento do combo (menos acertos = menos redução); o feixe longo de super na prática acerta até ~9 vezes
+      const n = Math.max(2, Math.round(p.hits * k)), S = c => { let t = 0; for (let i = 0; i < c; i++) t += m.super ? Math.max(.5, SCALE[Math.min(i, 9)]) : SCALE[Math.min(i, 9)]; return t; };
+      p.dmg = p.dmg * S(Math.min(p.hits, 9)) / S(n); p.gap = Math.round((p.gap || 4) * p.hits / n); p.hits = n;
+    }
     return m;
   };
   for (const id in ch.moves) ch.moves[id] = wrap(ch.moves[id]);
