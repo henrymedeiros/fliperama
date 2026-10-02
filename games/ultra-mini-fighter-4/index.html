@@ -4353,8 +4353,8 @@ addVersion('yura', { id: 'v0.1', apply(ch) {
       vel: [[st, st, S3(s, [2, 2.6, 3.2, 3]), S3(s, [9, 10.5, 12, 12])]], inv: s == 3 ? { strike: [1, 10] } : {},
       hits: multi(S3(s, [2, 3, 4, 4]), st, 4, 2, { box: [-10, 50, 76, 90], dmg: S3(s, [5, 4, 3.6, 3.6]), lv: 'SP', hs: 18, bs: 8, lastKd: 1 }) };
   };
-  // V-Skill nova: CHUTE MACHADO (o overhead da Juri no SF4) — acerta quem defende agachado e dá pra continuar o combo depois
-  ch.vskill = { anim: 'axe', name: 'CHUTE MACHADO', startup: 16, active: 3, recovery: 12, vel: [[2, 12, 3, null]], cancel: { sp: 1, su: 1 },
+  // V-Skill nova: MACHADO DA ARANHA (o overhead da Juri no SF4) — acerta quem defende agachado e dá pra continuar o combo depois
+  ch.vskill = { anim: 'axe', name: 'MACHADO DA ARANHA', startup: 16, active: 3, recovery: 12, vel: [[2, 12, 3, null]], cancel: { sp: 1, su: 1 },
     hits: [{ box: [14, 56, 72, 70], dmg: 7, lv: 'M', high: 1, onHit: 7, onBlock: -1, push: .5 }] };
   // Chute mergulho (Shiku-sen): se acertar, apertar Chute de novo emenda mais chutes (até 5 no total)
   const kick = n => ({ anim: 'dive', air: 1, name: 'Shiku-sen ' + (n + 1), startup: 3, active: 30, recovery: 0, vel: [[1, 5, -1, 6], [6, 99, 3, -9]],
