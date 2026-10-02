@@ -4382,6 +4382,32 @@ addVersion('kongo', { id: 'v0.1', apply(ch) {
 } });
 
 </script>
+<script>/* src/data/versions/nervo.js */
+// ===== NERVO v0.1 =====
+addVersion('nervo', { id: 'v0.1', apply(ch) {
+  // comandos como os do Necro no SF3: Tornado Hook ←↙↓↘→ + Soco, Flying Viper ↓↙← + Soco, Snake Fang (agarrão baixo) ←↙↓↘→ + Chute;
+  // a descarga dos 3 socos (Cobra Elétrica) vira ↓↙← + Chute
+  const inp = { tornado: ['41236', 'P'], vibora: ['214', 'P'], presa: ['41236', 'K'], cobra: ['214', 'K'] };
+  ch.specials = ch.specials.map(s => inp[s.id] ? Object.assign({}, s, { input: inp[s.id][0], btn: inp[s.id][1] }) : s);
+  // ELECTRIC SHOCK (→↓↘ + Soco): o anti-aéreo elétrico que sobe do Necro
+  ch.specials.push({ id: 'shock', input: '623', btn: 'P', name: 'Electric Shock' });
+  ch.moves.shock = s => {
+    const n = S3(s, [2, 3, 4, 5]), hits = multi(n, 5, 4, 2, { box: [-10, 50, 80, 110], dmg: S3(s, [5, 4, 3.6, 3.4]), lv: 'SP', hs: 18, bs: 10, snd: 'elec', push: .5 });
+    Object.assign(hits[n - 1], { kd: 'soft', launch: { vy: 10, vx: 1 } });
+    return { anim: 'nervo_cobra', alt: 1, name: 'Electric Shock', fx: 'elec', startup: 5, active: n * 4, recovery: S3(s, [26, 30, 34, 30]), vel: [[3, 5 + n * 4, S3(s, [2, 3, 4, 3.5]), null]],
+      inv: { strike: [1, S3(s, [3, 5, 7, 9])], throw: [1, S3(s, [3, 5, 7, 9])] }, hits };
+  };
+  // Drill kick no ar (↓ + Chute): o ângulo muda com a força
+  ch.specials.push({ id: 'drill', input: '2', btn: 'K', air: 'only', name: 'Drill Kick' });
+  ch.moves.drill = s => ({ anim: 'nervo_jk', air: 1, name: 'Drill Kick', startup: 5, active: 60, recovery: 0, vel: [[5, 99, S3(s, [2.5, 5, 7.5, 6]), S3(s, [-10, -8, -6, -9])]],
+    hits: [{ box: [10, -14, 70, 40], dmg: S3(s, [6, 7, 8, 8]), lv: 'SP', high: 1, hs: 18, bs: 10 }] });
+  // Tempestade Magnética quase não empurra no acerto (todos os choques pegam)
+  const sup = ch.moves.super;
+  ch.moves.super = () => { const m = sup(); m.hits = m.hits.map((h, i) => i < m.hits.length - 1 ? Object.assign({}, h, { push: .15 }) : h); return m; };
+  ch.ai = Object.assign({}, ch.ai, { aa: 'shock' });
+} });
+
+</script>
 <script>/* src/data/endings.js */
 // ===== finais do modo arcade (um por lutador) =====
 const ENDINGS = {
