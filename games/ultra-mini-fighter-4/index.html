@@ -4182,6 +4182,21 @@ addVersion('colt', { id: 'v0.1', apply(ch) {
 } });
 
 </script>
+<script>/* src/data/versions/goro.js */
+// ===== GORO v0.1 =====
+addVersion('goro', { id: 'v0.1', apply(ch) {
+  // Lariat como o do Zangief: gira de braços abertos (não mais com as pernas)
+  const lariat = ch.moves.lariat;
+  ch.moves.lariat = s => { const m = lariat(s); m.anim = 'kongspin'; m.alt = 1; delete m.spin; return m; };
+  // ↓↘→ + Soco vira a MÃO VERDE (Banishing Flat): avança com a palma brilhando, apaga projéteis e derruba
+  ch.moves.flat = s => ({ anim: 'palm', fx: 'hamon', fxCol: '#5dff6a', startup: S3(s, [10, 12, 14, 10]), active: 6, recovery: 20, vel: [[4, 14, S3(s, [3, 4.5, 6, 6]), null]],
+    inv: { proj: [1, 18] }, nullify: { f: [5, 18], n: s == 3 ? 2 : 1, box: [10, 30, 90, 90] },
+    hits: [{ box: [14, 40, 70, 74], dmg: S3(s, [10, 11, 12, 14]), lv: 'SP', kd: 'soft', onBlock: -6 }] });
+  // V-Skill Músculo de Ferro como no SFV: tocar = armadura rápida; SEGURAR = anda devagar pra frente aguentando até 3 golpes
+  ch.vskill = Object.assign({}, ch.vskill, { armor: { f: [1, 16], hits: 3 }, vel: [[3, 3, 1.1, null]], hold: { f: 3, max: 70, btn: ['mp', 'mk'], lv: [] } });
+} });
+
+</script>
 <script>/* src/data/endings.js */
 // ===== finais do modo arcade (um por lutador) =====
 const ENDINGS = {
@@ -5269,7 +5284,7 @@ function drawFighter(c, f, pz, tint) {
   // ---- pintar ----
   c.save(); c.translate(f.x + (f.shakeT > 0 ? rnd(-3, 3) : 0), -f.y); c.scale(f.face * fl * f.sz, -f.sz); c.globalAlpha *= fade;
   renderParts(c, parts, tint || (zap && m.fx == 'elec' ? '#e6fbff' : null), white);
-  if (elec && !tint) drawBolts(c, H, 70, m.fx == 'hamon' ? '#ffe04a' : '#9ef');
+  if (elec && !tint) drawBolts(c, H, 70, m.fxCol || (m.fx == 'hamon' ? '#ffe04a' : '#9ef'));
   c.restore();
   if (!tint && m && m.spikes && f.t >= m.s - 1 && f.t <= m.e + 3) {
     // ossos saindo do corpo em leque (Dança do Lariço)
