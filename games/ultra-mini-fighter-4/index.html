@@ -4230,6 +4230,13 @@ addVersion('goro', { id: '1.0.0', apply(ch) {
   ch.vskill = Object.assign({}, ch.vskill, { armor: { f: [1, 16], hits: 3 }, vel: [[3, 3, 1.1, null]], hold: { f: 3, max: 70, btn: ['mp', 'mk'], lv: [] } });
 } });
 
+// ===== GORO 1.1.0 =====
+addVersion('goro', { id: '1.1.0', apply(ch) {
+  // reativação da V-Skill (Soco durante o Músculo de Ferro): não avança mais; é um golpe curto e fraco no lugar
+  ch.extraMoves = Object.assign({}, ch.extraMoves, { ironhead: { anim: 'rush', startup: 7, active: 4, recovery: 16, armor: { f: [1, 8], hits: 1 },
+    hits: [{ box: [10, 60, 56, 50], dmg: 6, lv: 'M', onHit: 2, onBlock: -4 }] } });
+} });
+
 </script>
 <script>/* src/data/versions/rodney.js */
 // ===== RODNEY 1.0.0 =====
