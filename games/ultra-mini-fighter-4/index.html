@@ -4242,6 +4242,14 @@ addVersion('kaiser', { id: 'v0.1', apply(ch) {
 } });
 
 </script>
+<script>/* src/data/versions/kori.js */
+// ===== KORI v0.1 =====
+addVersion('kori', { id: 'v0.1', apply(ch) {
+  // Slide agora é ↓↘→ + Chute (antes ↓↙←)
+  ch.specials.find(s => s.id == 'slide').input = '236';
+} });
+
+</script>
 <script>/* src/data/endings.js */
 // ===== finais do modo arcade (um por lutador) =====
 const ENDINGS = {
