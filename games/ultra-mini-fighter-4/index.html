@@ -4127,6 +4127,16 @@ addVersion('shiro', { id: 'v0.1', apply(ch) {
 } });
 
 </script>
+<script>/* src/data/versions/goen.js */
+// ===== GOEN v0.1 =====
+addVersion('goen', { id: 'v0.1', apply(ch) {
+  // feixes (Masenko, Kamehameha aéreo e o super) com menos acertos e o mesmo dano total: dá pra aparar
+  beamFewerHits(ch);
+  // Carregar Ki: não enche mais segurando; cada uso dá 1/9 da barra (3 usos = 1/3 da barra de super)
+  ch.vskill = Object.assign({}, ch.vskill, { dur: 30, ki: [12, 12, METER_MAX / 9] });
+} });
+
+</script>
 <script>/* src/data/endings.js */
 // ===== finais do modo arcade (um por lutador) =====
 const ENDINGS = {
