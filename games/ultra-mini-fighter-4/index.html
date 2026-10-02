@@ -4424,6 +4424,14 @@ addVersion('falko', { id: 'v0.1', apply(ch) {
 } });
 
 </script>
+<script>/* src/data/versions/vorhas.js */
+// ===== JASPER v0.1 =====
+addVersion('vorhas', { id: 'v0.1', apply(ch) {
+  // Soco Forte em pé: segurando o botão um tempo, vira um golpe que não dá pra defender (e bate mais forte)
+  ch.normals.shp = Object.assign({}, ch.normals.shp, { hold: { f: 6, max: 50, btn: 'hp', lv: [{ t: 36, apply: src => { src.hits = src.hits.map(h => Object.assign({}, h, { unblockable: 1, dmg: h.dmg + 3, kd: 'soft' })); return src; } }] } });
+} });
+
+</script>
 <script>/* src/data/endings.js */
 // ===== finais do modo arcade (um por lutador) =====
 const ENDINGS = {
