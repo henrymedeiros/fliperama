@@ -4476,6 +4476,13 @@ addVersion('vorhas', { id: '1.0.0', apply(ch) {
   ch.normals.shp = Object.assign({}, ch.normals.shp, { hold: { f: 6, max: 50, btn: 'hp', lv: [{ t: 36, apply: src => { src.hits = src.hits.map(h => Object.assign({}, h, { unblockable: 1, dmg: h.dmg + 3, kd: 'soft' })); return src; } }] } });
 } });
 
+// ===== JASPER 1.1.0 =====
+addVersion('vorhas', { id: '1.1.0', apply(ch) {
+  // Soco Forte carregado (imbloqueável): ganha armadura de 1 golpe assim que a carga fica pronta
+  const hold = ch.normals.shp.hold, lv0 = hold.lv[0], ap = lv0.apply;
+  ch.normals.shp = Object.assign({}, ch.normals.shp, { hold: Object.assign({}, hold, { lv: [Object.assign({}, lv0, { apply: src => { ap(src); src.armor = { f: [1, 40], hits: 1 }; return src; } })] }) });
+} });
+
 </script>
 <script>/* src/data/versions/altair.js */
 // ===== ALTAIR 1.0.0 =====
