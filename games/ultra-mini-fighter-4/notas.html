@@ -113,6 +113,13 @@ const TYPES = { novo: ['Novo', 'var(--novo)'], buff: ['Buff', 'var(--buff)'], ne
 const C = s => `<span class="cmd">${s}</span>`;
 // notas por lançamento (o mais novo primeiro). Lutador: [id do retrato, nome, [[tipo, mudança], ...], versão do lutador (padrão: a do lançamento)]
 const RELEASES = [{
+  id: 'gunter-eterno-g', title: 'Gunter e Eterno G.', kind: 'Ajuste de personagem', date: '2026-10-03',
+  chars: [
+    ['gunter', 'Gunter', [['ajuste', `A antiga 1.0.0 virou a Base: Giant Palm Bomber em ${C('↓↙← + Soco')} e V-Skill Joelho Gigante. O Gunter original saiu do seletor; agora são só a Base e o Eterno G.`]], 'Base'],
+    ['gunter', 'Eterno G.', [['rework', 'Sem nenhum rastro do Gunter: título próprio (O Gigante Eterno), frase, final do arcade e voz própria (fala em português pela voz do navegador, sem os áudios gravados do Gunter).'],
+      ['ajuste', 'Nada de rosa: a tela VS e os efeitos usam o verde-militar dele.']], '2.0.0'],
+  ]
+}, {
   id: 'crow-1.2.0', title: 'Crow 1.2.0', kind: 'Ajuste de personagem', date: '2026-10-03',
   chars: [
     ['crow', 'Crow', [['ajuste', `Bull Head agora sai com ${C('↓↘→ + Chute')} (antes ↓↘→ + Soco).`]], '1.2.0'],

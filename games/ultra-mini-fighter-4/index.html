@@ -591,7 +591,8 @@ const Audio = {
   // gritos dos golpes (force = super: prioridade máxima do lutador)
   shout(ch, id, f, force) {
     if (!settings.shouts || SIM.silent || !id) return;
-    if (Voice.play(ch.id + '/' + id, { chan: 'f' + (f ? f.i : 0), pri: force ? 3 : 2, fx: VOICE_FX[ch.id], x: f && f.x })) return;
+    const vid = ch.voiceId || ch.id;   // versão com voz própria (ex.: Eterno G.) não usa os áudios gravados do lutador base
+    if (Voice.play(vid + '/' + id, { chan: 'f' + (f ? f.i : 0), pri: force ? 3 : 2, fx: VOICE_FX[vid], x: f && f.x })) return;
     if (!window.speechSynthesis || (ch.voice && ch.voice.silent)) return;
     try {
       if (speechSynthesis.speaking && !force) return;
@@ -602,7 +603,7 @@ const Audio = {
   // esforço (e), dor (h), nocaute (ko), frase de vitória (win)
   grunt(f, kind, o = {}) {
     if (!settings.shouts || SIM.silent || !f) return;
-    const id = f.ch.id, nv = b => { const ck = id + '/' + b; if (this.nvar[ck] == null) { let n = 0; while (Voice.has(ck + (n + 1))) n++; this.nvar[ck] = n; } return Math.max(1, this.nvar[ck]); };
+    const id = f.ch.voiceId || f.ch.id, nv = b => { const ck = id + '/' + b; if (this.nvar[ck] == null) { let n = 0; while (Voice.has(ck + (n + 1))) n++; this.nvar[ck] = n; } return Math.max(1, this.nvar[ck]); };
     const key = kind == 'e' || kind == 'h' ? id + '/' + kind + (1 + (Math.random() * nv(kind) | 0)) : id + '/' + kind;
     if (Voice.play(key, Object.assign({ chan: 'f' + f.i, pri: { e: 1, h: 2, ko: 4, win: 3 }[kind] || 1, fx: VOICE_FX[id], x: f.x, rate: kind == 'e' || kind == 'h' ? .95 + Math.random() * .1 : 1 }, o))) return;
     const VL = f.ch.voice && f.ch.voice.lines, ln = VL && VL[{ h: 'hurt', ko: 'ko', win: 'win', intro: 'intro' }[kind]];
@@ -3101,7 +3102,7 @@ defChar({
   cmdNormals: [
     { key: '6hp', dir: [6], btn: 'hp', move: { anim: 'headbutt', startup: 12, active: 4, recovery: 18, armor: { f: [4, 12], hits: 1 }, hits: [{ box: [14, 100, 54, 40], dmg: 10, lv: 'H', onHit: 2, onBlock: -4 }] } },
   ],
-  specials: [{ id: 'moon', input: '360', btn: 'P', ex: true }, { id: 'meat', input: '360', btn: 'K', ex: true }, { id: 'sdb', input: '623', btn: 'K' }, { id: 'palm', input: '236', btn: 'P' }],
+  specials: [{ id: 'moon', input: '360', btn: 'P', ex: true }, { id: 'meat', input: '360', btn: 'K', ex: true }, { id: 'sdb', input: '623', btn: 'K' }, { id: 'palm', input: '214', btn: 'P' }],
   moves: {
     palm: s => ({ anim: 'palm', startup: S3(s, [12, 14, 16, 10]), active: 5, recovery: 22, vel: [[6, 14, S3(s, [3, 4, 5, 5]), null]], inv: s == 3 ? { proj: [1, 16] } : {}, shout: 'giantpalm',
       nullify: { f: [S3(s, [8, 10, 12, 6]), S3(s, [17, 19, 21, 15])], n: s == 3 ? 2 : 1, box: [10, 30, 92, 90] },
@@ -3112,8 +3113,9 @@ defChar({
       grab: { range: S3(s, [90, 100, 110, 120]), dmg: S3(s, [15, 17, 19, 22]), type: 'slam', air: 1 } }),
     super: () => ({ anim: 'grab', super: 1, startup: 5, active: 5, recovery: 40, inv: { strike: [1, 9], throw: [1, 9] }, name: 'GIGAS BREAKER', shout: 'gigasbreaker', grab: { range: 120, dmg: 0, cine: 'gigas' } }),
   },
-  vskill: { anim: 'rush', startup: 14, active: 10, recovery: 20, armor: { f: [4, 22], hits: 1 }, vel: [[6, 24, 4.5, null]], name: 'OMBRADA',
-    hits: [{ box: [10, 40, 62, 80], dmg: 3, lv: 'M', push: 24, onHit: 2, onBlock: -2 }] },
+  // V-Skill JOELHO GIGANTE (como o golpe único do Hugo no SF4): salta pra frente por cima de projéteis e desce com uma joelhada que acerta alto (overhead)
+  vskill: { anim: 'knee', startup: 8, active: 22, recovery: 0, name: 'JOELHO GIGANTE', vel: [[4, 4, 5, 9]], landEnd: 10, inv: { proj: [2, 26] },
+    hits: [{ f: [12, 40], box: [4, -10, 70, 60], dmg: 9, lv: 'M', high: 1, hs: 20, bs: 12 }] },
   extraMoves: { gpress: { anim: 'rush', startup: 10, active: 8, recovery: 18, vel: [[6, 16, 5, null]], armor: { f: [1, 12], hits: 1 }, hits: [{ box: [10, 50, 60, 70], dmg: 13, lv: 'H', kd: 'soft', onBlock: -6 }] } },
   ai: { grab: 'moon', aa: 'sdb', enders: ['palm'], rush: 1, poke: 'smk', bnb: ['clk', 'cmp'] }
 });
@@ -4592,14 +4594,7 @@ addVersion('legion', { id: '1.0.0', apply(ch) {
 
 </script>
 <script>/* src/data/versions/gunter.js */
-// ===== GUNTER 1.0.0 =====
-addVersion('gunter', { id: '1.0.0', apply(ch) {
-  // Giant Palm Bomber agora é ↓↙← + Soco (antes ↓↘→)
-  ch.specials.find(s => s.id == 'palm').input = '214';
-  // V-Skill nova: JOELHO GIGANTE (como o golpe único do Hugo no SF4) — salta pra frente por cima de projéteis e desce com uma joelhada que acerta alto (overhead)
-  ch.vskill = { anim: 'knee', startup: 8, active: 22, recovery: 0, name: 'JOELHO GIGANTE', vel: [[4, 4, 5, 9]], landEnd: 10, inv: { proj: [2, 26] },
-    hits: [{ f: [12, 40], box: [4, -10, 70, 60], dmg: 9, lv: 'M', high: 1, hs: 20, bs: 12 }] };
-} });
+// a antiga 1.0.0 (Palm Bomber em ↓↙← e V-Skill Joelho Gigante) virou a base; o Gunter original saiu do jogo
 
 // ===== GUNTER 2.0.0 — ETERNO G. =====
 // rework completo inspirado no Hugo do USF4: Meat Squasher que corre e agarra, Ultra Throw na parede e Giant Palm Bomber com as palmas
@@ -4633,23 +4628,33 @@ CINE_SCRIPTS.ultrathrow = (c, a, o, s, K) => {
 };
 addVersion('gunter', { id: '2.0.0', apply(ch) {
   ch.name = 'ETERNO G.'; ch.announce = 'Eterno Gigante';   // o narrador fala "Eterno Gigante" (seleção e vitória)
-  // visual próprio: topete escuro volumoso pra trás, pele clara, bigode fino e cavanhaque com barba rala (o corpo de lutador gigante continua)
+  // identidade própria, sem nada do Gunter: título, frase, final do arcade e voz (sem os áudios gravados do Gunter; fala pela voz do navegador)
+  ch.title = 'O Gigante Eterno';
+  ch.quote = 'Pode vir com tudo. Eu não caio, eu não canso, eu não acabo.';
+  ch.ending = 'O Eterno G. pendura o cinturão na parede da academia do bairro e volta pro treino no mesmo dia. Na porta, alguém escreveu com tinta verde: "Aqui treina quem não acaba nunca."';
+  ch.voiceId = 'eterno';
+  ch.voice = { pitch: .55, rate: .95, lang: 'pt-BR', shoutRate: 1.05, lines: { intro: ['Bora, Eterno!'], win: ['Eu disse que não acabo.', 'Próximo!'], ko: ['Ainda... não...'] } };  // visual próprio: topete escuro volumoso pra trás, pele clara, bigode fino e cavanhaque com barba rala (o corpo de lutador gigante continua)
   ch.look = Object.assign({}, ch.look, { hair: 'quiff', hairC: '#231c19', skin: '#ecc6a4', goatee: '#2a211c', brow: undefined, build: 1.08,   // magro, forte e definido; o tamanho (alcance) não muda
     torso: 'tank', plain: 1, sleeve: 'short', top: '#1c1c1f', legs: 'bermuda', pants: '#5a6236', straps: undefined, feet: '#2a2622', glove: '#ecc6a4', gloveType: 'bare' });   // camiseta preta básica e bermuda cargo verde-militar
   ch.palettes = [{}, { top: '#e8e8e8', pants: '#3a3a3a' }, { top: '#2a3a5a', pants: '#8a7a56' }, { top: '#7a1a1a', pants: '#2a2a2a' }];
   ch.aura = '#5a6236';   // efeitos (aura, brilhos, rastro) no verde-militar da bermuda, em vez do rosa
+  // os golpes herdados do Gunter gritam com os nomes por extenso (a voz do navegador lê) e o super perde o grito gravado
+  const moon = ch.moves.moon, sdb = ch.moves.sdb, sup = ch.moves.super;
+  ch.moves.moon = s => Object.assign(moon(s), { shout: 'Moonsault Press' });
+  ch.moves.sdb = s => Object.assign(sdb(s), { shout: 'Shootdown Backbreaker' });
+  ch.moves.super = s => Object.assign(sup(s), { shout: 'Gigas Breaker' });
   // MEAT SQUASHER (360 + Chute): corre até o oponente (fraco perto, forte longe) e agarra se alcançar. Não pega quem está no ar.
   // EX: armadura infinita durante a corrida, mas o dano vira vida cinza; se a vida toda virar cinza, ele cai
   const runK = [[50, 16, 52, 104, 42, 96, 30, 4, -30, 10, 0], [50, 16, 56, 100, 38, 100, -22, 6, 26, 8, 0]];
   ch.moves.meat = s => {
     const run = S3(s, [20, 40, 60, 60]), keys = [];
     for (let t = 1; t < 8 + run; t += 5) keys.push([t, runK[(t / 5 | 0) % 2]]);
-    return { anim: 'grab', keys, name: 'Meat Squasher', shout: 'meatsquasher', startup: 8, active: run, recovery: 30, vel: [[1, 7 + run, S3(s, [6, 6.5, 7, 7.5]), null]],
+    return { anim: 'grab', keys, name: 'Meat Squasher', shout: 'Meat Squasher', startup: 8, active: run, recovery: 30, vel: [[1, 7 + run, S3(s, [6, 6.5, 7, 7.5]), null]],
       armor: s == 3 ? { f: [1, 8 + run], hits: 99, lethal: 1 } : undefined, grab: { range: 64, dmg: S3(s, [18, 19, 20, 22]), cine: 'meatsq' } };
   };
   // ULTRA THROW (→↘↓↙← + Chute): agarrão de perto que joga o oponente na parede; ele quica de volta em juggle livre
   ch.specials.push({ id: 'uthrow', input: '63214', btn: 'K', name: 'Ultra Throw' });
-  ch.moves.uthrow = s => ({ anim: 'grab', name: 'Ultra Throw', startup: s == 3 ? 4 : 7, active: 2, recovery: 30, inv: s == 3 ? { strike: [1, 4], throw: [1, 4] } : {},
+  ch.moves.uthrow = s => ({ anim: 'grab', name: 'Ultra Throw', shout: 'Ultra Throw', startup: s == 3 ? 4 : 7, active: 2, recovery: 30, inv: s == 3 ? { strike: [1, 4], throw: [1, 4] } : {},
     grab: { range: S3(s, [80, 84, 88, 92]), dmg: s == 3 ? 7 : 8, cine: 'ultrathrow' } });
   // GIANT PALM BOMBER (↓↙← + Soco): abre os braços lá em cima e bate as palmas na frente, na altura da cabeça (como o Hugo no SF4).
   // Lança o oponente (juggle livre) e, no acerto, a versão mais forte cancela numa mais fraca: forte → médio → fraco. O EX cancela em qualquer força
@@ -4657,7 +4662,7 @@ addVersion('gunter', { id: '2.0.0', apply(ch) {
   ch.moves.palm = s => {
     const st = S3(s, [12, 14, 16, 10]), into = [[], ['palm:0'], ['palm:0', 'palm:1'], ['palm:0', 'palm:1', 'palm:2']][s];
     const h = { box: [16, 58, 76, 76], lv: 'SP', kd: 'soft', jLimit: s == 3 ? 4 : 3, onBlock: -6 };
-    return { anim: 'palm', keys: [[Math.max(1, st - 5), OPEN], [st, CLAP], [st + 6, CLAP], [st + 18, 'base']], name: 'Giant Palm Bomber', shout: 'giantpalm',
+    return { anim: 'palm', keys: [[Math.max(1, st - 5), OPEN], [st, CLAP], [st + 6, CLAP], [st + 18, 'base']], name: 'Giant Palm Bomber', shout: 'Giant Palm Bomber',
       startup: st, active: 5, recovery: 22, vel: [[6, 14, S3(s, [3, 4, 5, 5]), null]], inv: s == 3 ? { proj: [1, 16] } : {},
       nullify: { f: [S3(s, [8, 10, 12, 6]), S3(s, [17, 19, 21, 15])], n: s == 3 ? 2 : 1, box: [10, 30, 92, 90] },
       bursts: [{ f: st, x: 80, y: 118, s: 1.3 }], cancel: { into, intoHit: 1 },
@@ -8294,13 +8299,13 @@ Object.assign(Menus, {
       case 'gameover': this.bg(c, '#f44'); gradText(c, 'GAME OVER', W / 2, H / 2, 110, '#fff', '#a00'); break;
       case 'ending': {
         // final do personagem: cenário de casa, pose de vitória e texto datilografado
-        const ch = CHARS[g.sel[0]], st = ch.stage || 'temple';
+        const ch = charVer(g.sel[0], versionsOf(g.sel[0]).includes(g.ver[0]) ? g.ver[0] : newestVer(g.sel[0])), st = ch.stage || 'temple';   // a versão que o jogador usou
         if (Stage.cur != st) Stage.set(st); Cam.x = STAGE_W / 2; Cam.z = 1; Cam.y = 0; Stage.draw(c); c.fillStyle = 'rgba(0,0,0,.45)'; c.fillRect(0, 0, W, H);
         for (let i = 0; i < 60; i++) { const x = (i * 97 + Math.sin(T * .02 + i) * 40) % W, y = (i * 53 + T * (1 + i % 3)) % (H + 20) - 10; c.fillStyle = ['#f44', '#ffd21e', '#6cf', '#6f6', '#f6c'][i % 5]; c.save(); c.translate(x, y); c.rotate(T * .05 + i); c.fillRect(-3, -5, 6, 10); c.restore(); }
         puppet(c, ch, 230, 508, 2 / Math.max(1, ch.sz), 1, P.win, { st: 'win', look: lookOf(ch, g.pal[0] || 0) });
         gradText(c, 'CAMPEÃO!', 640, 110, 84, '#fff', '#ffb31e', 10);
         txt(c, ch.name, 640, 160, 34, ch.aura, 'center', 5);
-        { const full = ENDINGS[ch.id] || ch.name + ' conquistou o torneio Mini Fighter!', n = Math.min(full.length, Math.floor(g.t * .9)), words = full.slice(0, n).split(' '), lines = []; let line = '';
+        { const full = ch.ending || ENDINGS[ch.id] || ch.name + ' conquistou o torneio Mini Fighter!', n = Math.min(full.length, Math.floor(g.t * .9)), words = full.slice(0, n).split(' '), lines = []; let line = '';
           c.font = `700 20px ${FONT2}`; for (const w of words) { if (c.measureText(line + w).width > 440) { lines.push(line); line = ''; } line += w + ' '; } lines.push(line);
           c.fillStyle = 'rgba(0,0,0,.6)'; slant(c, 400, 186, 480, 30 + lines.length * 26, 14); c.fill();
           lines.forEach((l, i) => ui(c, l, 640, 212 + i * 26, 20, '#fff', 'center', 3)); }
@@ -8336,7 +8341,7 @@ Object.assign(Menus, {
       puppet(c, vch, x, 520, k, face, rd ? P.win : undefined, { st: rd ? 'win' : 'idle', look: lookOf(vch, rd ? g.pal[slot] || 0 : 0) }); c.restore();
       const ng = c.createLinearGradient(0, 286, 0, 342); ng.addColorStop(0, 'rgba(0,0,0,0)'); ng.addColorStop(1, 'rgba(0,0,0,.7)'); c.fillStyle = ng; c.fillRect(x - 140, 286, 280, 56);
       txt(c, (shown(slot) || ch).name, x, 324, 38, rd ? '#ffd21e' : '#fff', 'center', 6);   // nome da versão (ex.: Gunter 2.0 = ETERNO G.)
-      ui(c, online ? memberName(Room.fighters[slot]) + (Room.fighters[slot] == Net.id ? ' (você)' : '') : ch.title, x, 340, 14, online ? '#ffd21e' : '#bcd', 'center', 3);
+      ui(c, online ? memberName(Room.fighters[slot]) + (Room.fighters[slot] == Net.id ? ' (você)' : '') : (shown(slot) || ch).title, x, 340, 14, online ? '#ffd21e' : '#bcd', 'center', 3);
       if (rd) { c.fillStyle = 'rgba(0,0,0,.6)'; c.fillRect(x - 60, 262, 120, 24); txt(c, 'PRONTO!', x, 282, 20, '#6f6', 'center', 3); }
       // versão: seletor (←→) depois de escolher, ou só a etiqueta da versão
       const vs = g.mode == 'trials' ? ['base'] : versionsOf(g.sel[slot]), v = verOf(slot);
@@ -8466,15 +8471,16 @@ Object.assign(Menus, {
   },
   drawVS(c) {
     const g = Game, t = g.t, a = CHARS[g.sel[0]], b = CHARS[g.mode == 'arcade' ? g.ladder[g.stage] : g.sel[1]], k = easeOut(t / 22);
-    c.fillStyle = shade(a.aura, .35); c.beginPath(); c.moveTo(0, 0); c.lineTo(W / 2 + 60, 0); c.lineTo(W / 2 - 60, H); c.lineTo(0, H); c.fill();
-    c.fillStyle = shade(b.aura, .35); c.beginPath(); c.moveTo(W, 0); c.lineTo(W / 2 + 60, 0); c.lineTo(W / 2 - 60, H); c.lineTo(W, H); c.fill();
+    const auraOf = (i, ch) => { const ci = CHARS.indexOf(ch); return charVer(ci, i == 0 && versionsOf(ci).includes(g.ver[0]) ? g.ver[0] : newestVer(ci)).aura; };   // cor da versão que vai lutar
+    c.fillStyle = shade(auraOf(0, a), .35); c.beginPath(); c.moveTo(0, 0); c.lineTo(W / 2 + 60, 0); c.lineTo(W / 2 - 60, H); c.lineTo(0, H); c.fill();
+    c.fillStyle = shade(auraOf(1, b), .35); c.beginPath(); c.moveTo(W, 0); c.lineTo(W / 2 + 60, 0); c.lineTo(W / 2 - 60, H); c.lineTo(W, H); c.fill();
     c.save(); c.globalAlpha = .12; c.fillStyle = '#fff'; for (let i = 0; i < 12; i++) { const y = (i * 53 + t * 9) % H; c.fillRect(0, y, W / 2 - 60 + (H - y) / H * 120, 3); c.fillRect(W / 2 + 60 - y / H * 120, H - y, W, 3); } c.restore();
     c.strokeStyle = '#fff'; c.lineWidth = 6; c.beginPath(); c.moveTo(W / 2 + 60, 0); c.lineTo(W / 2 - 60, H); c.stroke();
     // versão que vai lutar (a do jogador: a escolhida; a CPU: a mais nova), como no startMatch: nome e visual dela
     const vc = (i, ch) => { const ci = CHARS.indexOf(ch); return charVer(ci, i == 0 && versionsOf(ci).includes(g.ver[0]) ? g.ver[0] : newestVer(ci)); }, nm = (i, ch) => vc(i, ch).name;
     puppet(c, vc(0, a), lerp(-200, 240, k), 510, 2.7, 1); puppet(c, vc(1, b), lerp(W + 200, 720, k), 510, 2.7, -1);
-    txt(c, nm(0, a), 50 + (1 - k) * -200, 74, 60, '#fff', 'left', 7); ui(c, a.title, 54 + (1 - k) * -200, 102, 20, '#dde', 'left', 4);
-    txt(c, nm(1, b), W - 50 + (1 - k) * 200, 74, 60, '#fff', 'right', 7); ui(c, b.title, W - 54 + (1 - k) * 200, 102, 20, '#dde', 'right', 4);
+    txt(c, nm(0, a), 50 + (1 - k) * -200, 74, 60, '#fff', 'left', 7); ui(c, vc(0, a).title, 54 + (1 - k) * -200, 102, 20, '#dde', 'left', 4);
+    txt(c, nm(1, b), W - 50 + (1 - k) * 200, 74, 60, '#fff', 'right', 7); ui(c, vc(1, b).title, W - 54 + (1 - k) * 200, 102, 20, '#dde', 'right', 4);
     const s = t < 30 ? 3 - 2 * ease(Math.max(0, Math.min(1, (t - 10) / 20))) : 1 + Math.sin(t * .2) * .04;
     if (t > 10) { c.save(); c.translate(W / 2 + (t < 34 ? rnd(-3, 3) : 0), H / 2); c.scale(s, s); gradText(c, 'VS', 0, 45, 160, '#fff7c0', '#ff3a10', 12); c.restore(); }
     if (g.mode == 'arcade') { c.fillStyle = 'rgba(0,0,0,.6)'; slant(c, W / 2 - 120, 18, 240, 34, 10); c.fill(); txt(c, (g.stage == g.ladder.length - 1 ? 'LUTA FINAL' : 'LUTA ' + (g.stage + 1) + ' DE ' + g.ladder.length), W / 2, 45, 26, '#ffd21e', 'center', 4); }
@@ -8483,8 +8489,8 @@ Object.assign(Menus, {
     if (t > 34) {
       const rv = this.rival(a, b), al = Math.min(1, (t - 34) / 10);
       c.save(); c.globalAlpha = al;
-      [[a, 40, 'left'], [b, W - 40, 'right']].forEach(([ch, x, al2]) => {
-        const q = (rv && rv[ch.id]) || ch.quote; if (!q) return;
+      [[a, 40, 'left'], [b, W - 40, 'right']].forEach(([ch, x, al2], i) => {
+        const q = (rv && rv[ch.id]) || vc(i, ch).quote; if (!q) return;
         const ls = this.wrapText(c, '“' + q + '”', 360, 16);
         c.fillStyle = 'rgba(0,0,0,.6)'; c.fillRect(al2 == 'left' ? x - 12 : x - 372, 452 - ls.length * 20, 384, ls.length * 20 + 14);
         ls.forEach((ln, i) => ui(c, ln, x, 470 - (ls.length - i) * 20 + 14, 16, rv ? '#ffd21e' : '#eef', al2, 3));
