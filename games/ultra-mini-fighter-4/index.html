@@ -539,6 +539,13 @@ const Audio = {
   say(key, ch) {
     if (!settings.voice || SIM.silent) return;
     this.duck(.55, .9);
+    // lutador renomeado (o clipe gravado diz o nome antigo) ou sem nome gravado: o nome sai pela voz do navegador
+    const rn = key == 'wins' ? ch : key.startsWith('n_') ? charById(key.slice(2)) : null;
+    if (rn && (rn.renamed || !Voice.has('nar/n_' + rn.id))) {
+      if (!window.speechSynthesis) return;
+      try { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(key == 'wins' ? rn.name + ' wins' : rn.name); u.rate = .9; u.pitch = .35; u.volume = settings.volVoice ?? 1; u.lang = 'en-US'; speechSynthesis.speak(u); } catch (e) {}
+      return;
+    }
     if (key == 'wins' && ch && Voice.has('nar/n_' + ch.id)) {
       Voice.play('nar/n_' + ch.id, { chan: 'nar', pri: 5, rev: 1 }); Voice.load('nar/wins');
       setTimeout(() => Voice.play('nar/wins', { chan: 'nar', pri: 5, rev: 1 }), Voice.dur('nar/n_' + ch.id) * 1000 + 40);
@@ -1627,7 +1634,7 @@ class Fighter {
       combo: 0, comboDmg: 0, comboScale: 1, starterL: false, juggle: 0, airReset: false, airUsed: false,
       hitMask: 0, contact: 0, cancelUntil: -1, grabDone: false, armorLeft: 0, projMask: 0, throwInv: 0, throwBack: false,
       flash: 0, flashCol: 0, shakeT: 0, cine: null, thr: null, cineRot: 0, parryFx: 0, want: null, in: Cmd.fresh(),
-      mode: 0, modeT: 0, tStop: 0, frozen: 0, sPrev: 0, sStep: 0, wantBuf: null, wantBufT: 0, bounced: 0, lastDmg: 'V', grey: 0, greyT: 0, airVs: false, mvId: 0, lastSrc: '', floatK: 0, quickLand: 0, vbuff: null, boostMv: -1, boostMult: 1, boostCol: '', boostSu: false, aura: 0, auraMv: -1 });
+      mode: 0, modeT: 0, tStop: 0, frozen: 0, sPrev: 0, sStep: 0, wantBuf: null, wantBufT: 0, bounced: 0, lastDmg: 'V', grey: 0, greyT: 0, airVs: false, mvId: 0, lastSrc: '', floatK: 0, quickLand: 0, vbuff: null, boostMv: -1, boostMult: 1, boostCol: '', boostSu: false, aura: 0, auraMv: -1, bch: 0, bchP: 0, bchPT: 0 });
     this.trail = [];
   }
   get m() { return this.mv ? getMove(this.ch, this.mv) : null; }
@@ -1668,7 +1675,7 @@ class Fighter {
       if (suProj && !cancel) return isSu ? w : null;
       if (cancel || airCancel) {
         if (isSu) { if (!m.cancel.su || m.super) return null; }
-        else if (isSp) { if (m.cancel.into ? !m.cancel.into.includes(w.split(':')[0]) : (!m.cancel.sp || m.special)) return null; }
+        else if (isSp) { if (m.cancel.into ? !(m.cancel.into.includes(w.split(':')[0]) || m.cancel.into.includes(w)) || (m.cancel.intoHit && this.contact != 1) : (!m.cancel.sp || m.special)) return null; }
         else if (!(m.cancel.chains && m.cancel.chains.includes(w)) && !(m.cancel.into && m.cancel.into.includes(w))) return null;
       } else if (conv && !isSp && !isSu) return null;
       return w;
@@ -1689,12 +1696,13 @@ class Fighter {
     if (suProj && !cancel) return null;
     // especiais: o comando mais complexo vence; empate → o último passo mais recente
     const canSp = !cancel || m.cancel.sp || m.special;
-    const into = cancel && m.special && m.cancel.into;   // especial que cancela só em certos especiais
+    // especial que cancela só em certos especiais ('id' = qualquer força, 'id:s' = só aquela força); intoHit = só no acerto
+    const into = cancel && m.special && m.cancel.into && (!m.cancel.intoHit || this.contact == 1) ? m.cancel.into : null;
     if (canSp && (!(cancel && m.special) || into)) {
       let best = null, bc = -1, bt = -1;
       for (const sp of ch.specials) {
         if (sp.air == 'only' ? !air : sp.air == 'ok' ? false : air) continue;
-        if (into && !into.includes(sp.id)) continue;
+        if (into && !into.some(x => x == sp.id || x.startsWith(sp.id + ':'))) continue;
         const b = sp.btn == 'P' ? P : sp.btn == 'K' ? K : Cmd.pressed(this, sp.btn) ? sp.btn : null;
         if (!b) continue;
         const mt = Cmd.motion(this, sp.input, this.in.bt[b]); if (mt == null) continue;
@@ -1705,6 +1713,7 @@ class Fighter {
       if (best) {
         const type = best.btn == 'K' ? 'K' : 'P';
         const s = best.fixed != null ? best.fixed : best.ex !== false && this.meter >= EX_COST && Cmd.pair(this, type) ? 3 : Cmd.strength(Cmd.latest(this, type) || 'mp');
+        if (into && !into.includes(best.id) && !into.includes(best.id + ':' + s)) return null;   // força que esse cancelamento não aceita
         return best.id + ':' + s;
       }
     }
@@ -1754,6 +1763,7 @@ class Fighter {
       const au = this.ch.vskill && this.ch.vskill.aura;
       if (this.aura && au && id && au.sp.includes(id)) { this.auraMv = this.mvId; this.armorLeft = Math.max(this.armorLeft, 1); } }
     if (key == 'throw') this.throwBack = this.holdBack;
+    if (this.ch.busterCharge && key.startsWith(this.ch.busterCharge.from + ':')) this.bch = 1;   // o tiro do Mega Buster começa a carga (segurando o Soco)
     if (key == 'vskill') this.airVs = true;             // uma V-Skill por pulo (a do chão também conta se decolar)
     if (m.super) { this.meter -= m.cost || SUPER_COST; Combat.superFlash(this, m); }
     else if (key.endsWith(':3')) { this.meter -= EX_COST; Combat.exFlash(this, m); }
@@ -1832,6 +1842,7 @@ class Fighter {
     }
     if (this.y <= 0 && (this.st == 'idle' || this.st == 'land' || this.st == 'hit' || this.st == 'block' || this.st == 'parry' || this.st == 'crumple')) this.faceTo(o);
     if (inp && M.phase == 'fight') this.act(o);
+    if (this.ch.busterCharge) this.busterStep(o);
     if (this.st == 'idle') this.groundMove(o);
     const flags = this.runMove(o);
     this.physics(o, flags);
@@ -1839,6 +1850,30 @@ class Fighter {
     if (this.modeT > 0 && M.phase == 'fight' && --this.modeT <= 0) { this.mode = 0; FX.aura(this, 16); }   // o modo temporário acaba sozinho
     if (this.grey > 0) { if (this.greyT > 0) this.greyT--; else if (this.hp > 0 && M.phase == 'fight' && M.frame % GREY_STEP == 0) { const g = Math.min(this.grey, HPK); this.hp = Math.min(this.ch.hp, this.hp + g); this.grey -= g; } }
     for (const t of this.trail) t.a -= .06; this.trail = this.trail.filter(t => t.a > 0);
+  }
+  // carga do Mega Buster (ch.busterCharge): depois do tiro, segurando o Soco ele carrega andando devagar e pulando mais baixo;
+  // soltando, dispara o tiro carregado (no chão ou no ar). Apanhar, defender ou ser agarrado perde a carga
+  busterStep(o) {
+    const bc = this.ch.busterCharge, air = this.y > 0;
+    const free = this.st == 'idle' || this.st == 'land' || (this.st == 'air' && !this.mv);
+    if (this.bchP) {   // soltou no meio de outro golpe: dispara assim que ficar livre (janela curta)
+      if (free && M.phase == 'fight') { const k = (air ? 'jcshot' : 'cshot') + this.bchP; this.bchP = 0; this.startMove(k, o); return; }
+      if (--this.bchPT <= 0) this.bchP = 0;
+    }
+    if (!this.bch) return;
+    if (!['idle', 'atk', 'air', 'prejump', 'land'].includes(this.st)) { this.bch = 0; return; }
+    const lvOf = n => bc.lv.filter(t => n >= t).length;
+    if (Cmd.holding(this, 'P')) {
+      if (this.bch < bc.max) { this.bch++; if (bc.lv.includes(this.bch) && !SIM.silent) { FX.aura(this, 10); Audio.sfx('superready', .8, this.x); } }
+      if (!SIM.silent && this.bch > 6 && M.frame % 3 == 0) {
+        const L = lvOf(this.bch), col = L >= 2 ? (M.frame % 6 < 3 ? '#ff6af0' : '#6af0ff') : L == 1 ? '#6af0ff' : '#fff27a';
+        FX.add({ type: 'glow', x: this.x + this.face * 44 * this.sz + rnd(-10, 10), y: this.y + 92 * this.sz + rnd(-10, 10), vx: rnd(-1, 1), vy: rnd(-1, 1), l: 12, s: 3 + L * 2, col });
+      }
+      return;
+    }
+    const lv = lvOf(this.bch); this.bch = 0;
+    if (!lv) return;
+    if (free && M.phase == 'fight') this.startMove((air ? 'jcshot' : 'cshot') + lv, o); else { this.bchP = lv; this.bchPT = 12; }
   }
   frozenInput(inp) { if (!inp) return; const r = this.simple ? this.simpleIn(inp) : inp; if (r.want) { this.wantBuf = r.want; this.wantBufT = 6; } Cmd.record(this, r, true); }
   // ---- controle simplificado: SF=leve, SM=médio, SFt=forte, CF=ESPECIAL (direção escolhe), CM=combo automático, CFt=SUPER ----
@@ -1874,11 +1909,12 @@ class Fighter {
     this.crouch = this.holdDown; this.walking = 0;
     if (M.phase != 'fight') return;
     if (this.up) { this.setSt('prejump'); this.jdir = this.fx; this.crouch = false; return; }
-    if (!this.crouch && this.fx) { const sp = (this.fwd > 0 ? this.ch.walkF : this.ch.walkB) * (this.mode && this.ch.modeStats ? this.ch.modeStats.walk || 1 : 1); this.x += this.fx * sp; this.walking = this.fwd; this.walkPh += sp * .1; }
+    if (!this.crouch && this.fx) { const sp = (this.fwd > 0 ? this.ch.walkF : this.ch.walkB) * (this.mode && this.ch.modeStats ? this.ch.modeStats.walk || 1 : 1) * (this.bch ? this.ch.busterCharge.walk : 1); this.x += this.fx * sp; this.walking = this.fwd; this.walkPh += sp * .1; }
   }
   launchJump() {
     const ch = this.ch, back = this.jdir * this.face < 0;
-    this.st = 'air'; this.stT = 0; this.vy = ch.jumpV; this.vx = this.jdir * (back ? ch.jumpX * .82 : ch.jumpX); this.airUsed = false; this.y = .01; this.in.airT = this.in.ic;
+    const bk = this.bch ? ch.busterCharge.jump : 1;   // carregando o Mega Buster: pulo mais baixo
+    this.st = 'air'; this.stT = 0; this.vy = ch.jumpV * bk; this.vx = this.jdir * (back ? ch.jumpX * .82 : ch.jumpX) * (this.bch ? ch.busterCharge.walk * .5 + .5 : 1); this.airUsed = false; this.y = .01; this.in.airT = this.in.ic;
     this.in.parryLock = 0; this.in.tapF = this.in.tapD = -99;   // o → do pulo não é tentativa de parry: libera o parry aéreo logo ao sair do chão
     Audio.sfx('jump', 1, this.x); FX.dust(this.x, 0, 4);
   }
@@ -1921,6 +1957,14 @@ class Fighter {
     const projs = m.projs || (m.proj ? [m.proj] : []);
     projs.forEach((p, i) => { if (this.t == p.f && !(this.projMask & (1 << i))) { this.projMask |= 1 << i; Combat.spawnProj(this, p); } });
     if (this.t == m.s && m.hits.length) Audio.sfx('whiff', m.hits[0].lv == 'H' ? 1.6 : m.hits[0].lv == 'M' ? 1.25 : 1, this.x);
+    // estouro visual num ponto do corpo (palmas do Giant Palm Bomber): bursts = [{ f, x, y, s, col, snd }]
+    if (m.bursts) for (const B of m.bursts) if (this.t == B.f) {
+      const bx = this.x + this.face * B.x * this.sz, by = this.y + B.y * this.sz, k = B.s || 1;
+      M.trauma = Math.min(1, (M.trauma || 0) + .12); if (SIM.silent) continue;
+      FX.add({ type: 'flash', x: bx, y: by, l: 8, s: 46 * k, col: '#fff' }); FX.add({ type: 'ring', x: bx, y: by, l: 14, s: 8, grow: 6 * k, col: B.col || '#ffe6a0' });
+      for (let i = 0; i < 10; i++) { const a = i / 10 * TAU; FX.add({ type: 'streak', x: bx, y: by, l: 9, s: 40 * k, rot: a, col: i % 2 ? '#fff' : (B.col || '#ffe6a0') }); }
+      Audio.sfx(B.snd || 'clash', 1, bx);
+    }
     if (m.fx == 'elec' && this.t % 6 == 0 && this.t >= m.s && this.t <= m.e) Audio.sfx('elec', 1, this.x);
     if ((m.fx == 'psycho' || m.fx == 'fire' || m.fx == 'ice') && this.t == m.s) Audio.sfx(m.fx == 'ice' ? 'ice' : m.fx, 1, this.x);
     const exMv = this.mv.includes(':3');   // EX: rastro branco mais denso
@@ -1985,6 +2029,7 @@ const Combat = {
       if (a.hitMask & (1 << h.idx) || a.t < h.f[0] || a.t > h.f[1]) continue;
       if (o.invulTo('strike')) continue;
       if (o.st == 'knock' && !this.canJuggle(a, o, h)) continue;
+      if ((h.gndOnly && o.y > 0) || (h.airOnly && o.y <= 0)) continue;   // golpe que só pega quem está no chão / só quem está no ar
       const hb = a.box(h.box), hr = o.hurt().find(r => overlap(r, hb)); if (!hr) continue;
       ev.push({ type: 'strike', a, o, h, m, px: (Math.max(hb.x1, hr.x1) + Math.min(hb.x2, hr.x2)) / 2, py: (Math.max(hb.y1, hr.y1) + Math.min(hb.y2, hr.y2)) / 2 });
       break;                                               // um contato por atacante por quadro
@@ -2024,7 +2069,7 @@ const Combat = {
     if (this.canBlock(o, h, srcX)) return { r: 'block' };
     const om = o.m;
     const arm = om && (om.armor || (o.auraMv === o.mvId ? { f: [1, om.e] } : null));
-    if (arm && o.t >= arm.f[0] && o.t <= arm.f[1] && o.armorLeft > 0 && !h.armorBreak) return { r: 'armor' };
+    if (arm && o.t >= arm.f[0] && o.t <= arm.f[1] && o.armorLeft > 0 && !h.armorBreak) return { r: 'armor', lethal: !!arm.lethal };
     let ctr = null;
     if (om && !om.move && (o.st == 'atk' || o.st == 'air')) ctr = o.t <= om.e ? 'counter' : 'punish';
     return { r: 'hit', ctr };
@@ -2074,7 +2119,8 @@ const Combat = {
       return;
     }
     if (out.r == 'armor') {
-      touch(1); o.armorLeft--; const gd = Math.max(0, Math.min(o.hp - 1, Math.round(h.dmg)));   // como no SF: o dano inteiro vira cinza (recuperável)
+      // como no SF: o dano inteiro vira cinza (recuperável). Armadura letal: se a vida toda virar cinza, ele cai (K.O.)
+      touch(1); o.armorLeft--; const gd = out.lethal ? Math.max(0, Math.min(o.hp, Math.round(h.dmg))) : Math.max(0, Math.min(o.hp - 1, Math.round(h.dmg)));
       o.hp -= gd; o.grey += gd; o.greyT = GREY_DELAY; o.flash = 3; o.flashCol = 3;       // o dano da armadura vira vida cinza
       FX.hit(px, py, dir, 1, 'armor'); Audio.sfx('armor', 1, px); M.stop = Math.max(M.stop, L.stop); o.shakeT = L.stop;
       FX.text('ARMADURA', o.x, o.y + 150, '#fa3');
@@ -2221,8 +2267,12 @@ const Combat = {
     if (fn) end = fn(c, a, o, s, this);
     else end = c.t > 40;
     if (end) {
-      o.cineRot = 0; o.kdType = 'hard'; o.setSt('knock'); o.juggle = 9; o.vy = 9; o.vx = a.face * 4; o.y = Math.max(o.y, 5); o.airReset = false;
-      a.cine = null; a.setSt('land'); a.landT = 18; M.stop = Math.max(M.stop, 20); M.dim = 0;
+      // o roteiro pode devolver como termina: { vx, vy, juggle, kd, landT, stop, float } (lançado no ar; float = cai mais devagar) ou { stun } (fica em pé atordoado, como o Karakusa)
+      const E = typeof end == 'object' ? end : {};
+      o.cineRot = 0;
+      if (E.stun) { o.setSt('hit'); o.stun = E.stun; o.crouchHit = false; o.vx = 0; o.y = 0; }
+      else { o.kdType = E.kd || 'hard'; o.setSt('knock'); o.juggle = E.juggle ?? 9; o.vy = E.vy ?? 9; o.vx = E.vx ?? a.face * 4; o.y = Math.max(o.y, 5); o.airReset = false; o.floatK = E.float || 0; }
+      a.cine = null; if (E.landT === 0) a.setSt('idle'); else { a.setSt('land'); a.landT = E.landT ?? 18; } M.stop = Math.max(M.stop, E.stop ?? 20); M.dim = 0;
     }
   },
   superFlash(f, m) {
@@ -2243,6 +2293,9 @@ const Combat = {
     M.projs.push({ ex: !!(f.mv && f.mv.endsWith(':3')), id: M.projSeq = (M.projSeq || 0) + 1, x: p.atOpp ? opp.x : f.x + f.face * (52 + (p.ahead || 0)) * f.sz, y: p.atOpp ? (p.yOff || 0) : f.y + (p.yOff || (p.shape == 'kunai' ? 92 : 84)) * f.sz,
       vx: f.face * p.vx, vy: p.vy || 0, ax: p.accel ? -f.face * p.accel : 0, o: f.i, p: JSON.parse(JSON.stringify(p)), left: p.hits || 1, gapT: p.delay || 0, life: p.life || 200, t: 0, dead: 0, src: f.i + ':' + (f.mvId || 0) });
     const np = M.projs[M.projs.length - 1]; np.sx = np.x; np.sy = np.y;
+    // projétil turbinado pela V-Skill (ex.: ANGRY CHARGE do Sakda: a bola de fogo vira multi-hit e lança pra juggle)
+    const vbp = f.boostMv >= 0 && f.boostMv === f.mvId && f.ch.vskill && f.ch.vskill.vbuff && f.ch.vskill.vbuff.proj;
+    if (vbp) { const d0 = np.p.dmg; Object.assign(np.p, vbp, { dmg: d0 * (vbp.dmgK || 1) }); delete np.p.dmgK; np.left = np.p.hits || 1; np.boosted = 1; }
     Audio.sfx(p.snd || PROJ_SND[p.shape] || (p.big ? 'projBig' : 'proj'), 1, f.x);
   },
   updProjs() {
@@ -2251,7 +2304,11 @@ const Combat = {
       let owner = M.f[pr.o], o = M.f[1 - pr.o]; const r = pr.p.r;
       if (owner.tStop > 0) continue;                                     // tempo parado para o dono: o projétil congela
       if (pr.p.beam && ['hit', 'knock', 'down', 'thrown', 'cineD', 'crumple'].includes(owner.st)) { pr.dead = 1; FX.projEnd(pr); continue; }
-      if (pr.lock) { pr.x = o.x - Math.sign(pr.vx) * 14 * o.sz; pr.t++; pr.life--; if (pr.gapT > 0) pr.gapT--; }
+      if (pr.lock) {
+        pr.x = o.x - Math.sign(pr.vx) * 14 * o.sz; pr.t++; pr.life--; if (pr.gapT > 0) pr.gapT--;
+        // feixe que acompanha o corpo: grudado, a ponta segue a altura do oponente (caído no ar o corpo fica baixo e o feixe reto passaria por cima)
+        if (pr.p.trackY) pr.y = lerp(pr.y, o.y + (o.st == 'knock' || o.st == 'down' ? 26 : o.crouch ? 50 : 76) * o.sz, .5);
+      }
       else { pr.x += pr.vx; pr.y += pr.vy; if (pr.p.grav) pr.vy -= pr.p.grav; pr.vx += pr.ax || 0; pr.t++; pr.life--; if (pr.gapT > 0) pr.gapT--; }
       if (pr.p.grav && pr.y <= (pr.p.floor || 0)) {                     // chegou ao chão: fica (armadilha) ou some
         if (pr.p.stick) { if (!pr.landed) { pr.landed = 1; if (pr.p.shape == 'molotov') Audio.sfx('shatter', 1, pr.x); } pr.y = pr.p.floor || 0; pr.vy = 0; pr.vx = 0; pr.ax = 0; } else { pr.dead = 1; FX.projEnd(pr); continue; }
@@ -2278,10 +2335,10 @@ const Combat = {
       if (pr.gapT <= 0 && !(pr.p.activeT && pr.t > pr.p.activeT) && !o.invulTo('proj') && !(o.st == 'knock' && !(pr.p.jLimit > o.juggle))) {
         const box = { x1: pr.x - r, x2: pr.x + r, y1: pr.y - r, y2: pr.y + r };
         if (o.hurt().some(h => overlap(h, box))) {
-          const h = Object.assign({ lv: 'SP', idx: 31 }, pr.p, { vx: pr.vx, src: pr.src, kd: pr.left <= 1 && pr.p.kd ? 'soft' : null });
+          const h = Object.assign({ lv: 'SP', idx: 31 }, pr.p, { vx: pr.vx, src: pr.src, kd: pr.left <= 1 && pr.p.kd ? 'soft' : null }, pr.left <= 1 ? pr.p.lastHit : null);   // lastHit: propriedades só do último acerto
           const out = this.judge(owner, o, h, true, pr.x);
           this.apply(owner, o, h, out, pr.x, pr.y, true, null);
-          pr.left--; pr.gapT = pr.p.gap || 0; if (pr.p.beam) pr.lock = 1;
+          pr.left--; pr.gapT = pr.p.gap || 0; if (pr.p.beam || pr.p.stickHit) pr.lock = 1;   // stickHit: projétil multi-hit que gruda no oponente ao acertar
           if (pr.left <= 0) { if (pr.p.keep) pr.gapT = 1e9; else { pr.dead = 1; FX.projEnd(pr); } }   // keep: continua visível até o fim da vida, sem acertar de novo
         }
       }
@@ -2348,7 +2405,7 @@ const Match = {
     Object.assign(M, { tcalm: 0, projs: [], stop: 0, shake: 0, trauma: 0, dim: 0, comboShow: null, superF: null, firstHit: 0, timer: ROUND_TIME, phaseT: 0, slow: 0, winner: -1, koMsg: '', flash: 0, perfect: false, posed: 0, matchOver: false, draw: false });
     if (!SIM.silent && typeof FX != 'undefined') { FX.parts = []; FX.texts = []; FX.banners = []; }
     M.phase = M.training ? 'fight' : 'intro';
-    if (M.training) { a.setSt('idle'); b.setSt('idle'); a.meter = b.meter = METER_MAX; M.firstHit = 3; }
+    if (M.training) { a.setSt('idle'); b.setSt('idle'); a.meter = b.meter = M.tcfg || typeof Training == 'undefined' || Training.meterOn() ? METER_MAX : 0; M.firstHit = 3; }
     if (typeof Cam != 'undefined') Cam.update(a, b, true);
     if (this.onNewRound) this.onNewRound();
   },
@@ -3025,7 +3082,7 @@ defChar({
 });
 
 defChar({
-  id: 'winston', name: 'WINSTON', title: 'O Cavalheiro do Ringue', style: 'Boxe clássico', stats: [4, 4, 2], stage: 'airbase', aura: '#fd6',
+  id: 'winston', name: 'HOLYFIELD', renamed: 1, title: 'O Cavalheiro do Ringue', style: 'Boxe clássico', stats: [4, 4, 2], stage: 'airbase', aura: '#fd6',
   quote: 'Uma luta digna. Aceite esta rosa como lembrança.', voice: { spk: 'winston', pitch: .75 },
   look: { gloveType: 'boxing', skin: '#6a4028', hair: 'flattop', hairC: '#141010', mustache: '#141010', torso: 'bare', pants: '#e8e8e8', shorts: 1, sleeve: 'none', glove: '#d8d8e0', feet: '#1a1a1a', belt: '#1a2a6a', build: 1.12 },
   palettes: [{}, { pants: '#1a2a6a', glove: '#1a2a6a' }, { pants: '#6a1a1a', glove: '#e8c040' }, { pants: '#1a1a1a', glove: '#1a1a1a', belt: '#e8c040' }],
@@ -3979,10 +4036,124 @@ CINE_SCRIPTS.atchun = (c, a, o, s, K) => {
   if (c.t == 50) { a.y = 0; a.x = clamp(o.x - o.face * 70 * s, 30, STAGE_W - 30); a.face = o.x > a.x ? 1 : -1; o.y = 0; FX.shock(o.x); FX.dust(o.x, 0, 24); K.cineHit(a, o, 14, 1); M.trauma = Math.min(1, (M.trauma || 0) + .5); return true; }
 };
 WING_CINES.atchun = '#ffd23a';
+// ---------------- MAKITA (Makoto, Street Fighter III: 3rd Strike) ----------------
+// karatê tradicional: anda bem devagar, mas tem o dash mais rápido do jogo. Hayate que carrega (e finta), Oroshi (overhead), Fukiage (só pega no ar),
+// Tsurugi (chute machado no ar) e o Karakusa, agarrão que deixa o oponente parado pra levar combo. Supers: Seichusen Godanzuki e Abare Tosanami
+Object.assign(ANIM, {
+  makita_hayate: { W: [42, -10, -12, 86, 16, 80, 18, 0, -28, 0, 0], A: [40, 34, 88, 90, 0, 80, 40, 0, -48, 4, 0] },
+  makita_fukiage: { W: [30, 14, 18, 56, 14, 52, 22, 0, -18, 0, 0], A: [50, 6, 22, 160, 8, 80, 18, 0, -20, 0, 0] },
+  makita_oroshi: { W: [58, -12, -6, 150, 12, 96, 14, 0, -18, 0, 0], A: [46, 26, 62, 52, 14, 82, 24, 0, -26, 0, 0] },
+  makita_kiai: { W: [50, 4, 26, 84, 18, 80, 22, 0, -24, 0, 0], A: [44, 8, 30, 70, 22, 68, 30, 0, -30, 0, 0] },
+});
+// Karakusa: prende o oponente com uma mão e bate; ele fica parado (atordoado) e ela tem tempo de sobra pra emendar um golpe
+CINE_SCRIPTS.karakusa = (c, a, o, s, K) => {
+  M.dim = 0;
+  o.x = clamp(a.x + a.face * 50 * s, 30, STAGE_W - 30); o.y = 0;
+  if (c.t == 1) Audio.sfx('throw', 1, a.x);
+  if (c.t == 6) K.cineHit(a, o, c.dmg / HPK);
+  if (c.t >= 12) return { stun: 26, landT: 0, stop: 0 };
+};
+// Abare Tosanami: o chute do mergulho acertou → pousa e solta o Fukiage invertido, que lança o oponente bem alto (juggle livre)
+CINE_SCRIPTS.tosanami = (c, a, o, s, K) => {
+  a.y = Math.max(0, a.y - 24); o.x = clamp(a.x + a.face * 50 * s, 30, STAGE_W - 30); o.y = Math.max(0, o.y * .7);
+  if (c.t == 4) K.cineHit(a, o, 9);
+  if (c.t == 16) { K.cineHit(a, o, 13, 1); FX.hit(o.x, o.y + 120, a.face, 1.6, 'SA'); return { vy: 12.5, vx: a.face * .8, juggle: 0, kd: 'soft', landT: 0, stop: 8 }; }
+};
+defChar({
+  id: 'makita', name: 'MAKITA', title: 'Punho do Dojo', style: 'Rushdown / Agarrão', stats: [5, 2, 4], stage: 'temple', aura: '#f2b81c',
+  quote: 'O dojo da minha família não vai fechar. Nem que eu tenha que derrubar o mundo inteiro!', voice: { pitch: 1.3, fem: 1, lang: 'ja-JP', shoutRate: 1.1 },
+  look: { brow: 'thick', gloveType: 'bare', fem: 1, skin: '#e8b48a', hair: 'spiky', hairC: '#3a2414', torso: 'gi', top: '#f2efe6', pants: '#f2efe6', sleeve: 'none', torn: 1, glove: '#e8b48a', feet: 'bare', belt: '#1a1a1a', kerchief: '#f2b81c', build: .98 },
+  palettes: [{}, { top: '#2a2a30', pants: '#2a2a30', kerchief: '#d42020' }, { top: '#c8241c', pants: '#c8241c', kerchief: '#f2f2f2' }, { top: '#2a5cc4', pants: '#2a5cc4', kerchief: '#f2d040', belt: '#f2f2f2' }],
+  sz: .98, hp: 106, walkF: 2.4, walkB: 2.1, jumpV: 14.5, jumpX: 4,
+  normals: {
+    slp: { startup: 4, active: 6, recovery: 6, hits: [{ box: [18, 74, 56, 20], dmg: 3, lv: 'L', onHit: 2, onBlock: 2 }] },
+    smp: { startup: 8, active: 8, recovery: 6, hits: [{ box: [18, 74, 70, 24], dmg: 7, lv: 'M', onHit: 6, onBlock: 4 }] },   // +4 na defesa: o melhor golpe de pressão dela
+    shp: { startup: 8, active: 2, recovery: 22, hits: [{ box: [18, 76, 82, 28], dmg: 10, lv: 'H', onHit: 0, onBlock: -5 }] },
+    slk: { startup: 4, active: 5, recovery: 12, hits: [{ box: [16, 30, 64, 24], dmg: 3.5, lv: 'L', onHit: 1, onBlock: -2 }] },
+    smk: { startup: 7, active: 5, recovery: 13, hits: [{ box: [20, 56, 88, 26], dmg: 7, lv: 'M', onHit: 1, onBlock: -2 }] },
+    shk: { startup: 11, active: 9, recovery: 13, hits: [{ box: [22, 70, 92, 30], dmg: 10, lv: 'H', onHit: 2, onBlock: -3 }] },
+    clp: { startup: 5, active: 4, recovery: 5, hits: [{ box: [18, 50, 52, 16], dmg: 2.5, lv: 'L', onHit: 3, onBlock: 3 }] },
+    cmp: { startup: 7, active: 7, recovery: 11, hits: [{ box: [18, 54, 66, 20], dmg: 6, lv: 'M', onHit: 3, onBlock: -1 }] },
+    clk: { startup: 4, active: 6, recovery: 10, hits: [{ box: [16, 0, 64, 18], dmg: 2.5, lv: 'L', low: 1, onHit: 1, onBlock: -3 }] },
+    cmk: { startup: 7, active: 8, recovery: 7, cancel: {}, hits: [{ box: [18, 6, 92, 22], dmg: 7, lv: 'M', onHit: 4, onBlock: 3 }] },   // não é baixo (defende em pé), +3 na defesa
+    jhp: { startup: 10, hits: [{ box: [14, 36, 66, 38], dmg: 10, lv: 'H', high: 1, hs: 18, bs: 14 }] },
+    jhk: { startup: 6, hits: [{ box: [14, 22, 84, 30], dmg: 9, lv: 'H', high: 1, hs: 18, bs: 14 }] },
+    dashF: { dur: 14, vel: [[1, 10, 11, null]] },   // o dash mais rápido do jogo
+    dashB: { dur: 19, vel: [[1, 13, -7, null]] },
+  },
+  cmdNormals: [
+    // Kaoruna: palma que empurra o oponente pra longe
+    { key: '6mp', dir: [6], btn: 'mp', move: { anim: 'palm', name: 'Kaoruna', startup: 9, active: 6, recovery: 9, hits: [{ box: [16, 60, 64, 50], dmg: 7, lv: 'M', push: 15, onHit: 3, onBlock: 2 }] } },
+    // Shimaki: cotovelada pesada; apertando Soco de novo emenda o Yamase (2 golpes)
+    { key: '6hp', dir: [6], btn: 'hp', move: { anim: 'elbow', name: 'Shimaki (+ Soco: Yamase)', startup: 16, active: 4, recovery: 16, follow: [{ from: 17, to: 34, btn: 'P', key: 'yamase' }],
+      hits: [{ box: [16, 60, 62, 54], dmg: 9, lv: 'H', onHit: 1, onBlock: -4 }] } },
+    // Shibuki: chute longo que passa por cima de golpes baixos
+    { key: '6lk', dir: [6], btn: 'lk', move: { anim: 'stepkick', name: 'Shibuki', startup: 6, active: 6, recovery: 13, hits: [{ box: [20, 46, 92, 24], dmg: 3.5, lv: 'L', onHit: 0, onBlock: -5 }] } },
+    // Chigusa: overhead (defende em pé)
+    { key: '6mk', dir: [6], btn: 'mk', move: { anim: 'axe', name: 'Chigusa (overhead)', startup: 15, active: 4, recovery: 11, hits: [{ box: [16, 56, 66, 66], dmg: 5, lv: 'M', high: 1, onHit: 2, onBlock: -1 }] } },
+    // Kuroshio: chute baixo em pé; recua um passo e depois avança, derruba
+    { key: '6hk', dir: [6], btn: 'hk', move: { anim: 'sweep', name: 'Kuroshio', startup: 22, active: 3, recovery: 25, vel: [[3, 10, -2, null], [12, 22, 4.5, null]],
+      hits: [{ box: [18, 0, 88, 22], dmg: 9, lv: 'H', low: 1, kd: 'soft', onBlock: -11 }] } },
+  ],
+  specials: [{ id: 'hayate', input: '236', btn: 'P' }, { id: 'fukiage', input: '623', btn: 'P' }, { id: 'oroshi', input: '214', btn: 'P' }, { id: 'tsurugi', input: '214', btn: 'K', air: 'only' }, { id: 'karakusa', input: '63214', btn: 'K', ex: false }],
+  moves: {
+    // Hayate (↓↘→ + Soco, dá pra segurar): avança com um soco reto. Segurando o Soco carrega em 4 níveis (do 3º em diante derruba e fica seguro na defesa);
+    // apertando Chute enquanto segura, finta (cancela o golpe). EX: mais forte e derruba
+    hayate: s => {
+      const st = S3(s, [6, 9, 11, 17]), m = { anim: 'makita_hayate', name: 'Hayate (segure Soco: carrega)', shout: 'hayate', startup: st, active: 6, recovery: 24,
+        vel: [[Math.max(1, st - 4), st + 5, S3(s, [8, 8.5, 9, 10]), null]], hits: [{ box: [14, 66, 72, 34], dmg: 8.5, lv: 'SP', onHit: 2, onBlock: -12, push: 4 }] };
+      if (s == 3) { Object.assign(m.hits[0], { dmg: 13, kd: 'soft', launch: { vy: 8, vx: 4 }, onBlock: 2 }); return m; }
+      const hf = Math.max(2, st - 4), lv = (t, dmg, onBlock, kd) => ({ t, apply: src => {
+        src.hits = src.hits.map(h => Object.assign({}, h, { dmg, onBlock }, kd ? { kd: 'soft', launch: { vy: 7, vx: kd == 2 ? 5 : 4 } } : {})); src.name = 'Hayate carregado'; return src; } });
+      m.hold = { f: hf, max: 80, btn: 'P', lv: [lv(3, 9.5, -9), lv(23, 10.5, -6), lv(43, 12, -2, 1), lv(63, 12.5, 2, 2)] };
+      m.follow = [{ from: hf, to: hf, btn: 'K', key: 'hfeint' }];
+      return m;
+    },
+    // Fukiage (→↓↘ + Soco): soco pra cima que SÓ pega quem está no ar (anti-aéreo) e lança. O corpo fica baixo no começo
+    fukiage: s => ({ anim: 'makita_fukiage', name: 'Fukiage', shout: 'fukiage', startup: S3(s, [7, 10, 14, 12]), active: 8, recovery: 26, upperInv: [1, S3(s, [7, 10, 14, 12])],
+      vel: s == 3 ? [[1, 11, 5, null]] : undefined,
+      hits: [{ box: [-6, 70, 64, 116], dmg: S3(s, [10, 11, 12, 11]), lv: 'SP', airOnly: 1, launch: { vy: 11, vx: 1 }, kd: 'soft' }] }),
+    // Oroshi (↓↙← + Soco): golpe de cima pra baixo com a mão aberta (overhead). Forte e EX derrubam; o EX é rápido
+    oroshi: s => ({ anim: 'makita_oroshi', name: 'Oroshi (overhead)', shout: 'oroshi', startup: S3(s, [19, 23, 28, 13]), active: 7, recovery: 17, vel: [[4, 12, S3(s, [1.5, 2, 2.5, 3]), null]],
+      hits: [Object.assign({ box: [14, 30, 70, 96], dmg: S3(s, [8.5, 9.5, 12, 12]), lv: 'SP', high: 1 }, s >= 2 ? { kd: 'soft', onBlock: s == 3 ? 4 : 0 } : { onHit: -2, onBlock: -4 })] }),
+    // Tsurugi (no ar, ↓↙← + Chute): chute machado descendo (overhead). Fraco e médio lançam quem está no ar; forte e EX derrubam; o EX cai reto na hora
+    tsurugi: s => ({ anim: 'axe', name: 'Tsurugi', shout: 'tsurugi', air: 1, startup: S3(s, [14, 15, 16, 8]), active: 40, recovery: 0,
+      hover: s == 1 || s == 2 ? [1, 8] : undefined, vel: s == 3 ? [[1, 60, 0, -9]] : undefined,
+      hits: [Object.assign({ box: [4, -14, 74, 64], dmg: S3(s, [9, 10, 11, 9]), lv: 'SP', high: 1, hs: 20, bs: 14 }, s >= 2 ? { kd: 'soft' } : { airLaunch: { vy: 8, vx: 1 } })] }),
+    // Karakusa (→↘↓↙← + Chute): agarrão que não derruba: o oponente fica atordoado e ela emenda o que quiser (Soco Forte, Hayate, super...)
+    karakusa: s => ({ anim: 'grab', name: 'Karakusa', shout: 'karakusa', startup: S3(s, [7, 8, 9]), active: S3(s, [6, 7, 8]), recovery: 28,
+      grab: { range: S3(s, [76, 82, 88]), dmg: 5, cine: 'karakusa' } }),
+    // SEICHUSEN GODANZUKI (↓↘→↓↘→ + Soco): sai quase na hora (reversal invencível); quatro socos que puxam o oponente e o quinto o joga longe
+    super: () => ({ anim: 'straight', super: 1, name: 'SEICHUSEN GODANZUKI', shout: 'seichusen godanzuki', startup: 3, active: 28, recovery: 40, inv: { strike: [1, 6], throw: [1, 6], proj: [1, 6] },
+      vel: [[1, 26, 2.5, null]],
+      keys: [[3, 'straight.A'], [8, 'jab.W'], [9, 'smp.A'], [14, 'jab.W'], [15, 'straight.A'], [20, 'jab.W'], [21, 'smp.A'], [26, 'falconpunch.W'], [29, 'falconpunch.A'], [44, 'falconpunch.A'], [60, 'base']],
+      hits: [{ f: [3, 4], box: [10, 50, 70, 70], dmg: 6, lv: 'SA', hs: 24, jLimit: 99 },
+        ...[9, 15, 21].map(f => ({ f: [f, f + 1], box: [10, 50, 76, 70], dmg: 5, lv: 'SA', hs: 24, pull: 46, jLimit: 99 })),
+        { f: [29, 31], box: [10, 50, 84, 70], dmg: 13, lv: 'SA', kd: 'hard', launch: { vy: 6, vx: 9 }, jLimit: 99 }] }),
+    // ABARE TOSANAMI (↓↘→↓↘→ + Chute, 3 barras): salta pra parede de trás, se apoia nela (invencível) e mergulha com um chute;
+    // acertando, emenda o Fukiage invertido que joga o oponente lá em cima (juggle livre)
+    super2: () => ({ anim: 'dive', super: 1, cost: 300, name: 'ABARE TOSANAMI', shout: 'abare tosanami', startup: 99, dur: 90, tele: { f: 6, wall: 1, y: 150 },
+      hover: [6, 18], vel: [[6, 18, 0, null], [19, 90, 'dive', -2.4]], landEnd: 16, inv: { strike: [6, 20], throw: [1, 20], proj: [1, 20] },
+      keys: [[5, 'flip.A'], [8, 'cower.W'], [18, 'cower.W'], [21, 'dive.A']],
+      hits: [{ f: [20, 90], box: [0, -12, 72, 64], dmg: 3, lv: 'SA', cine: 'tosanami' }] }),
+  },
+  super2: { input: '236236', btn: 'K', cost: 300 },
+  extraMoves: {
+    // finta do Hayate (Chute enquanto segura o Soco): solta o golpe sem atacar, com pouca recuperação
+    hfeint: { anim: 'makita_hayate', name: 'Hayate (finta)', special: 0, startup: 99, dur: 12 },
+    // Yamase: os dois socos que seguem o Shimaki
+    yamase: { anim: 'hook', alt: 1, name: 'Yamase', special: 0, startup: 4, active: 10, recovery: 13, vel: [[1, 12, 3.5, null]],
+      hits: [{ f: [4, 6], box: [14, 66, 66, 36], dmg: 3, lv: 'M', hs: 18, bs: 12, push: 2 }, { f: [10, 13], box: [14, 66, 72, 36], dmg: 4, lv: 'H', onHit: -3, onBlock: -4 }] },
+  },
+  // V-Skill KIAI (Kiai wo Reru): respira fundo e grita; o próximo golpe que acertar bate 30% mais forte
+  vskill: { anim: 'makita_kiai', startup: 99, dur: 44, name: 'KIAI', shout: 'kiai', vbuff: { f: 40, mult: 1.3, any: 1, label: 'KIAI', col: '#f2b81c' } },
+  ai: { aa: 'fukiage', grab: 'karakusa', enders: ['hayate', 'oroshi'], rush: 1, poke: 'cmk', bnb: ['clp', 'clp'] }
+});
+
 defChar({
   id: 'markito', name: 'MARKITO', title: 'Dourado', style: 'Brutamontes', stats: [5, 2, 4], stage: 'harbor', aura: '#ffc21a',
   quote: 'Ouro não se compra. Ouro se conquista... na porrada.',
-  voice: { pitch: .62, rate: .95, lang: 'pt-BR', shoutRate: 1.05, lines: { intro: ['Markito Dourado chegou!'], win: ['Brilha, Markito!', 'Isso aqui é ouro puro.'], ko: ['Meu ouro...'], hurt: ['Ai!', 'Arranhou o ouro!'] } },
+  voice: { pitch: .62, rate: .95, lang: 'pt-BR', shoutRate: 1.05, lines: { intro: ['Markito Dourado chegou!'], win: ['Brilha, Markito!', 'Isso aqui é ouro puro.'], ko: ['Meu ouro...'] } },   // sem falas de dor: não fala ao apanhar
   look: { gloveType: 'bare', skin: '#f2b81c', hair: 'bald', hairC: '#c89010', brow: 'thick', lips: '#e09a12', torso: 'bare', pants: '#c8920c', shorts: 1, legs: 'bare', sleeve: 'none', glove: '#f2b81c', feet: 'bare', build: 1.38 },
   palettes: [{}, { skin: '#c8ccd4', glove: '#c8ccd4', lips: '#a8acb8', pants: '#8a8e98' }, { skin: '#b0682a', glove: '#b0682a', lips: '#904e1a', pants: '#7a4418' }, { skin: '#f0a890', glove: '#f0a890', lips: '#d87a6a', pants: '#c86a5a' }],
   sz: 1.12, hp: 108, walkF: 3.1, walkB: 2.6, jumpV: 14, jumpX: 3.9, heavy: 1, stance: [54, 6, 34, 96, 18, 88, 18, 0, -20, 0, 0],
@@ -4187,6 +4358,13 @@ addVersion('crow', { id: '1.0.0', apply(ch) {
   };
 } });
 
+// ===== CROW 1.1.0 =====
+addVersion('crow', { id: '1.1.0', apply(ch) {
+  // Hanging Chain: fraco, médio e EX (retos) só pegam quem está no chão; o forte (45° pra cima) só pega quem está no ar
+  const chain = ch.moves.chain;
+  ch.moves.chain = s => { const m = chain(s); m.hits = m.hits.map(h => Object.assign({}, h, s == 2 ? { airOnly: 1 } : { gndOnly: 1 })); return m; };
+} });
+
 </script>
 <script>/* src/data/versions/shiro.js */
 // ===== SHIRO 1.0.0 =====
@@ -4225,6 +4403,15 @@ addVersion('goen', { id: '1.0.0', apply(ch) {
 addVersion('optik', { id: '1.0.0', apply(ch) {
   // Optic Blast (alto, baixo, aéreo) e o super com menos acertos e o mesmo dano total: dá pra aparar
   beamFewerHits(ch);
+} });
+
+// ===== OPTIK 1.1.0 =====
+addVersion('optik', { id: '1.1.0', apply(ch) {
+  // Mega Optic Blast no fim de combo: grudado, o feixe acompanha a altura do corpo (o oponente derrubado cai deitado, baixo, e o feixe reto passava por cima),
+  // segura ele no ar (quase sem subir) e pega no juggle até o fim, então acerta todos os golpes.
+  // Dano do super dobrado (+100%)
+  const sup = ch.moves.super;
+  ch.moves.super = s => { const m = sup(s); m.proj = Object.assign({}, m.proj, { dmg: m.proj.dmg * 2, jLimit: 99, trackY: 1, airLaunch: { vy: 3.4, vx: .3 } }); return m; };
 } });
 
 </script>
@@ -4370,6 +4557,67 @@ addVersion('gunter', { id: '1.0.0', apply(ch) {
     hits: [{ f: [12, 40], box: [4, -10, 70, 60], dmg: 9, lv: 'M', high: 1, hs: 20, bs: 12 }] };
 } });
 
+// ===== GUNTER 2.0.0 — ETERNO G. =====
+// rework completo inspirado no Hugo do USF4: Meat Squasher que corre e agarra, Ultra Throw na parede e Giant Palm Bomber com as palmas
+// Meat Squasher: depois de agarrar, ergue o oponente por cima da cabeça, salta e esmaga ele de cabeça no chão
+CINE_SCRIPTS.meatsq = (c, a, o, s, K) => {
+  M.dim = 0;   // é especial, não super: não escurece a tela
+  const fx = d => clamp(a.x + a.face * d * s, 30, STAGE_W - 30);
+  if (c.t <= 12) { o.x = fx(28); o.y = c.t * 12; o.cineRot = -c.t * .14; }
+  else if (c.t <= 26) { const u = (c.t - 12) / 14; a.y = Math.sin(u * Math.PI) * 64; o.x = fx(28 + u * 44); o.y = a.y + 144 - u * 100; o.cineRot = -1.7 - u * 1.44; }
+  else if (c.t < 31) { a.y = 0; o.x = fx(74); o.y = Math.max(0, o.y - 24); }
+  if (c.t == 1) Audio.sfx('throw', 1, a.x);
+  if (c.t == 31) {
+    a.y = 0; o.y = 0; FX.shock(o.x); FX.dust(o.x, 0, 24); Audio.sfx('slam', 1.2, o.x); M.trauma = Math.min(1, (M.trauma || 0) + .5);
+    K.cineHit(a, o, c.dmg / HPK, 1); return { vy: 4, vx: a.face * 2, kd: 'hard', landT: 18 };
+  }
+};
+// Ultra Throw: agarra, joga o oponente por cima da cabeça pra trás contra a parede (ou a borda da tela); ele quica e volta
+// pelo ar na direção do Eterno G., em juggle livre (dá pra emendar o Giant Palm Bomber)
+CINE_SCRIPTS.ultrathrow = (c, a, o, s, K) => {
+  M.dim = 0;
+  if (c.t == 1) { c.wx = clamp(a.x - a.face * 300, 30, STAGE_W - 30); c.sx = o.x; Audio.sfx('throw', 1, a.x); }
+  if (c.t <= 10) { const u = c.t / 10; o.x = clamp(a.x + a.face * (34 - u * 64) * s, 30, STAGE_W - 30); o.y = 50 + Math.sin(u * Math.PI * .5) * 110; o.cineRot = -u * Math.PI; a.face = a.face; }
+  else if (c.t <= 22) { const u = (c.t - 10) / 12, x0 = a.x - a.face * 30 * s; o.x = clamp(lerp(x0, c.wx, u), 30, STAGE_W - 30); o.y = 160 - u * 70; o.cineRot = -Math.PI - u * Math.PI * 2; if (c.t % 4 == 0) Audio.sfx('whiff', 2, o.x); }
+  if (c.t == 22) {
+    o.x = c.wx; o.y = 90; o.cineRot = 0; FX.hit(o.x, o.y + 60, -a.face, 1.6, 'H'); FX.dust(o.x, o.y, 14); Audio.sfx('slam', 1.1, o.x); M.trauma = Math.min(1, (M.trauma || 0) + .45);
+    FX.text('WALL BOUNCE!', o.x, o.y + 170, '#ffb030');
+    K.cineHit(a, o, c.dmg / HPK, 1);
+    a.face = o.x > a.x ? 1 : -1;   // vira pro lado da parede pra receber o oponente que volta
+    const back = Math.sign(a.x - o.x) || -a.face, dist = Math.max(0, Math.abs(a.x - o.x) - 90);
+    return { vy: 7, vx: back * dist / 40, juggle: 0, kd: 'hard', landT: 2, stop: 10, float: .6 };
+  }
+};
+addVersion('gunter', { id: '2.0.0', apply(ch) {
+  ch.name = 'ETERNO G.';
+  // MEAT SQUASHER (360 + Chute): corre até o oponente (fraco perto, forte longe) e agarra se alcançar. Não pega quem está no ar.
+  // EX: armadura infinita durante a corrida, mas o dano vira vida cinza; se a vida toda virar cinza, ele cai
+  const runK = [[50, 16, 52, 104, 42, 96, 30, 4, -30, 10, 0], [50, 16, 56, 100, 38, 100, -22, 6, 26, 8, 0]];
+  ch.moves.meat = s => {
+    const run = S3(s, [20, 40, 60, 60]), keys = [];
+    for (let t = 1; t < 8 + run; t += 5) keys.push([t, runK[(t / 5 | 0) % 2]]);
+    return { anim: 'grab', keys, name: 'Meat Squasher', shout: 'meatsquasher', startup: 8, active: run, recovery: 30, vel: [[1, 7 + run, S3(s, [6, 6.5, 7, 7.5]), null]],
+      armor: s == 3 ? { f: [1, 8 + run], hits: 99, lethal: 1 } : undefined, grab: { range: 64, dmg: S3(s, [18, 19, 20, 22]), cine: 'meatsq' } };
+  };
+  // ULTRA THROW (→↘↓↙← + Chute): agarrão de perto que joga o oponente na parede; ele quica de volta em juggle livre
+  ch.specials.push({ id: 'uthrow', input: '63214', btn: 'K', name: 'Ultra Throw' });
+  ch.moves.uthrow = s => ({ anim: 'grab', name: 'Ultra Throw', startup: s == 3 ? 4 : 7, active: 2, recovery: 30, inv: s == 3 ? { strike: [1, 4], throw: [1, 4] } : {},
+    grab: { range: S3(s, [80, 84, 88, 92]), dmg: s == 3 ? 7 : 8, cine: 'ultrathrow' } });
+  // GIANT PALM BOMBER (↓↙← + Soco): abre os braços lá em cima e bate as palmas na frente, na altura da cabeça (como o Hugo no SF4).
+  // Lança o oponente (juggle livre) e, no acerto, a versão mais forte cancela numa mais fraca: forte → médio → fraco. O EX cancela em qualquer força
+  const OPEN = [56, -14, -26, 152, -46, 142, 14, 0, -24, 0, 0], CLAP = [52, 18, 74, 120, 70, 114, 24, 0, -28, 0, 0];
+  ch.moves.palm = s => {
+    const st = S3(s, [12, 14, 16, 10]), into = [[], ['palm:0'], ['palm:0', 'palm:1'], ['palm:0', 'palm:1', 'palm:2']][s];
+    const h = { box: [16, 58, 76, 76], lv: 'SP', kd: 'soft', jLimit: s == 3 ? 4 : 3, onBlock: -6 };
+    return { anim: 'palm', keys: [[Math.max(1, st - 5), OPEN], [st, CLAP], [st + 6, CLAP], [st + 18, 'base']], name: 'Giant Palm Bomber', shout: 'giantpalm',
+      startup: st, active: 5, recovery: 22, vel: [[6, 14, S3(s, [3, 4, 5, 5]), null]], inv: s == 3 ? { proj: [1, 16] } : {},
+      nullify: { f: [S3(s, [8, 10, 12, 6]), S3(s, [17, 19, 21, 15])], n: s == 3 ? 2 : 1, box: [10, 30, 92, 90] },
+      bursts: [{ f: st, x: 80, y: 118, s: 1.3 }], cancel: { into, intoHit: 1 },
+      hits: s == 3 ? [Object.assign({}, h, { f: [10, 11], dmg: 6, kd: undefined, hs: 16 }), Object.assign({}, h, { f: [13, 14], dmg: 7, launch: { vy: 10, vx: 1 } })]
+        : [Object.assign({}, h, { dmg: S3(s, [10, 11, 12]), launch: { vy: S3(s, [8, 9.5, 10.5]), vx: 1 } })] };
+  };
+} });
+
 </script>
 <script>/* src/data/versions/roko.js */
 // ===== ROKO 1.0.0 =====
@@ -4389,6 +4637,28 @@ addVersion('roko', { id: '1.0.0', apply(ch) {
   // Hyper Mega Buster com menos acertos e o mesmo dano total (dá pra aparar)
   beamFewerHits(ch);
   ch.ai = Object.assign({}, ch.ai, { enders: ['flamer', 'buster'] });
+} });
+
+// ===== ROKO 2.0.0 =====
+addVersion('roko', { id: '2.0.0', apply(ch) {
+  // troca: a V-Skill vira o LANÇA-CHAMAS e o ↓↘→ + Soco vira o MEGA BUSTER que carrega, como o do Mega Man
+  // (o Mega Buster de carga ←→ + Soco sai: o tiro rápido agora é o toque no ↓↘→ + Soco)
+  const flamer = ch.moves.flamer;
+  ch.specials = ch.specials.filter(s => s.id != 'flamer' && s.id != 'buster');
+  ch.specials.push({ id: 'mbuster', input: '236', btn: 'P', name: 'Mega Buster' });
+  ch.vskill = Object.assign(flamer(1), { name: 'LANÇA-CHAMAS' });
+  // toque: o tiro rápido (até 3 na tela; EX dispara uma rajada de 3). Segurando o Soco depois do tiro, carrega:
+  // anda devagar, pula mais baixo, e soltando dispara o tiro carregado, no chão ou no ar (nível 1 aos 30 quadros, carga máxima aos 70)
+  const lemon = (s, f) => ({ f, vx: S3(s, [9, 10, 11, 12]), r: 9, life: 80, dmg: 3, hs: 16, bs: 9, col: '#fff27a', glow: '#ffffd0', lv: 'SP', yOff: 92, ahead: 20 });
+  ch.moves.mbuster = s => s == 3 ? { anim: 'buster', name: 'Mega Buster (segure Soco: carrega)', startup: 6, active: 1, recovery: 16, multiProj: 1, projs: [6, 10, 14].map(f => lemon(s, f)) }
+    : { anim: 'buster', name: 'Mega Buster (segure Soco: carrega)', startup: 6, active: 1, recovery: 12, maxProj: 3, proj: lemon(s, 6) };
+  const shot = (lv, air) => ({ anim: 'buster', name: lv == 2 ? 'CHARGE SHOT MÁXIMO' : 'CHARGE SHOT', special: 1, startup: 4, active: 1, recovery: air ? 0 : 16, air: air ? 1 : 0, multiProj: 1,
+    proj: lv == 2 ? { f: 4, vx: 9, r: 32, life: 120, dmg: 5.5, hits: 3, gap: 6, hs: 22, bs: 12, col: '#6af0ff', glow: '#e0ffff', lv: 'SP', yOff: 92, ahead: 10, kd: 1, big: 1 }
+      : { f: 4, vx: 8.5, r: 22, life: 120, dmg: 5, hits: 2, gap: 6, hs: 22, bs: 12, col: '#6af0ff', glow: '#e0ffff', lv: 'SP', yOff: 92, ahead: 10 } });
+  ch.extraMoves = Object.assign({}, ch.extraMoves, { cshot1: shot(1), cshot2: shot(2), jcshot1: shot(1, 1), jcshot2: shot(2, 1) });
+  ch.busterCharge = { from: 'mbuster', lv: [30, 70], max: 70, walk: .5, jump: .78 };
+  ch.charge = 0;
+  ch.ai = Object.assign({}, ch.ai, { proj: 'mbuster', enders: ['mbuster', 'leaf'], charge: 0 });
 } });
 
 </script>
@@ -4519,6 +4789,35 @@ addVersion('nervo', { id: '1.0.0', apply(ch) {
   ch.moves.super = () => { const m = sup(); m.hits = m.hits.map((h, i) => i < m.hits.length - 1 ? Object.assign({}, h, { push: .15 }) : h); return m; };
   ch.ai = Object.assign({}, ch.ai, { aa: 'shock' });
 } });
+// ===== NERVO 2.0.0 =====
+addVersion('nervo', { id: '2.0.0', apply(ch) {
+  // Víbora Voadora: ↓↙← + Soco ("hadouken pra trás"), como o Flying Viper do Necro
+  ch.specials = ch.specials.map(s => s.id == 'vibora' ? Object.assign({}, s, { input: '214', btn: 'P' }) : s);
+  // Soco Tornado = Tornado Hook do Necro no 3rd Strike (←↙↓↘→ + Soco): avança torcendo o tronco e chicoteando os braços esticados na
+  // horizontal, um braço de cada vez. Quadros do 3S: fraco 2 acertos (6 e 17), +1 na defesa e derruba · médio 2 acertos (10 e 22),
+  // -2 no acerto e -4 na defesa · forte 3 acertos (17, 33 e 45), +15 no acerto e -18 na defesa · EX 4 acertos rápidos, invencível no começo, derruba
+  const TH = [
+    { at: [6, 17], rec: 13, dmg: [4, 5], reach: 124, step: 2.2, last: { kd: 'soft', onBlock: 1 } },
+    { at: [10, 22], rec: 18, dmg: [5, 5.5], reach: 140, step: 2.6, last: { onHit: -2, onBlock: -4 } },
+    { at: [17, 33, 45], rec: 17, dmg: [4, 4, 5.5], reach: 150, step: 3, last: { onHit: 15, onBlock: -18 } },
+    { at: [5, 13, 21, 29], rec: 16, dmg: [3, 3, 3, 5], reach: 150, step: 3.2, last: { kd: 'soft', onBlock: -2 } },
+  ];
+  ch.moves.tornado = s => {
+    const T = TH[Math.min(s, 3)], n = T.at.length, last = T.at[n - 1], dur = last + 3 + T.rec, R = T.reach, box = [20, 62, R - 20, 52];
+    // poses: torce pra trás com o braço da frente recolhido → braço da frente chicoteia esticado → torce de novo → braço de trás chicoteia
+    const WA = [50, -12, -44, 98, 22, 88, 18, 0, -24, 0, 0], SA = [47, 16, R, 94, -34, 90, 26, 0, -28, 0, 0];
+    const WB = [50, 2, 18, 86, -52, 98, 22, 0, -24, 0, 0], SB = [47, 18, -24, 90, R, 96, 28, 0, -28, 0, 0];
+    const keys = [[Math.max(1, T.at[0] - 3), WA]];
+    T.at.forEach((a, i) => { const sw = i % 2 ? SB : SA; keys.push([a, sw], [a + 3, sw]); if (i < n - 1) keys.push([(a + 3 + T.at[i + 1]) >> 1, i % 2 ? WA : WB]); });
+    keys.push([dur - 4, 'base']);
+    const hits = T.at.map((a, i) => i < n - 1
+      ? { f: [a, a + 3], box, dmg: T.dmg[i], lv: 'SP', hs: T.at[i + 1] - a + 10, bs: T.at[i + 1] - a + 8, push: 1.2 }
+      : Object.assign({ f: [a, a + 3], box, dmg: T.dmg[i], lv: 'SP', push: 5 }, T.last));
+    return { anim: 'nervo_tornado', keys, name: 'Soco Tornado', fx: 'elec', startup: T.at[0], active: last + 3 - T.at[0] + 1, recovery: T.rec, cancel: { su: 1 },
+      vel: [[Math.max(1, T.at[0] - 2), last + 3, T.step, null]], inv: s == 3 ? { strike: [1, 7], throw: [1, 7] } : {}, hits,
+      hurt: T.at.map(a => Object.assign({ f: [a, a + 5] }, NERVO_LIMB(box))) };
+  };
+} });
 
 </script>
 <script>/* src/data/versions/falko.js */
@@ -4583,10 +4882,37 @@ addVersion('altair', { id: '1.0.0', apply(ch) {
   }
 } });
 
+// ===== ALTAIR 1.1.0 =====
+addVersion('altair', { id: '1.1.0', apply(ch) {
+  // garra com +50% de alcance (socos em pé, agachado e no ar), e a garra desenhada mais comprida
+  for (const k of ['slp', 'smp', 'shp', 'clp', 'cmp', 'chp', 'jlp', 'jmp', 'jhp']) {
+    const src = (ch.normals[k] && ch.normals[k].hits) || NORMALS[k].hits;
+    ch.normals[k] = Object.assign({}, ch.normals[k], { hits: src.map((h, i) => Object.assign({}, NORMALS[k].hits[i] || {}, h, { box: [h.box[0], h.box[1], Math.round((h.box[0] + h.box[2]) * 1.5) - h.box[0], h.box[3]] })) });   // a ponta da garra vai 50% mais longe
+  }
+  ch.look = Object.assign({}, ch.look, { clawLen: 1.6 });
+  // sai o Flying Barcelona Attack; entra o SKY HIGH CLAW do Vega no SSF2T ((segure ↓) ↑ + Soco): salta na parede de trás e cruza a tela
+  // em linha reta com a garra na frente. Fraco vai alto (passa por cima de bola de fogo), forte vai baixo e rápido; EX persegue o oponente
+  ch.specials = ch.specials.map(s => s.id == 'fba' ? { id: 'shc', input: '[2]8', btn: 'P', name: 'Sky High Claw' } : s);
+  delete ch.moves.fba;
+  ch.moves.shc = s => ({ anim: 'rush', name: 'Sky High Claw', startup: 99, dur: 90, tele: { f: 8, wall: 1, y: S3(s, [200, 170, 140, 150]) }, landEnd: 12, shout: 'barcelona',
+    vel: [[9, 90, s == 3 ? 'dive' : S3(s, [12, 13, 14]), S3(s, [-1.6, -2.2, -2.6, -3])]], inv: s == 3 ? { strike: [1, 14] } : {},
+    hits: [{ f: [10, 90], box: [6, 30, 84, 56], dmg: S3(s, [12, 13, 14, 15]), lv: 'SP', high: 1, kd: 'soft', hs: 22, bs: 14 }] });
+} });
+
+</script>
+<script>/* src/data/versions/sakda.js */
+// ===== SAKDA 1.0.0 =====
+addVersion('sakda', { id: '1.0.0', apply(ch) {
+  // ANGRY CHARGE: além do bônus de dano, a próxima Tiger Shot (alta ou baixa) vira multi-hit (3 acertos) e pega no juggle;
+  // o último acerto lança o oponente pra cima e zera o juggle, pra continuar o combo (Tiger Knee, Tiger Uppercut)
+  ch.vskill = Object.assign({}, ch.vskill, { vbuff: Object.assign({}, ch.vskill.vbuff, { proj: { hits: 3, gap: 6, dmgK: .45, jLimit: 9, r: 22, push: 1.5, stickHit: 1, lastHit: { launch: { vy: 10.5, vx: .4 }, jSet: 0, push: 0 } } }) });
+} });
+
 </script>
 <script>/* src/data/endings.js */
 // ===== finais do modo arcade (um por lutador) =====
 const ENDINGS = {
+  makita: 'Makita volta pra casa com o troféu amarrado nas costas e pendura o cinturão na porta do dojo da família. Na manhã seguinte, a fila de alunos dá a volta no quarteirão. "Ossu! Aqui ninguém desiste!"',
   markito: 'Markito Dourado derrete o troféu e usa o ouro pra se banhar de novo. Na cidade inteira, uma estátua dele aparece na praça, sem ninguém saber quem a ergueu. Ela brilha até de noite.',
   duke: 'Duke ergue o troféu no topo do dojo e grita para as câmeras: "Número um do universo!". Na manhã seguinte, abre uma academia e fica com metade dos alunos sem pagar.',
   kazan: 'Kazan derruba o pai do alto do penhasco, como prometeu anos atrás. A marca do demônio arde no braço. "Agora o poder é só meu."',
@@ -4617,7 +4943,7 @@ const ENDINGS = {
   sakda: 'Sakda senta-se no trono de pedra do templo, solitário. "Só existe um rei." Mas, no fundo, ele espera pelo dia em que alguém o fará sangrar de novo.',
   rodney: 'Rodney enche uma banheira com o dinheiro do prêmio e sorri para a câmera. "Minha grana, meu cinturão, minha cidade!" Las Vegas nunca dormiu tão barulhenta.',
   gunter: 'Gunter e seu empresário abrem uma liga de luta livre só para gigantes. Os cartazes anunciam: "Gunter contra... ninguém! Todos são pequenos demais!"',
-  winston: 'Winston devolve o carro de luxo que lhe tomaram e oferece chá ao derrotado. "Uma luta digna merece um fim digno." Uma rosa repousa sobre o troféu.',
+  winston: 'Holyfield devolve o carro de luxo que lhe tomaram e oferece chá ao derrotado. "Uma luta digna merece um fim digno." Uma rosa repousa sobre o troféu.',
   altair: 'Diante do espelho, Altair admira o próprio reflexo sem nenhum arranhão. "A beleza vence tudo." Esta noite, a lua de Barcelona pertence só a ele.',
   valerius: 'Valerius assume o comando da sociedade secreta e manda cunhar o próprio rosto em bronze. "O herdeiro legítimo, enfim, no trono."',
   alek: 'Alek volta ao ginásio de Nova York e pendura o troféu ao lado da foto do velho mestre. Garotos do bairro fazem fila para aprender a lutar.',
@@ -4664,6 +4990,16 @@ const Anim = {
       } else {
         const rt = t - e - 1, rd = m.air ? 8 : Math.max(1, m.dur - e - 1), k = rt <= 2 ? 0 : easeOut((rt - 2) / Math.max(1, rd - 2));
         p = lerpPose(a.A, b, k); ext = 1 - k;
+      }
+      // keyframes por quadro (golpes coreografados): [[quadro, pose | 'base' | nome de ANIM.W/A, { flip }], ...], interpolando entre eles
+      if (m.keys) {
+        const K = m.keys, kp = v => v == 'base' ? b : typeof v == 'string' ? (ANIM[v.split('.')[0]] || ANIM.jab)[v.split('.')[1] || 'A'] : v;
+        let i = 0; while (i < K.length - 1 && K[i + 1][0] <= t) i++;
+        if (t < K[0][0]) p = lerpPose(b, kp(K[0][1]), easeOut(t / Math.max(1, K[0][0])));
+        else if (i == K.length - 1) p = kp(K[i][1]);
+        else p = lerpPose(kp(K[i][1]), kp(K[i + 1][1]), clamp((t - K[i][0]) / Math.max(1, K[i + 1][0] - K[i][0]), 0, 1));
+        if (t >= K[0][0] && K[i][2] && K[i][2].flip) flip = true;
+        ext = 1;
       }
       if (ch.reach && !m.special && ext > 0 && (m.hits || []).length) {
         p = p.slice();
@@ -4718,6 +5054,10 @@ const Anim = {
           case 'bluefalcon': p = c.t >= 52 ? ANIM.falconpunch.A : ANIM.rush.A; break;
           case 'jungle': p = (c.t >> 2) % 2 ? ANIM.groundslap.A : ANIM.groundslap.W; break;
           case 'grove': p = c.t < 44 ? ((c.t >> 2) % 2 ? ANIM.hook.A : ANIM.hook.A2) : ANIM.stomp2.A; break;
+          case 'karakusa': p = c.t < 6 ? ANIM.grab.A : ANIM.straight.A; break;
+          case 'tosanami': p = c.t < 12 ? ANIM.makita_fukiage.W : ANIM.makita_fukiage.A; flip = c.t >= 12; break;
+          case 'meatsq': p = c.t <= 26 ? ANIM.throwA.A : ANIM.rockcrush.A; break;
+          case 'ultrathrow': p = c.t <= 6 ? ANIM.grab.A : c.t <= 12 ? ANIM.throwA.A : ANIM.throwA.W; break;
           default: p = ANIM.rush.A;
         }
         break;
@@ -5380,11 +5720,11 @@ function boxingPart(h, u, L, gloveC) {
   };
 }
 // armas na mão da frente: facão, garra, faca
-function weaponPart(h, u, type, col) {
+function weaponPart(h, u, type, col, clawK = 1) {
   const ang = Math.atan2(u.y, u.x), met = col || '#cfd6de';
   if (type == 'claw') return {
-    col: met, path(c) { c.save(); c.translate(h.x, h.y); c.rotate(ang); for (const y of [-5, 0, 5]) { c.moveTo(8, y - 1.6); c.lineTo(44, y * 1.5 - .4); c.lineTo(46, y * 1.5 + .6); c.lineTo(8, y + 1.6); c.closePath(); } c.restore(); },
-    det(c) { c.translate(h.x, h.y); c.rotate(ang); c.strokeStyle = 'rgba(255,255,255,.8)'; c.lineWidth = .8; for (const y of [-5, 0, 5]) { c.beginPath(); c.moveTo(12, y - .6); c.lineTo(42, y * 1.5 - .2); c.stroke(); } }
+    col: met, path(c) { c.save(); c.translate(h.x, h.y); c.rotate(ang); for (const y of [-5, 0, 5]) { c.moveTo(8, y - 1.6); c.lineTo(8 + 36 * clawK, y * 1.5 - .4); c.lineTo(10 + 36 * clawK, y * 1.5 + .6); c.lineTo(8, y + 1.6); c.closePath(); } c.restore(); },
+    det(c) { c.translate(h.x, h.y); c.rotate(ang); c.strokeStyle = 'rgba(255,255,255,.8)'; c.lineWidth = .8; for (const y of [-5, 0, 5]) { c.beginPath(); c.moveTo(12, y - .6); c.lineTo(6 + 36 * clawK, y * 1.5 - .2); c.stroke(); } }
   };
   if (type == 'bat') return {
     col: col || '#b9824a', path(c) { c.save(); c.translate(h.x, h.y); c.rotate(ang); c.moveTo(-6, -2.2); c.lineTo(20, -3.2); c.quadraticCurveTo(40, -6.5, 56, -6); c.arc(56, 0, 6, -Math.PI / 2, Math.PI / 2); c.quadraticCurveTo(40, 6.5, 20, 3.2); c.lineTo(-6, 2.2); c.closePath(); c.restore(); },
@@ -5541,7 +5881,7 @@ function drawFighter(c, f, pz, tint) {
     }
     parts.push(limbPart(fg, D(foC), long ? { det: c => { const q0 = vadd(vmix(el, hEnd, .86), vmul(fg.n, 7.5 * K)), q1 = vsub(vmix(el, hEnd, .86), vmul(fg.n, 7.5 * K)); c.strokeStyle = shade(foC, .55); c.lineWidth = 2.2; c.beginPath(); c.moveTo(q0.x, q0.y); c.lineTo(q1.x, q1.y); c.stroke(); } } : {}));
     if (L.bracelets) { const q = vmix(el, hEnd, .8); parts.push({ col: D('#e0b030'), path: c => { c.ellipse(q.x, q.y, 3.5 * K, 6.5 * K, Math.atan2(fg.u.y, fg.u.x), 0, 7); }, edge: false }); }
-    if (!back && wpn && wpn != 'buster') parts.push(weaponPart(hEnd, fg.u, wpn, L.weaponC));
+    if (!back && wpn && wpn != 'buster') parts.push(weaponPart(hEnd, fg.u, wpn, L.weaponC, L.clawLen || 1));   // clawLen: garra mais comprida (Altair 1.1)
     parts.push(fistPart(hEnd, fg.u, D(skin), L, D(L.glove), L.gloveType || 'bare'));
     if (!back && wpn == 'buster') parts.push(weaponPart(hEnd, fg.u, 'buster', L.weaponC || L.glove));
     return { el, hEnd, fg };
@@ -5589,6 +5929,9 @@ function drawFighter(c, f, pz, tint) {
   const bA = arm(shB, bh, true);
   if (L.scarf) { const w = Math.sin(T * .2) * 4 - f.vx, a = Pt(1.02, -3), b = vadd(a, vadd(vmul(fr, -22), vmul(s, -2 + w))), cc = vadd(b, vadd(vmul(fr, -22), vmul(s, -6 - w)));
     parts.push(limbPart(limbGeo(a, b, 7, 6), L.scarf)); parts.push(limbPart(limbGeo(b, cc, 6, 3.5), L.scarf)); }
+  // lenço amarrado no pescoço (tenugui da Makita): nó na nuca com duas pontas curtas caindo pra trás
+  if (L.kerchief) { const w = Math.sin(T * .2) * 2 - f.vx * .5, a = Pt(1.0, -4);
+    for (const [dx, dy] of [[-4, -17], [-9, -14]]) { const b = vadd(a, vadd(vmul(fr, dx + w), vmul(s, dy))); parts.push(limbPart(limbGeo(a, b, 4, 2.6), L.kerchief)); } }
   leg(vadd(H, vadd(vmul(fr, -3.5 * K), vmul(s, -2))), bf, true);
   if (L.torso == 'qipao') { const sw = Math.sin(T * .12 + 1) * 3 - f.vx; parts.push({ col: dk(L.top), path: c => polyPath(c, [Pt(.14, -hipW * .9), Pt(.14, hipW * .1), Pt(-.62, -1 + sw), Pt(-.6, -hipW - 3 + sw)]), sh: null }); }
 
@@ -5615,6 +5958,7 @@ function drawFighter(c, f, pz, tint) {
         c.fillStyle = shade(skin, .72); c.beginPath(); polyPath(c, [Pt(1.03, -1), Pt(.8, waistW * .2), Pt(.52, waistW * .6)]); c.fill();
         line(Pt(1.03, -4), Pt(.5, waistW * .62), shade(L.top, .55), 1.6); line(Pt(.95, shW * .6), Pt(.55, waistW * .66), shade(L.top, .55), 1.4);
         c.strokeStyle = shade(L.top, .72); c.lineWidth = 1.2; for (const u of [.3, .42]) { const a = Pt(u, -waistW * .8), b = Pt(u + .05, -waistW * .1); c.beginPath(); c.moveTo(a.x, a.y); c.quadraticCurveTo(b.x, b.y - 2, b.x + 2, b.y); c.stroke(); }
+        if (L.kerchief) { c.lineCap = 'round'; line(Pt(1.05, -8), Pt(1.0, 7), shade(L.kerchief, .6), 7); line(Pt(1.05, -8), Pt(1.0, 7), L.kerchief, 5); c.lineCap = 'butt'; }   // lenço em volta do pescoço
       } else if (L.torso == 'qipao') {
         line(Pt(1.02, -5), Pt(1.02, 4), L.trim, 3.5); c.strokeStyle = L.trim; c.lineWidth = 2.4; c.beginPath(); const a = Pt(1, 3), b = Pt(.86, chestW * .6), d = Pt(.72, chestW + 2); c.moveTo(a.x, a.y); c.quadraticCurveTo(b.x, b.y, d.x, d.y); c.stroke();
         c.fillStyle = L.trim; for (const u of [.88, .8]) { const q = Pt(u, chestW * .55); c.beginPath(); c.arc(q.x, q.y, 1.8, 0, 7); c.fill(); }
@@ -6941,7 +7285,7 @@ const MOVE_NAMES = { fb: 'Hadouken', dp: 'Shoryuken', tatsu: 'Tatsumaki', atatsu
   head: 'Cabeçada Sumô', splash: 'Esmagada Sumô', oicho: 'Oicho Throw', psycho: 'Psycho Crusher', scissor: 'Chute Tesoura', press: 'Pisão na Cabeça',
   chop: 'Flash Chop', elbow: 'Slash Elbow', aks: 'Air Knee Smash', bomb: 'Power Bomb', over: 'Overdrive', hbeat: 'Hamon Beat', clack: 'Clacker Volley', mega: 'Megaton Blast', giga: 'Gigaton Punch',
   greet: 'Dark Greeting', cossack: 'Cossack Kick', tk: 'Tiger Knee', tu: 'Tiger Uppercut', shot: 'Tiger Shot', gshot: 'Tiger Shot Baixo', sdb: 'Shootdown Backbreaker', palm: 'Giant Palm Bomber',
-  sphere: 'Metallic Sphere', chariot: 'Chariot Tackle', knee: 'Violence Knee Drop', khead: 'Killing Head', chain: 'Hanging Chain', bhead: 'Bull Head', lift: 'Levitação Forçada' };
+  moon: 'Moonsault Press', meat: 'Meat Squasher', sphere: 'Metallic Sphere', chariot: 'Chariot Tackle', knee: 'Violence Knee Drop', khead: 'Killing Head', chain: 'Hanging Chain', bhead: 'Bull Head', lift: 'Levitação Forçada' };
 const CMD_NAMES = { elbow: 'Cotovelada', plexus: 'Solar Plexus', stepkick: 'Chute Avançado', axe: 'Chute Machado', slide: 'Rasteira Deslizante', knee: 'Knee Bazooka', backfist: 'Soco Giratório',
   headbutt: 'Cabeçada', rockcrush: 'Rock Crusher', sweep: 'Rasteira Longa', bodypress: 'Body Press', drill: 'Broca Aérea', dive: 'Mergulho', stomp2: 'Pisão Aéreo' };
 function moveName(ch, id) { let n = null; try { n = getMove(ch, id + ':1').name; } catch (e) {} return n || MOVE_NAMES[id] || id.toUpperCase(); }
@@ -7148,7 +7492,7 @@ const HUD = {
 <script>/* src/ui/menus.js */
 // ===== lógica das telas (título, modos, seleção, palco, online, pausa, resultados) =====
 const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.random() * (i + 1) | 0; [a[i], a[j]] = [a[j], a[i]]; } return a; };
-const GRID_COLS = 12;   // 44 lutadores + célula aleatória (4 fileiras)
+const GRID_COLS = 12;   // 45 lutadores + célula aleatória (4 fileiras)
 // lutador secreto: na seleção a célula dele é um cofre dourado (???). Em cima dela, 4 botões na ordem certa abrem o cofre;
 // 8 botões: cada acerto acende uma moeda, errar volta do começo (força bruta leva umas 100 tentativas). Até abrir, fica fora do aleatório, arcade, torneio e título.
 // O cofre fecha de novo toda vez que o jogo abre (nada fica salvo)
@@ -7213,7 +7557,7 @@ const Menus = {
   resultItems() { return [['REVANCHE', 'rematch'], ['REPLAY DA LUTA', 'replay'], ['TROCAR PERSONAGEM', 'select'], ['TROCAR CENÁRIO', 'stage'], ['MENU PRINCIPAL', 'menu']].filter(i => i[1] != 'replay' || Game.rec); },
   pauseItems() {
     const it = [['CONTINUAR', 'resume'], ['LISTA DE GOLPES', 'moves']];
-    if (Game.mode == 'training') it.push(['BONECO: ' + Training.modes[Training.mode], 'dummy'], [Training.recState == 'rec' ? 'PARAR GRAVAÇÃO' : 'GRAVAR BONECO', 'rec'], [Training.recState == 'play' ? 'PARAR REPRODUÇÃO' : 'REPRODUZIR GRAVAÇÃO', 'play']);
+    if (Game.mode == 'training') it.push(['BONECO: ' + Training.modes[Training.mode], 'dummy'], ['BARRA DE SUPER: ' + (Training.meterInf ? 'INFINITA' : 'NORMAL'), 'meter'],[Training.recState == 'rec' ? 'PARAR GRAVAÇÃO' : 'GRAVAR BONECO', 'rec'], [Training.recState == 'play' ? 'PARAR REPRODUÇÃO' : 'REPRODUZIR GRAVAÇÃO', 'play']);
     it.push(['MEDIDOR DE QUADROS: ' + (Training.shown('fm') ? 'SIM' : 'NÃO'), 'fmeter'], ['HISTÓRICO DE COMANDOS: ' + (Training.shown('ih') ? 'SIM' : 'NÃO'), 'idisp']);
     if (Game.mode == 'trials') it.splice(1, 0, ['PULAR DESAFIO', 'tskip'], ['DESAFIO ANTERIOR', 'tprev']);
     it.push(['OPÇÕES (VOLUME)', 'opts']);
@@ -7469,6 +7813,7 @@ const Menus = {
     const id = it[g.idx][1];
     const TM = Training.modes.length;
     if (id == 'dummy' && (mi.l || mi.r)) Training.mode = (Training.mode + (mi.l ? TM - 1 : 1)) % TM;
+    if (id == 'meter' && (mi.l || mi.r)) { Training.toggleMeter(); Audio.sfx('move'); }
     if (mi.start || mi.back) { g.scene = 'fight'; return; }
     if (!mi.ok) return;
     Audio.sfx('select');
@@ -7478,11 +7823,12 @@ const Menus = {
       case 'opts': g.pauseOpt = true; g.pauseIdx = g.idx; g.idx = 0; break;
       case 'tskip': case 'tprev': Trials.jump(id == 'tskip' ? 1 : -1); g.scene = 'fight'; break;
       case 'dummy': Training.mode = (Training.mode + 1) % TM; break;
+      case 'meter': Training.toggleMeter(); break;
       case 'rec': Training.toggleRec(); g.scene = 'fight'; break;
       case 'play': Training.togglePlay(); g.scene = 'fight'; break;
       case 'fmeter': Training.toggle('fm'); break;
       case 'idisp': Training.toggle('ih'); break;
-      case 'restart': for (const f of M.f) { f.wins = 0; f.winTypes = ''; f.meter = M.training ? METER_MAX : 0; } M.round = 1; Match.newRound(); g.scene = 'fight'; break;
+      case 'restart': for (const f of M.f) { f.wins = 0; f.winTypes = ''; f.meter = M.training && Training.meterOn() ? METER_MAX : 0; } M.round = 1; Match.newRound(); g.scene = 'fight'; break;
       case 'select': g.ready = [false, false]; g.go('select'); break;
       case 'menu': g.go('title'); break;
     }
@@ -7923,7 +8269,7 @@ Object.assign(Menus, {
       c.save(); c.beginPath(); c.rect(x - 200, 70, 400, 272); c.clip();
       puppet(c, ch, x, 520, k, face, rd ? P.win : undefined, { st: rd ? 'win' : 'idle', look: lookOf(ch, rd ? g.pal[slot] || 0 : 0) }); c.restore();
       const ng = c.createLinearGradient(0, 286, 0, 342); ng.addColorStop(0, 'rgba(0,0,0,0)'); ng.addColorStop(1, 'rgba(0,0,0,.7)'); c.fillStyle = ng; c.fillRect(x - 140, 286, 280, 56);
-      txt(c, ch.name, x, 324, 38, rd ? '#ffd21e' : '#fff', 'center', 6);
+      txt(c, (shown(slot) || ch).name, x, 324, 38, rd ? '#ffd21e' : '#fff', 'center', 6);   // nome da versão (ex.: Gunter 2.0 = ETERNO G.)
       ui(c, online ? memberName(Room.fighters[slot]) + (Room.fighters[slot] == Net.id ? ' (você)' : '') : ch.title, x, 340, 14, online ? '#ffd21e' : '#bcd', 'center', 3);
       if (rd) { c.fillStyle = 'rgba(0,0,0,.6)'; c.fillRect(x - 60, 262, 120, 24); txt(c, 'PRONTO!', x, 282, 20, '#6f6', 'center', 3); }
       // versão: seletor (←→) depois de escolher, ou só a etiqueta da versão
@@ -8059,8 +8405,10 @@ Object.assign(Menus, {
     c.save(); c.globalAlpha = .12; c.fillStyle = '#fff'; for (let i = 0; i < 12; i++) { const y = (i * 53 + t * 9) % H; c.fillRect(0, y, W / 2 - 60 + (H - y) / H * 120, 3); c.fillRect(W / 2 + 60 - y / H * 120, H - y, W, 3); } c.restore();
     c.strokeStyle = '#fff'; c.lineWidth = 6; c.beginPath(); c.moveTo(W / 2 + 60, 0); c.lineTo(W / 2 - 60, H); c.stroke();
     puppet(c, a, lerp(-200, 240, k), 510, 2.7, 1); puppet(c, b, lerp(W + 200, 720, k), 510, 2.7, -1);
-    txt(c, a.name, 50 + (1 - k) * -200, 74, 60, '#fff', 'left', 7); ui(c, a.title, 54 + (1 - k) * -200, 102, 20, '#dde', 'left', 4);
-    txt(c, b.name, W - 50 + (1 - k) * 200, 74, 60, '#fff', 'right', 7); ui(c, b.title, W - 54 + (1 - k) * 200, 102, 20, '#dde', 'right', 4);
+    // nome da versão que vai lutar (a do jogador: a escolhida; a CPU: a mais nova), como no startMatch
+    const nm = (i, ch) => { const ci = CHARS.indexOf(ch); return charVer(ci, i == 0 && versionsOf(ci).includes(g.ver[0]) ? g.ver[0] : newestVer(ci)).name; };
+    txt(c, nm(0, a), 50 + (1 - k) * -200, 74, 60, '#fff', 'left', 7); ui(c, a.title, 54 + (1 - k) * -200, 102, 20, '#dde', 'left', 4);
+    txt(c, nm(1, b), W - 50 + (1 - k) * 200, 74, 60, '#fff', 'right', 7); ui(c, b.title, W - 54 + (1 - k) * 200, 102, 20, '#dde', 'right', 4);
     const s = t < 30 ? 3 - 2 * ease(Math.max(0, Math.min(1, (t - 10) / 20))) : 1 + Math.sin(t * .2) * .04;
     if (t > 10) { c.save(); c.translate(W / 2 + (t < 34 ? rnd(-3, 3) : 0), H / 2); c.scale(s, s); gradText(c, 'VS', 0, 45, 160, '#fff7c0', '#ff3a10', 12); c.restore(); }
     if (g.mode == 'arcade') { c.fillStyle = 'rgba(0,0,0,.6)'; slant(c, W / 2 - 120, 18, 240, 34, 10); c.fill(); txt(c, (g.stage == g.ladder.length - 1 ? 'LUTA FINAL' : 'LUTA ' + (g.stage + 1) + ' DE ' + g.ladder.length), W / 2, 45, 26, '#ffd21e', 'center', 4); }
@@ -8557,10 +8905,16 @@ const Training = {
   update(a, b) {
     for (const [x, y] of [[a, b], [b, a]]) if ((y.st == 'hit' || y.st == 'knock' || y.st == 'crumple') && x.comboDmg) this.last = { n: x.combo, dmg: x.comboDmg };
     const busy = f => ['hit', 'knock', 'down', 'wake', 'cineD', 'thrown', 'block', 'cine', 'throw', 'crumple', 'parry'].includes(f.st);
-    const tc = M.tcfg || {}, hp = tc.hp !== false, meter = tc.meter !== false;   // treino online: o anfitrião escolhe (padrão: recarrega os dois)
+    // treino online: o anfitrião escolhe (padrão: recarrega os dois); treino local: a barra de super segue a opção do menu de pausa
+    const tc = M.tcfg || {}, hp = tc.hp !== false, meter = M.tcfg ? tc.meter !== false : this.meterOn();
+    if (meter) for (const f of [a, b]) f.meter = METER_MAX;   // barra infinita: sempre cheia, até no meio do combo
     if (busy(a) || busy(b)) M.tcalm = 0;
-    else if ((M.tcalm = (M.tcalm || 0) + 1) > 45) for (const f of [a, b]) { if (meter) f.meter = METER_MAX; if (hp && f.grey <= 0) { f.hp = f.ch.hp; f.hpS = f.hp; } }   // com vida cinza, deixa ela voltar sozinha (dá pra ver a mecânica)
+    else if ((M.tcalm = (M.tcalm || 0) + 1) > 45) for (const f of [a, b]) { if (hp && f.grey <= 0) { f.hp = f.ch.hp; f.hpS = f.hp; } }   // com vida cinza, deixa ela voltar sozinha (dá pra ver a mecânica)
   },
+  // barra de super no treino local: infinita (sempre cheia) ou normal (enche batendo/apanhando, como numa luta)
+  meterInf: true,
+  meterOn() { return typeof Game == 'undefined' || Game.mode != 'training' || this.meterInf; },   // desafios e tutorial: sempre cheia
+  toggleMeter() { this.meterInf = !this.meterInf; if (M.f && !M.tcfg) for (const f of M.f) f.meter = this.meterInf ? METER_MAX : 0; },
   // configuração do treino online, aplicada no MESMO quadro pelos dois lados (ou resetar as posições)
   applyCfg(tc) {
     if (tc.reset) { const keep = M.tcfg; Match.newRound(); M.tcfg = keep; return; }

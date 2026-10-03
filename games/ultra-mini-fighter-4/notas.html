@@ -113,6 +113,35 @@ const TYPES = { novo: ['Novo', 'var(--novo)'], buff: ['Buff', 'var(--buff)'], ne
 const C = s => `<span class="cmd">${s}</span>`;
 // notas por lançamento (o mais novo primeiro). Lutador: [id do retrato, nome, [[tipo, mudança], ...], versão do lutador (padrão: a do lançamento)]
 const RELEASES = [{
+  id: 'makita-reformulacoes-2.0.0', title: 'Makita + reformulações 2.0', kind: 'Nova lutadora e reformulações', date: '2026-10-03',
+  chars: [
+    ['makita', 'Makita', [['novo', 'Lutadora nova, inspirada na Makoto do Street Fighter III: 3rd Strike. Karatê tradicional: anda bem devagar, mas tem o dash mais rápido do jogo e bate muito forte.'],
+      ['novo', `Hayate (${C('↓↘→ + Soco')}): avança com um soco reto. Segurando o Soco carrega em 4 níveis (do 3º em diante derruba e fica seguro na defesa); apertando Chute enquanto segura, finta.`],
+      ['novo', `Fukiage (${C('→↓↘ + Soco')}): soco pra cima que só pega quem está no ar e lança. Oroshi (${C('↓↙← + Soco')}): golpe de cima pra baixo que acerta quem defende agachado.`],
+      ['novo', `Tsurugi (no ar, ${C('↓↙← + Chute')}): chute machado descendo. Karakusa (${C('→↘↓↙← + Chute')}): agarrão que deixa o oponente atordoado e em pé, pronto pra levar combo.`],
+      ['novo', `Supers: Seichusen Godanzuki (${C('↓↘→↓↘→ + Soco')}, reversal de 5 socos) e Abare Tosanami (${C('↓↘→↓↘→ + Chute')}, 3 barras: salta na parede, mergulha com um chute e lança pra juggle).`],
+      ['novo', `V-Skill Kiai: respira fundo e grita; o próximo golpe que acertar bate 30% mais forte. Golpes de comando: Kaoruna, Shimaki (+ Soco: Yamase), Shibuki, Chigusa (overhead) e Kuroshio.`]], 'Base'],
+    ['gunter', 'Eterno G.', [['rework', 'Reformulação completa inspirada no Hugo do USF4, com nome novo: Eterno G.'],
+      ['rework', `Meat Squasher (${C('360 + Chute')}): corre até o oponente e agarra se alcançar (fraco perto, forte longe), ergue ele por cima da cabeça e esmaga no chão.`],
+      ['rework', 'Meat Squasher EX: armadura infinita durante a corrida, mas todo o dano vira vida cinza; se a vida toda virar cinza, ele cai.'],
+      ['novo', `Ultra Throw (${C('→↘↓↙← + Chute')}): agarra e joga o oponente na parede; ele quica de volta pelo ar e dá pra emendar o Giant Palm Bomber.`],
+      ['rework', 'Giant Palm Bomber com as palmas do Hugo no SF4: abre os braços lá no alto e bate as palmas na frente, na altura da cabeça. Lança o oponente pra juggle.'],
+      ['buff', 'No acerto, o Palm Bomber mais forte cancela num mais fraco: forte → médio → fraco. O EX cancela em qualquer força.']], '2.0.0'],
+    ['nervo', 'Nervo', [['ajuste', `Víbora Voadora segue no ${C('↓↙← + Soco')} ("hadouken pra trás").`],
+      ['rework', `Soco Tornado (${C('←↙↓↘→ + Soco')}) igual ao Tornado Hook do Necro: avança torcendo o tronco e chicoteando os braços esticados, um de cada vez. Fraco e médio dão 2 acertos, forte 3, EX 4.`],
+      ['ajuste', 'Quadros do Tornado Hook do 3rd Strike: fraco +1 na defesa e derruba; médio -4 na defesa; forte +15 no acerto e -18 na defesa; EX invencível no começo e derruba.']], '2.0.0'],
+    ['roko', 'Roko', [['rework', `A V-Skill agora é o Lança-Chamas, e o ${C('↓↘→ + Soco')} virou o Mega Buster que carrega (sai o Mega Buster de carga ←→).`],
+      ['novo', 'Mega Buster: um toque solta o tiro rápido; segurando o Soco ele carrega (nível 1 e carga máxima) e, soltando, dispara o tiro carregado, no chão ou no ar, como o Mega Man.'],
+      ['ajuste', 'Carregando, ele anda na metade da velocidade e pula mais baixo.']], '2.0.0'],
+    ['optik', 'Optik', [['buff', 'Mega Optic Blast no fim de combo acerta todos os golpes: o feixe acompanha a altura do oponente derrubado (antes passava por cima do corpo caído) e o segura no ar.'],
+      ['buff', 'Dano do super dobrado (+100%).']], '1.1.0'],
+    ['sakda', 'Sakda', [['buff', 'Com a Angry Charge (V-Skill) ativa, a próxima Tiger Shot vira multi-hit (3 acertos), pega no juggle e o último acerto lança: dá pra emendar Tiger Knee ou Tiger Uppercut.']], '1.0.0'],
+    ['crow', 'Crow', [['nerf', 'Hanging Chain fraca, média e EX só pegam quem está no chão (não pegam mais quem pula).'], ['nerf', 'A Hanging Chain forte (45°) só pega quem está no ar (não pega mais quem está no chão perto).']], '1.1.0'],
+    ['altair', 'Altair', [['buff', 'Garra 50% mais comprida em todos os socos (em pé, agachado e no ar).'],
+      ['rework', `Sai o Flying Barcelona Attack; entra o Sky High Claw do Vega no SSF2T (${C('(segure ↓) ↑ + Soco')}): salta na parede de trás e cruza a tela em linha reta com a garra. Fraco vai alto (passa por cima de bola de fogo), forte vai baixo e rápido, EX persegue o oponente.`]], '1.1.0'],
+    ['winston', 'Holyfield', [['ajuste', 'Winston agora se chama Holyfield.']], 'Base'],
+  ]
+},{
   id: 'jasper-1.3.0', title: 'Jasper 1.3.0', kind: 'Ajuste de personagem', date: '2026-10-02',
   chars: [
     ['vorhas', 'Jasper', [['rework', `Super Noite no Acampamento (${C('↓↘→↓↘→ + Soco')}) não é mais agarrão: ele avança com o facão e, acertando, prende o oponente numa sequência de cortes.`],
