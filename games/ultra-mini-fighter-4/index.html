@@ -4600,6 +4600,7 @@ addVersion('gunter', { id: '2.0.0', apply(ch) {
   ch.look = Object.assign({}, ch.look, { hair: 'quiff', hairC: '#231c19', skin: '#ecc6a4', goatee: '#2a211c', brow: undefined, build: 1.08,   // magro, forte e definido; o tamanho (alcance) não muda
     torso: 'tank', plain: 1, sleeve: 'short', top: '#1c1c1f', legs: 'bermuda', pants: '#5a6236', straps: undefined, feet: '#2a2622', glove: '#ecc6a4', gloveType: 'bare' });   // camiseta preta básica e bermuda cargo verde-militar
   ch.palettes = [{}, { top: '#e8e8e8', pants: '#3a3a3a' }, { top: '#2a3a5a', pants: '#8a7a56' }, { top: '#7a1a1a', pants: '#2a2a2a' }];
+  ch.aura = '#5a6236';   // efeitos (aura, brilhos, rastro) no verde-militar da bermuda, em vez do rosa
   // MEAT SQUASHER (360 + Chute): corre até o oponente (fraco perto, forte longe) e agarra se alcançar. Não pega quem está no ar.
   // EX: armadura infinita durante a corrida, mas o dano vira vida cinza; se a vida toda virar cinza, ele cai
   const runK = [[50, 16, 52, 104, 42, 96, 30, 4, -30, 10, 0], [50, 16, 56, 100, 38, 100, -22, 6, 26, 8, 0]];
