@@ -564,7 +564,15 @@ const Audio = {
     if (!settings.voice || SIM.silent) return;
     this.duck(.55, .9);
     // lutador renomeado (o clipe gravado diz o nome antigo) ou sem nome gravado: o nome sai pela voz do navegador
-    const rn = key == 'wins' ? ch : key.startsWith('n_') ? charById(key.slice(2)) : null;
+    // a seleção manda a versão escolhida (ch); announce = como o narrador fala o nome dela (ex.: Gunter 2.0 = "Eterno Gigante")
+    const rn = key == 'wins' ? ch : key.startsWith('n_') ? (ch || charById(key.slice(2))) : null;
+    if (rn && rn.announce) {
+      if (!window.speechSynthesis) return;
+      try { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(rn.announce); u.rate = .9; u.pitch = .35; u.volume = settings.volVoice ?? 1; u.lang = 'pt-BR';
+        if (key == 'wins') { Voice.load('nar/wins'); u.onend = () => Voice.play('nar/wins', { chan: 'nar', pri: 5, rev: 1 }); }
+        speechSynthesis.speak(u); } catch (e) {}
+      return;
+    }
     if (rn && (rn.renamed || !Voice.has('nar/n_' + rn.id))) {
       if (!window.speechSynthesis) return;
       try { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(key == 'wins' ? rn.name + ' wins' : rn.name); u.rate = .9; u.pitch = .35; u.volume = settings.volVoice ?? 1; u.lang = 'en-US'; speechSynthesis.speak(u); } catch (e) {}
@@ -4624,7 +4632,7 @@ CINE_SCRIPTS.ultrathrow = (c, a, o, s, K) => {
   }
 };
 addVersion('gunter', { id: '2.0.0', apply(ch) {
-  ch.name = 'ETERNO G.';
+  ch.name = 'ETERNO G.'; ch.announce = 'Eterno Gigante';   // o narrador fala "Eterno Gigante" (seleção e vitória)
   // visual próprio: topete escuro volumoso pra trás, pele clara, bigode fino e cavanhaque com barba rala (o corpo de lutador gigante continua)
   ch.look = Object.assign({}, ch.look, { hair: 'quiff', hairC: '#231c19', skin: '#ecc6a4', goatee: '#2a211c', brow: undefined, build: 1.08,   // magro, forte e definido; o tamanho (alcance) não muda
     torso: 'tank', plain: 1, sleeve: 'short', top: '#1c1c1f', legs: 'bermuda', pants: '#5a6236', straps: undefined, feet: '#2a2622', glove: '#ecc6a4', gloveType: 'bare' });   // camiseta preta básica e bermuda cargo verde-militar
@@ -7804,7 +7812,7 @@ const Menus = {
         g.pal[slot] = mi.hk ? 3 : mi.hp ? 2 : 0; g.pal[slot] %= CHARS[g.sel[slot]].palettes.length;
         g.ver[slot] = g.mode == 'trials' ? 'base' : newestVer(g.sel[slot]);
         if (!rnd && g.mode != 'trials' && versionsOf(g.sel[slot]).length > 1) { g.vpick[slot] = true; Audio.sfx('select'); return; }   // escolhe a versão antes de ficar pronto
-        g.ready[slot] = true; Audio.sfx('select'); Audio.say('n_' + CHARS[g.sel[slot]].id); if (online) this.netSel(slot, g.sel[slot], true); }
+        g.ready[slot] = true; Audio.sfx('select'); Audio.say('n_' + CHARS[g.sel[slot]].id, charVer(g.sel[slot], g.ver[slot])); if (online) this.netSel(slot, g.sel[slot], true); }
     };
     // seletor de versão do lutador escolhido: ←→ troca, confirmar fica pronto, voltar desiste
     const pickVer = (mi, slot) => {
@@ -7812,7 +7820,7 @@ const Menus = {
       const vs = versionsOf(g.sel[slot]); let k = vs.indexOf(g.ver[slot]); if (k < 0) k = vs.length - 1;
       if (mi.l || mi.r) { k = (k + (mi.l ? vs.length - 1 : 1)) % vs.length; g.ver[slot] = vs[k]; Audio.cursor(slot); }
       if (mi.back) { g.vpick[slot] = false; Audio.sfx('back'); return true; }
-      if (mi.ok || mi.hp || mi.hk) { g.vpick[slot] = false; g.ready[slot] = true; Audio.sfx('select'); Audio.say('n_' + CHARS[g.sel[slot]].id); if (online) this.netSel(slot, g.sel[slot], true); }
+      if (mi.ok || mi.hp || mi.hk) { g.vpick[slot] = false; g.ready[slot] = true; Audio.sfx('select'); Audio.say('n_' + CHARS[g.sel[slot]].id, charVer(g.sel[slot], g.ver[slot])); if (online) this.netSel(slot, g.sel[slot], true); }
       return true;
     };
     if (online) {
