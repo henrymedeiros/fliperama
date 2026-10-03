@@ -113,6 +113,11 @@ const TYPES = { novo: ['Novo', 'var(--novo)'], buff: ['Buff', 'var(--buff)'], ne
 const C = s => `<span class="cmd">${s}</span>`;
 // notas por lançamento (o mais novo primeiro). Lutador: [id do retrato, nome, [[tipo, mudança], ...], versão do lutador (padrão: a do lançamento)]
 const RELEASES = [{
+  id: 'crow-1.2.0', title: 'Crow 1.2.0', kind: 'Ajuste de personagem', date: '2026-10-03',
+  chars: [
+    ['crow', 'Crow', [['ajuste', `Bull Head agora sai com ${C('↓↘→ + Chute')} (antes ↓↘→ + Soco).`]], '1.2.0'],
+  ]
+}, {
   id: 'makita-reformulacoes-2.0.0', title: 'Makita + reformulações 2.0', kind: 'Nova lutadora e reformulações', date: '2026-10-03',
   chars: [
     ['makita', 'Makita', [['novo', 'Lutadora nova, inspirada na Makoto do Street Fighter III: 3rd Strike. Karatê tradicional: anda bem devagar, mas tem o dash mais rápido do jogo e bate muito forte.'],
@@ -122,6 +127,7 @@ const RELEASES = [{
       ['novo', `Supers: Seichusen Godanzuki (${C('↓↘→↓↘→ + Soco')}, reversal de 5 socos) e Abare Tosanami (${C('↓↘→↓↘→ + Chute')}, 3 barras: salta na parede, mergulha com um chute e lança pra juggle).`],
       ['novo', `V-Skill Kiai: respira fundo e grita; o próximo golpe que acertar bate 30% mais forte. Golpes de comando: Kaoruna, Shimaki (+ Soco: Yamase), Shibuki, Chigusa (overhead) e Kuroshio.`]], 'Base'],
     ['gunter', 'Eterno G.', [['rework', 'Reformulação completa inspirada no Hugo do USF4, com nome novo: Eterno G.'],
+      ['ajuste', 'Visual novo: topete escuro penteado pra trás, pele clara, bigode fino, cavanhaque com barba rala e corpo mais magro e definido (o tamanho e o alcance continuam os mesmos).'],
       ['rework', `Meat Squasher (${C('360 + Chute')}): corre até o oponente e agarra se alcançar (fraco perto, forte longe), ergue ele por cima da cabeça e esmaga no chão.`],
       ['rework', 'Meat Squasher EX: armadura infinita durante a corrida, mas todo o dano vira vida cinza; se a vida toda virar cinza, ele cai.'],
       ['novo', `Ultra Throw (${C('→↘↓↙← + Chute')}): agarra e joga o oponente na parede; ele quica de volta pelo ar e dá pra emendar o Giant Palm Bomber.`],

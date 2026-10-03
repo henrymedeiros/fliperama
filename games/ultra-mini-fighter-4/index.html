@@ -4365,6 +4365,11 @@ addVersion('crow', { id: '1.1.0', apply(ch) {
   ch.moves.chain = s => { const m = chain(s); m.hits = m.hits.map(h => Object.assign({}, h, s == 2 ? { airOnly: 1 } : { gndOnly: 1 })); return m; };
 } });
 
+// ===== CROW 1.2.0 =====
+addVersion('crow', { id: '1.2.0', apply(ch) {
+  // Bull Head agora sai com ↓↘→ + Chute (antes ↓↘→ + Soco)
+  ch.specials = ch.specials.map(s => s.id == 'bhead' ? Object.assign({}, s, { input: '236', btn: 'K' }) : s);
+} });
 </script>
 <script>/* src/data/versions/shiro.js */
 // ===== SHIRO 1.0.0 =====
@@ -4590,6 +4595,9 @@ CINE_SCRIPTS.ultrathrow = (c, a, o, s, K) => {
 };
 addVersion('gunter', { id: '2.0.0', apply(ch) {
   ch.name = 'ETERNO G.';
+  // visual próprio: topete escuro volumoso pra trás, pele clara, bigode fino e cavanhaque com barba rala (o corpo de lutador gigante continua)
+  ch.look = Object.assign({}, ch.look, { hair: 'quiff', hairC: '#231c19', skin: '#ecc6a4', goatee: '#2a211c', brow: undefined, build: 1.08 });   // magro, forte e definido; o tamanho (alcance) não muda
+  ch.palettes = ch.palettes.map(p => { const q = Object.assign({}, p); delete q.hairC; return q; });
   // MEAT SQUASHER (360 + Chute): corre até o oponente (fraco perto, forte longe) e agarra se alcançar. Não pega quem está no ar.
   // EX: armadura infinita durante a corrida, mas o dano vira vida cinza; se a vida toda virar cinza, ele cai
   const runK = [[50, 16, 52, 104, 42, 96, 30, 4, -30, 10, 0], [50, 16, 56, 100, 38, 100, -22, 6, 26, 8, 0]];
@@ -6102,6 +6110,8 @@ Object.assign(HAIR, {
   tuft: [[5, 10.4], [7.5, 15.5], [3, 13], [1.5, 17.5], [-1.5, 13], [-5, 15], [-6, 10], [-2, 11.2], [2, 11.2]],
   slick: [[10, 6.5], [10.6, 9.6], [6, 11.8], [-2, 12.8], [-8, 11.2], [-15, 10], [-11, 6.4], [-18, 4.5], [-11.5, 1.5], [-14.5, -2.5], [-9.6, -2.5], [-9.4, 2], [-6, 6], [0, 8.2], [6, 7.8]],
   dreads: [[10, 6.4], [10.6, 9], [7, 12], [0, 13], [-7, 11.4], [-11, 6.4], [-11.6, 1], [-9.8, -1.6], [-8.8, 1], [-6, 5.2], [0, 8.4], [6, 8]],
+  // topete: volume alto na frente, penteado pra cima e pra trás, laterais curtas (Eterno G.)
+  quiff: [[9.6, 6], [11.4, 9.2], [12.2, 13.6], [10.4, 17.6], [6, 19.8], [0, 19.6], [-6, 17.6], [-10.6, 14], [-12.4, 9], [-12.2, 3], [-10.6, -2], [-8.8, -1.2], [-8, 3.6], [-4, 7], [2, 8], [6.6, 7.4]],
 });
 // crânio alongado para trás (alien) e cabeça de robô
 const ALIEN_PTS = [[12.5, -6], [13, -2.5], [11.5, 2.5], [8, 7.5], [2, 10.8], [-8, 11.8], [-19, 11], [-29, 8.4], [-36, 4.6], [-33, 1.4], [-23, .2], [-13, -1.8], [-6.5, -8], [0, -11.2], [6, -11.6], [10.6, -9.4]];
@@ -6192,6 +6202,11 @@ function headFront(parts, ch, hd, ang, f, LL) {
       if (L.facepaint && ch.id == 'taiho') { c.strokeStyle = L.facepaint; c.lineWidth = 1.8; c.beginPath(); c.moveTo(3.5, .5); c.quadraticCurveTo(6, 6.5, 10.5, 4.6); c.moveTo(4, -2); c.quadraticCurveTo(7, -4.5, 9.8, -3); c.stroke(); }
       if (L.facepaint && ch.id == 'ravi') { c.strokeStyle = L.facepaint; c.lineWidth = 1.4; for (const y of [5.5, 7, 8.5]) { c.beginPath(); c.moveTo(3, y); c.lineTo(9.5, y - .8); c.stroke(); } c.fillStyle = '#d42020'; c.beginPath(); c.arc(9.8, 3.8, 1.2, 0, 7); c.fill(); }
       if (L.hair == 'bald') { c.fillStyle = 'rgba(255,255,255,.3)'; c.beginPath(); c.ellipse(-1, 7.5, 4.5, 2, -.3, 0, 7); c.fill(); }
+      if (L.goatee) {   // barba rala na mandíbula, bigode fino e cavanhaque (Eterno G.)
+        c.fillStyle = L.goatee; c.globalAlpha = .26; c.beginPath(); polyPath(c, [[1, -2.5], [3.5, -8.5], [6.5, -12.6], [10.6, -12.2], [11.6, -8.6], [9, -8.4], [6.5, -8.2], [4, -4.5]].map(([x, y]) => ({ x, y }))); c.fill(); c.globalAlpha = 1;
+        c.strokeStyle = L.goatee; c.lineWidth = 1.2; c.beginPath(); c.moveTo(8.2, -5.4); c.quadraticCurveTo(10.4, -4.9, 12.3, -5.6); c.stroke();
+        c.beginPath(); c.moveTo(8.4, -9.4); c.quadraticCurveTo(10.2, -9.1, 11.3, -9.7); c.lineTo(11, -12.4); c.quadraticCurveTo(9.4, -13.3, 7.8, -12.2); c.closePath(); c.fill();
+      }
       if (L.mustache) { c.fillStyle = L.mustache; c.beginPath(); c.moveTo(7.6, -4); c.quadraticCurveTo(10, -3.4, 12.4, -4.4); c.lineTo(12.8, -6.2); c.quadraticCurveTo(10.4, -5, 8.4, -5.8); c.closePath(); c.fill(); }
       if (L.eyepatch) {
         c.strokeStyle = '#111'; c.lineWidth = 1.3; c.beginPath(); c.moveTo(4.5, 4.4); c.lineTo(-10, 7.4); c.moveTo(9.5, 0); c.lineTo(-10.2, -1.8); c.stroke();
@@ -7256,7 +7271,7 @@ function puppet(c, ch, x, y, k, face = 1, pose, extra = {}) {
 // retratos são desenhados uma vez (2x de resolução) e reaproveitados
 const _portraits = {};
 function portrait(c, ch, x, y, w, h, face = 1, bg = '#222') {
-  const key = ch.id + '|' + w + '|' + h + '|' + face + '|' + bg;
+  const key = ch.id + '@' + (ch.fullVer || 'base') + '|' + w + '|' + h + '|' + face + '|' + bg;   // a versão entra na chave (o Eterno G. tem visual próprio)
   let cvs = _portraits[key];
   if (!cvs) { const S = 2; cvs = document.createElement('canvas'); cvs.width = w * S; cvs.height = h * S; const c2 = cvs.getContext('2d'); c2.scale(S, S); drawPortrait(c2, ch, 0, 0, w, h, face, bg); _portraits[key] = cvs; }
   c.drawImage(cvs, x, y, w, h);
@@ -8267,7 +8282,8 @@ Object.assign(Menus, {
       }
       const k = 2.35 / Math.max(1, ch.sz);
       c.save(); c.beginPath(); c.rect(x - 200, 70, 400, 272); c.clip();
-      puppet(c, ch, x, 520, k, face, rd ? P.win : undefined, { st: rd ? 'win' : 'idle', look: lookOf(ch, rd ? g.pal[slot] || 0 : 0) }); c.restore();
+      const vch = shown(slot) || ch;   // visual da versão (ex.: Gunter 2.0 = Eterno G.)
+      puppet(c, vch, x, 520, k, face, rd ? P.win : undefined, { st: rd ? 'win' : 'idle', look: lookOf(vch, rd ? g.pal[slot] || 0 : 0) }); c.restore();
       const ng = c.createLinearGradient(0, 286, 0, 342); ng.addColorStop(0, 'rgba(0,0,0,0)'); ng.addColorStop(1, 'rgba(0,0,0,.7)'); c.fillStyle = ng; c.fillRect(x - 140, 286, 280, 56);
       txt(c, (shown(slot) || ch).name, x, 324, 38, rd ? '#ffd21e' : '#fff', 'center', 6);   // nome da versão (ex.: Gunter 2.0 = ETERNO G.)
       ui(c, online ? memberName(Room.fighters[slot]) + (Room.fighters[slot] == Net.id ? ' (você)' : '') : ch.title, x, 340, 14, online ? '#ffd21e' : '#bcd', 'center', 3);
@@ -8404,9 +8420,9 @@ Object.assign(Menus, {
     c.fillStyle = shade(b.aura, .35); c.beginPath(); c.moveTo(W, 0); c.lineTo(W / 2 + 60, 0); c.lineTo(W / 2 - 60, H); c.lineTo(W, H); c.fill();
     c.save(); c.globalAlpha = .12; c.fillStyle = '#fff'; for (let i = 0; i < 12; i++) { const y = (i * 53 + t * 9) % H; c.fillRect(0, y, W / 2 - 60 + (H - y) / H * 120, 3); c.fillRect(W / 2 + 60 - y / H * 120, H - y, W, 3); } c.restore();
     c.strokeStyle = '#fff'; c.lineWidth = 6; c.beginPath(); c.moveTo(W / 2 + 60, 0); c.lineTo(W / 2 - 60, H); c.stroke();
-    puppet(c, a, lerp(-200, 240, k), 510, 2.7, 1); puppet(c, b, lerp(W + 200, 720, k), 510, 2.7, -1);
-    // nome da versão que vai lutar (a do jogador: a escolhida; a CPU: a mais nova), como no startMatch
-    const nm = (i, ch) => { const ci = CHARS.indexOf(ch); return charVer(ci, i == 0 && versionsOf(ci).includes(g.ver[0]) ? g.ver[0] : newestVer(ci)).name; };
+    // versão que vai lutar (a do jogador: a escolhida; a CPU: a mais nova), como no startMatch: nome e visual dela
+    const vc = (i, ch) => { const ci = CHARS.indexOf(ch); return charVer(ci, i == 0 && versionsOf(ci).includes(g.ver[0]) ? g.ver[0] : newestVer(ci)); }, nm = (i, ch) => vc(i, ch).name;
+    puppet(c, vc(0, a), lerp(-200, 240, k), 510, 2.7, 1); puppet(c, vc(1, b), lerp(W + 200, 720, k), 510, 2.7, -1);
     txt(c, nm(0, a), 50 + (1 - k) * -200, 74, 60, '#fff', 'left', 7); ui(c, a.title, 54 + (1 - k) * -200, 102, 20, '#dde', 'left', 4);
     txt(c, nm(1, b), W - 50 + (1 - k) * 200, 74, 60, '#fff', 'right', 7); ui(c, b.title, W - 54 + (1 - k) * 200, 102, 20, '#dde', 'right', 4);
     const s = t < 30 ? 3 - 2 * ease(Math.max(0, Math.min(1, (t - 10) / 20))) : 1 + Math.sin(t * .2) * .04;
