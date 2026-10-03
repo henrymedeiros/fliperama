@@ -4628,33 +4628,27 @@ CINE_SCRIPTS.ultrathrow = (c, a, o, s, K) => {
 };
 addVersion('gunter', { id: '2.0.0', apply(ch) {
   ch.name = 'ETERNO G.'; ch.announce = 'Eterno Gigante';   // o narrador fala "Eterno Gigante" (seleção e vitória)
-  // identidade própria, sem nada do Gunter: título, frase, final do arcade e voz (sem os áudios gravados do Gunter; fala pela voz do navegador)
+  // identidade própria: título, frase e final do arcade (a voz gravada continua a mesma)
   ch.title = 'O Gigante Eterno';
   ch.quote = 'Pode vir com tudo. Eu não caio, eu não canso, eu não acabo.';
   ch.ending = 'O Eterno G. pendura o cinturão na parede da academia do bairro e volta pro treino no mesmo dia. Na porta, alguém escreveu com tinta verde: "Aqui treina quem não acaba nunca."';
-  ch.voiceId = 'eterno';
-  ch.voice = { pitch: .55, rate: .95, lang: 'pt-BR', shoutRate: 1.05, lines: { intro: ['Bora, Eterno!'], win: ['Eu disse que não acabo.', 'Próximo!'], ko: ['Ainda... não...'] } };  // visual próprio: topete escuro volumoso pra trás, pele clara, bigode fino e cavanhaque com barba rala (o corpo de lutador gigante continua)
+  // visual próprio: topete escuro volumoso pra trás, pele clara, bigode fino e cavanhaque com barba rala (o corpo de lutador gigante continua)
   ch.look = Object.assign({}, ch.look, { hair: 'quiff', hairC: '#231c19', skin: '#ecc6a4', goatee: '#2a211c', brow: undefined, build: 1.08,   // magro, forte e definido; o tamanho (alcance) não muda
     torso: 'tank', plain: 1, sleeve: 'short', top: '#1c1c1f', legs: 'bermuda', pants: '#5a6236', straps: undefined, feet: '#2a2622', glove: '#ecc6a4', gloveType: 'bare' });   // camiseta preta básica e bermuda cargo verde-militar
   ch.palettes = [{}, { top: '#e8e8e8', pants: '#3a3a3a' }, { top: '#2a3a5a', pants: '#8a7a56' }, { top: '#7a1a1a', pants: '#2a2a2a' }];
   ch.aura = '#5a6236';   // efeitos (aura, brilhos, rastro) no verde-militar da bermuda, em vez do rosa
-  // os golpes herdados do Gunter gritam com os nomes por extenso (a voz do navegador lê) e o super perde o grito gravado
-  const moon = ch.moves.moon, sdb = ch.moves.sdb, sup = ch.moves.super;
-  ch.moves.moon = s => Object.assign(moon(s), { shout: 'Moonsault Press' });
-  ch.moves.sdb = s => Object.assign(sdb(s), { shout: 'Shootdown Backbreaker' });
-  ch.moves.super = s => Object.assign(sup(s), { shout: 'Gigas Breaker' });
   // MEAT SQUASHER (360 + Chute): corre até o oponente (fraco perto, forte longe) e agarra se alcançar. Não pega quem está no ar.
   // EX: armadura infinita durante a corrida, mas o dano vira vida cinza; se a vida toda virar cinza, ele cai
   const runK = [[50, 16, 52, 104, 42, 96, 30, 4, -30, 10, 0], [50, 16, 56, 100, 38, 100, -22, 6, 26, 8, 0]];
   ch.moves.meat = s => {
     const run = S3(s, [20, 40, 60, 60]), keys = [];
     for (let t = 1; t < 8 + run; t += 5) keys.push([t, runK[(t / 5 | 0) % 2]]);
-    return { anim: 'grab', keys, name: 'Meat Squasher', shout: 'Meat Squasher', startup: 8, active: run, recovery: 30, vel: [[1, 7 + run, S3(s, [6, 6.5, 7, 7.5]), null]],
+    return { anim: 'grab', keys, name: 'Meat Squasher', shout: 'meatsquasher', startup: 8, active: run, recovery: 30, vel: [[1, 7 + run, S3(s, [6, 6.5, 7, 7.5]), null]],
       armor: s == 3 ? { f: [1, 8 + run], hits: 99, lethal: 1 } : undefined, grab: { range: 64, dmg: S3(s, [18, 19, 20, 22]), cine: 'meatsq' } };
   };
   // ULTRA THROW (→↘↓↙← + Chute): agarrão de perto que joga o oponente na parede; ele quica de volta em juggle livre
   ch.specials.push({ id: 'uthrow', input: '63214', btn: 'K', name: 'Ultra Throw' });
-  ch.moves.uthrow = s => ({ anim: 'grab', name: 'Ultra Throw', shout: 'Ultra Throw', startup: s == 3 ? 4 : 7, active: 2, recovery: 30, inv: s == 3 ? { strike: [1, 4], throw: [1, 4] } : {},
+  ch.moves.uthrow = s => ({ anim: 'grab', name: 'Ultra Throw', startup: s == 3 ? 4 : 7, active: 2, recovery: 30, inv: s == 3 ? { strike: [1, 4], throw: [1, 4] } : {},
     grab: { range: S3(s, [80, 84, 88, 92]), dmg: s == 3 ? 7 : 8, cine: 'ultrathrow' } });
   // GIANT PALM BOMBER (↓↙← + Soco): abre os braços lá em cima e bate as palmas na frente, na altura da cabeça (como o Hugo no SF4).
   // Lança o oponente (juggle livre) e, no acerto, a versão mais forte cancela numa mais fraca: forte → médio → fraco. O EX cancela em qualquer força
@@ -4662,7 +4656,7 @@ addVersion('gunter', { id: '2.0.0', apply(ch) {
   ch.moves.palm = s => {
     const st = S3(s, [12, 14, 16, 10]), into = [[], ['palm:0'], ['palm:0', 'palm:1'], ['palm:0', 'palm:1', 'palm:2']][s];
     const h = { box: [16, 58, 76, 76], lv: 'SP', kd: 'soft', jLimit: s == 3 ? 4 : 3, onBlock: -6 };
-    return { anim: 'palm', keys: [[Math.max(1, st - 5), OPEN], [st, CLAP], [st + 6, CLAP], [st + 18, 'base']], name: 'Giant Palm Bomber', shout: 'Giant Palm Bomber',
+    return { anim: 'palm', keys: [[Math.max(1, st - 5), OPEN], [st, CLAP], [st + 6, CLAP], [st + 18, 'base']], name: 'Giant Palm Bomber', shout: 'giantpalm',
       startup: st, active: 5, recovery: 22, vel: [[6, 14, S3(s, [3, 4, 5, 5]), null]], inv: s == 3 ? { proj: [1, 16] } : {},
       nullify: { f: [S3(s, [8, 10, 12, 6]), S3(s, [17, 19, 21, 15])], n: s == 3 ? 2 : 1, box: [10, 30, 92, 90] },
       bursts: [{ f: st, x: 80, y: 118, s: 1.3 }], cancel: { into, intoHit: 1 },
