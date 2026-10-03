@@ -4274,6 +4274,8 @@ function beamFewerHits(ch, k = .5) {
   for (const id in ch.moves) ch.moves[id] = wrap(ch.moves[id]);
 }
 const VER_CACHE = {};
+// lutador como aparece nas listas (grade da seleção, torneio): a versão mais nova, que é a que vem marcada e a que a CPU usa
+function latestCh(ci) { return CHARS[ci] ? charVer(ci, newestVer(ci)) : CHARS[ci]; }
 // lutador na versão pedida: um major ('1' = a última 1.Y.Z) ou uma X.Y.Z exata; 'base', ausente ou desconhecida = a base
 function charVer(ci, vid) {
   const base = CHARS[ci], list = CHAR_VERSIONS[base.id] || [];
@@ -4577,18 +4579,17 @@ CINE_SCRIPTS.meatsq = (c, a, o, s, K) => {
     K.cineHit(a, o, c.dmg / HPK, 1); return { vy: 4, vx: a.face * 2, kd: 'hard', landT: 18 };
   }
 };
-// Ultra Throw: agarra, joga o oponente por cima da cabeça pra trás contra a parede (ou a borda da tela); ele quica e volta
-// pelo ar na direção do Eterno G., em juggle livre (dá pra emendar o Giant Palm Bomber)
+// Ultra Throw: agarra, ergue e arremessa o oponente pra frente contra a parede que ele está encarando (ou a borda da tela);
+// o oponente quica e volta pelo ar na direção do Eterno G., em juggle livre (dá pra emendar o Giant Palm Bomber)
 CINE_SCRIPTS.ultrathrow = (c, a, o, s, K) => {
   M.dim = 0;
-  if (c.t == 1) { c.wx = clamp(a.x - a.face * 300, 30, STAGE_W - 30); c.sx = o.x; Audio.sfx('throw', 1, a.x); }
-  if (c.t <= 10) { const u = c.t / 10; o.x = clamp(a.x + a.face * (34 - u * 64) * s, 30, STAGE_W - 30); o.y = 50 + Math.sin(u * Math.PI * .5) * 110; o.cineRot = -u * Math.PI; a.face = a.face; }
-  else if (c.t <= 22) { const u = (c.t - 10) / 12, x0 = a.x - a.face * 30 * s; o.x = clamp(lerp(x0, c.wx, u), 30, STAGE_W - 30); o.y = 160 - u * 70; o.cineRot = -Math.PI - u * Math.PI * 2; if (c.t % 4 == 0) Audio.sfx('whiff', 2, o.x); }
+  if (c.t == 1) { c.wx = clamp(a.x + a.face * 300, 30, STAGE_W - 30); Audio.sfx('throw', 1, a.x); }
+  if (c.t <= 10) { const u = c.t / 10; o.x = clamp(a.x + a.face * (34 - u * 10) * s, 30, STAGE_W - 30); o.y = 40 + Math.sin(u * Math.PI * .5) * 100; o.cineRot = -u * 1.2; }   // ergue por cima do ombro
+  else if (c.t <= 22) { const u = (c.t - 10) / 12, x0 = a.x + a.face * 24 * s; o.x = clamp(lerp(x0, c.wx, u), 30, STAGE_W - 30); o.y = 140 - u * 50; o.cineRot = -1.2 - u * Math.PI * 2; if (c.t % 4 == 0) Audio.sfx('whiff', 2, o.x); }
   if (c.t == 22) {
     o.x = c.wx; o.y = 90; o.cineRot = 0; FX.hit(o.x, o.y + 60, -a.face, 1.6, 'H'); FX.dust(o.x, o.y, 14); Audio.sfx('slam', 1.1, o.x); M.trauma = Math.min(1, (M.trauma || 0) + .45);
     FX.text('WALL BOUNCE!', o.x, o.y + 170, '#ffb030');
     K.cineHit(a, o, c.dmg / HPK, 1);
-    a.face = o.x > a.x ? 1 : -1;   // vira pro lado da parede pra receber o oponente que volta
     const back = Math.sign(a.x - o.x) || -a.face, dist = Math.max(0, Math.abs(a.x - o.x) - 90);
     return { vy: 7, vx: back * dist / 40, juggle: 0, kd: 'hard', landT: 2, stop: 10, float: .6 };
   }
@@ -4596,8 +4597,9 @@ CINE_SCRIPTS.ultrathrow = (c, a, o, s, K) => {
 addVersion('gunter', { id: '2.0.0', apply(ch) {
   ch.name = 'ETERNO G.';
   // visual próprio: topete escuro volumoso pra trás, pele clara, bigode fino e cavanhaque com barba rala (o corpo de lutador gigante continua)
-  ch.look = Object.assign({}, ch.look, { hair: 'quiff', hairC: '#231c19', skin: '#ecc6a4', goatee: '#2a211c', brow: undefined, build: 1.08 });   // magro, forte e definido; o tamanho (alcance) não muda
-  ch.palettes = ch.palettes.map(p => { const q = Object.assign({}, p); delete q.hairC; return q; });
+  ch.look = Object.assign({}, ch.look, { hair: 'quiff', hairC: '#231c19', skin: '#ecc6a4', goatee: '#2a211c', brow: undefined, build: 1.08,   // magro, forte e definido; o tamanho (alcance) não muda
+    torso: 'tank', plain: 1, sleeve: 'short', top: '#1c1c1f', legs: 'bermuda', pants: '#5a6236', straps: undefined, feet: '#2a2622', glove: '#ecc6a4', gloveType: 'bare' });   // camiseta preta básica e bermuda cargo verde-militar
+  ch.palettes = [{}, { top: '#e8e8e8', pants: '#3a3a3a' }, { top: '#2a3a5a', pants: '#8a7a56' }, { top: '#7a1a1a', pants: '#2a2a2a' }];
   // MEAT SQUASHER (360 + Chute): corre até o oponente (fraco perto, forte longe) e agarra se alcançar. Não pega quem está no ar.
   // EX: armadura infinita durante a corrida, mas o dano vira vida cinza; se a vida toda virar cinza, ele cai
   const runK = [[50, 16, 52, 104, 42, 96, 30, 4, -30, 10, 0], [50, 16, 56, 100, 38, 100, -22, 6, 26, 8, 0]];
@@ -5065,7 +5067,7 @@ const Anim = {
           case 'karakusa': p = c.t < 6 ? ANIM.grab.A : ANIM.straight.A; break;
           case 'tosanami': p = c.t < 12 ? ANIM.makita_fukiage.W : ANIM.makita_fukiage.A; flip = c.t >= 12; break;
           case 'meatsq': p = c.t <= 26 ? ANIM.throwA.A : ANIM.rockcrush.A; break;
-          case 'ultrathrow': p = c.t <= 6 ? ANIM.grab.A : c.t <= 12 ? ANIM.throwA.A : ANIM.throwA.W; break;
+          case 'ultrathrow': p = c.t <= 8 ? ANIM.throwA.A : ANIM.straight.A; break;
           default: p = ANIM.rush.A;
         }
         break;
@@ -5856,7 +5858,7 @@ function drawFighter(c, f, pz, tint) {
   const elec = m && (m.fx == 'elec' || m.fx == 'hamon') && f.t >= m.s && f.t <= m.e;
   const white = f.tStop > 0 ? 'rgba(70,50,120,.45)' : f.frozen > 0 ? 'rgba(150,220,255,.55)' : f.flash > 0 && f.flash % 2 == 0 ? FLASH_COLS[f.flashCol || 0] : f.mv && f.mv.endsWith(':3') && (f.st == 'atk' || f.st == 'air') ? 'rgba(255,214,60,.26)' : null, zap = elec && T % 4 < 2;
   const skin = L.skin, torsoC = L.torso == 'bare' || L.torso == 'vest' || L.torso == 'alien' ? skin : L.top, pants = L.pants, dk = x => shade(x, .78);
-  const legStyle = L.legs || (L.shorts ? 'shorts' : 'baggy'), bare = legStyle == 'shorts' || legStyle == 'bare';
+  const legStyle = L.legs || (L.shorts ? 'shorts' : 'baggy'), bare = legStyle == 'shorts' || legStyle == 'bare' || legStyle == 'bermuda';
   const parts = [];
   const hipW = (fem ? 13.5 : 12.5) * K, waistW = (fem ? 9 : 10.5) * K, chestW = 13.5 * K, shW = 15.5 * K, belly = L.belly ? 15 * K : 0;
 
@@ -5868,6 +5870,12 @@ function drawFighter(c, f, pz, tint) {
     const sg = baggy ? limbGeo(kn, an, 20.5 * K, 16 * K, .6, 1, 1) : limbGeo(kn, an, 14 * K, 8.5 * K, .28, 1, 3 * K);
     parts.push(limbPart(tg, D(tC), baggy ? { det: c => { c.strokeStyle = shade(tC, .6); c.lineWidth = 1.2; const a = vmix(hipJ, kn, .55), b = vmix(hipJ, kn, .85); c.beginPath(); c.moveTo(a.x + 4, a.y); c.quadraticCurveTo(b.x - 5, b.y + 2, b.x + 3, b.y - 4); c.stroke(); } } : {}));
     parts.push(limbPart(sg, D(sC), baggy ? { det: c => { c.strokeStyle = shade(sC, .6); c.lineWidth = 1.2; const a = vmix(kn, an, .88); c.beginPath(); c.moveTo(a.x - 7, a.y + 1); c.lineTo(a.x + 7, a.y - 1); c.stroke(); } } : {}));
+    if (legStyle == 'bermuda') {   // bermuda cargo: cobre a coxa até o joelho, com bolso na lateral
+      const og = limbGeo(vadd(hipJ, vmul(s, 3)), vmix(hipJ, kn, 1.06), 25 * K, 21 * K, .5, 1, 1);
+      parts.push(limbPart(og, D(pants), { det: c => { const q = vmix(hipJ, kn, .62), n = og.n; c.fillStyle = shade(pants, .82); c.strokeStyle = shade(pants, .5); c.lineWidth = 1.2;
+        c.beginPath(); polyPath(c, [vadd(q, vmul(n, 7)), vadd(q, vmul(n, -5)), vadd(vmix(hipJ, kn, .86), vmul(n, -5)), vadd(vmix(hipJ, kn, .86), vmul(n, 7))]); c.fill(); c.stroke();
+        c.beginPath(); c.moveTo(vadd(q, vmul(n, 7)).x, vadd(q, vmul(n, 7)).y); c.lineTo(vadd(q, vmul(n, -5)).x, vadd(q, vmul(n, -5)).y); c.lineWidth = 2.2; c.stroke(); } }));
+    }
     if (legStyle == 'shorts') {
       const og = limbGeo(vadd(hipJ, vmul(s, 3)), vmix(hipJ, kn, .5), 25 * K, 23 * K, .5, 1, 1);
       parts.push(limbPart(og, D(pants), L.torn ? { det: c => { c.strokeStyle = OUTLINE; c.lineWidth = 1.5; const e = og.b, n = og.n; c.beginPath(); for (let i = -2; i <= 2; i++) { const q = vadd(e, vmul(n, i * 4.5)); c.lineTo(q.x + (i % 2 ? 3 : -2), q.y - (i % 2 ? 4 : 0)); } c.stroke(); } } : {}));
@@ -5973,7 +5981,7 @@ function drawFighter(c, f, pz, tint) {
       } else if (L.torso == 'tank') {
         c.fillStyle = L.top; c.beginPath(); polyPath(c, [Pt(-.1, -hipW - 4), Pt(-.1, hipW + 2), Pt(.72, chestW + 2), Pt(.86, shW * .3), Pt(.84, -shW * .1), Pt(.74, -chestW)]); c.fill();
         c.strokeStyle = OUTLINE; c.lineWidth = 1.3; c.stroke(); line(Pt(.86, shW * .3), Pt(1.02, 2), L.top, 3.5); line(Pt(.84, -shW * .1), Pt(1.01, -4), L.top, 3.5);
-        c.fillStyle = shade(L.top, .7); for (let i = 0; i < 6; i++) { const q = Pt(.15 + i * .1, (i % 2 ? -4 : 5) * K); c.beginPath(); c.ellipse(q.x, q.y, 3.5, 2, i, 0, 7); c.fill(); }
+        if (!L.plain) { c.fillStyle = shade(L.top, .7); for (let i = 0; i < 6; i++) { const q = Pt(.15 + i * .1, (i % 2 ? -4 : 5) * K); c.beginPath(); c.ellipse(q.x, q.y, 3.5, 2, i, 0, 7); c.fill(); } }   // plain: camiseta lisa, sem manchas
       } else if (L.torso == 'uniform') {
         line(Pt(1.03, -5), Pt(1.03, 4), shade(L.top, .55), 4); c.fillStyle = '#e8c040'; for (const u of [.3, .45, .6, .75]) { const q = Pt(u, waistW * .45); c.beginPath(); c.arc(q.x, q.y, 1.9, 0, 7); c.fill(); }
         line(Pt(.9, 0), Pt(.2, waistW * .2), shade(L.top, .65), 1.3);
@@ -7942,7 +7950,7 @@ const Tourney = {
       const on = i == this.row, y = y0 + i * rh;
       c.fillStyle = on ? 'rgba(255,210,30,.92)' : 'rgba(16,16,34,.85)'; slant(c, 170, y, 620, rh - 5, 10); c.fill();
       if (row) { ui(c, row[0], 200, y + rh * .62, 17, on ? '#1a0a00' : '#dde'); if (row[1]) ui(c, row[1], 760, y + rh * .62, 17, on ? '#1a0a00' : '#ffd21e', 'right'); return; }
-      const e = this.ent[i - 1], ch = CHARS[e.ch], [tag, tc] = this.ctrlTag(e);
+      const e = this.ent[i - 1], ch = latestCh(e.ch), [tag, tc] = this.ctrlTag(e);
       portrait(c, ch, 196, y + 2, rh - 9, rh - 9, 1, '#0c0c14');
       ui(c, (i) + '.  ' + (on ? '◄ ' : '') + ch.name + (on ? ' ►' : ''), 196 + rh, y + rh * .62, 17, on ? '#1a0a00' : '#fff');
       c.fillStyle = tc; c.fillRect(700, y + 4, 60, rh - 13); ui(c, tag, 730, y + rh * .62, 15, '#fff', 'center');
@@ -7962,23 +7970,23 @@ const Tourney = {
         c.fillStyle = cur ? 'rgba(255,210,30,.92)' : champ ? 'rgba(255,190,40,.95)' : 'rgba(16,16,34,.88)'; c.fillRect(x, y, bw, 32);
         c.strokeStyle = cur || champ ? '#fff' : '#3a3a5a'; c.lineWidth = 2; c.strokeRect(x, y, bw, 32);
         if (p) {
-          const ch = CHARS[p.ch], [tag, tc] = this.ctrlTag(p);
+          const ch = latestCh(p.ch), [tag, tc] = this.ctrlTag(p);
           c.save(); if (lost) c.globalAlpha = .4; portrait(c, ch, x + 2, y + 2, 28, 28, 1, '#0c0c14');
           ui(c, ch.name, x + 36, y + 21, 15, cur || champ ? '#1a0a00' : '#fff'); ui(c, tag, x + bw - 6, y + 21, 12, tc, 'right'); c.restore();
         } else ui(c, '?', x + bw / 2, y + 22, 18, '#556', 'center');
       });
     });
     if (this.last) {
-      const w = CHARS[this.players[this.last.w].ch], l = CHARS[this.players[this.last.l].ch];
+      const w = latestCh(this.players[this.last.w].ch), l = latestCh(this.players[this.last.l].ch);
       ui(c, (this.last.sim ? 'Simulado: ' : 'Resultado: ') + w.name + ' venceu ' + l.name, W / 2, 432, 16, '#9cf', 'center', 3);
     }
     const it = this.items(), bwid = 190, bx0 = W / 2 - (it.length * (bwid + 10) - 10) / 2;
     it.forEach(([lbl], i) => { const on = i == g.idx, x = bx0 + i * (bwid + 10); c.fillStyle = on ? 'rgba(255,190,40,.96)' : 'rgba(16,16,34,.85)'; slant(c, x, 448, bwid, 38, 10); c.fill(); ui(c, lbl, x + bwid / 2, 473, 17, on ? '#1a0a00' : '#dde', 'center'); });
-    if (nm) { const A = CHARS[this.players[nm.a].ch], B = CHARS[this.players[nm.b].ch]; ui(c, 'Próxima luta: ' + A.name + '  ×  ' + B.name, W / 2, 92, 16, '#ffd21e', 'center', 3); }
+    if (nm) { const A = latestCh(this.players[nm.a].ch), B = latestCh(this.players[nm.b].ch); ui(c, 'Próxima luta: ' + A.name + '  ×  ' + B.name, W / 2, 92, 16, '#ffd21e', 'center', 3); }
     M2.hint(c, '←→ escolher · Soco Fraco / Enter confirmar');
   },
   drawChampion(c) {
-    const p = this.champ(); if (!p) return; const ch = CHARS[p.ch], T = UIF, M2 = Menus;
+    const p = this.champ(); if (!p) return; const ch = latestCh(p.ch), T = UIF, M2 = Menus;
     M2.bg(c, ch.aura);
     const sg = c.createRadialGradient(W / 2, 300, 20, W / 2, 300, 320); sg.addColorStop(0, 'rgba(255,230,140,.35)'); sg.addColorStop(1, 'rgba(255,200,80,0)'); c.fillStyle = sg; c.fillRect(0, 0, W, H);
     for (let i = 0; i < 40; i++) { const x = (i * 97 + T * (1 + i % 3)) % W, y = (i * 53 + T * (1.5 + i % 4 * .5)) % H; c.fillStyle = ['#ffd21e', '#ff5a4a', '#4a9aff', '#6f6', '#fff'][i % 5]; c.save(); c.translate(x, y); c.rotate(T * .05 + i); c.fillRect(-4, -2, 8, 4); c.restore(); }
@@ -8328,7 +8336,7 @@ Object.assign(Menus, {
         const gl = (UIF % 180) / 40; if (gl < 1) { c.save(); c.beginPath(); c.rect(x, y, cw, cw); c.clip(); c.fillStyle = 'rgba(255,230,150,.35)'; c.beginPath(); const sx = x - cw + gl * cw * 2.4; c.moveTo(sx, y + cw); c.lineTo(sx + 10, y + cw); c.lineTo(sx + 26, y); c.lineTo(sx + 16, y); c.fill(); c.restore(); }
         c.strokeStyle = UIF - Vault.failT < 14 ? '#f44' : '#8a6a1a'; c.lineWidth = 2; c.strokeRect(x, y, cw, cw);
         txt(c, '?', x + cw / 2, y + cw / 2 + 9, 26, '#ffc21a', 'center', 4); ui(c, '???', x + cw / 2, y + cw - 3, 9, '#ffc21a', 'center', 3);
-      } else if (ch) { portrait(c, ch, x, y, cw, cw, 1, '#0c0c14'); c.strokeStyle = '#3a3a5a'; c.lineWidth = 2; c.strokeRect(x, y, cw, cw); ui(c, ch.name, x + cw / 2, y + cw - 3, 9, '#fff', 'center', 3); }
+      } else if (ch) { const vc = g.mode == 'trials' ? ch : latestCh(i); portrait(c, vc, x, y, cw, cw, 1, '#0c0c14'); c.strokeStyle = '#3a3a5a'; c.lineWidth = 2; c.strokeRect(x, y, cw, cw); ui(c, vc.name, x + cw / 2, y + cw - 3, 9, '#fff', 'center', 3); }   // nome e foto da versão mais nova (ex.: ETERNO G.)
       else { c.fillStyle = '#1a1a2a'; c.fillRect(x, y, cw, cw); c.strokeStyle = '#3a3a5a'; c.lineWidth = 2; c.strokeRect(x, y, cw, cw); txt(c, '?', x + cw / 2, y + cw / 2 + 11, 30, '#ffd21e', 'center', 4); }
       const cur = [0, 1].filter(s => g.sel[s] == i && (s == 0 || !arc) && (g.mode != 'training' || s == 0 || g.ready[0]));
       cur.forEach((s, k) => {
