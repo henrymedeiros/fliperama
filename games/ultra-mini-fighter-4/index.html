@@ -1634,7 +1634,7 @@ class Fighter {
       combo: 0, comboDmg: 0, comboScale: 1, starterL: false, juggle: 0, airReset: false, airUsed: false,
       hitMask: 0, contact: 0, cancelUntil: -1, grabDone: false, armorLeft: 0, projMask: 0, throwInv: 0, throwBack: false,
       flash: 0, flashCol: 0, shakeT: 0, cine: null, thr: null, cineRot: 0, parryFx: 0, want: null, in: Cmd.fresh(),
-      mode: 0, modeT: 0, tStop: 0, frozen: 0, sPrev: 0, sStep: 0, wantBuf: null, wantBufT: 0, bounced: 0, lastDmg: 'V', grey: 0, greyT: 0, airVs: false, mvId: 0, lastSrc: '', floatK: 0, quickLand: 0, vbuff: null, boostMv: -1, boostMult: 1, boostCol: '', boostSu: false, aura: 0, auraMv: -1, bch: 0, bchP: 0, bchPT: 0 });
+      mode: 0, modeT: 0, tStop: 0, frozen: 0, sPrev: 0, sStep: 0, wantBuf: null, wantBufT: 0, bounced: 0, lastDmg: 'V', grey: 0, greyT: 0, airVs: false, mvId: 0, lastSrc: '', floatK: 0, quickLand: 0, vbuff: null, boostMv: -1, boostMult: 1, boostCol: '', boostSu: false, aura: 0, auraMv: -1, bch: 0, bchP: 0, bchPT: 0, bchHeld: 0 });
     this.trail = [];
   }
   get m() { return this.mv ? getMove(this.ch, this.mv) : null; }
@@ -1857,12 +1857,16 @@ class Fighter {
     const bc = this.ch.busterCharge, air = this.y > 0;
     const free = this.st == 'idle' || this.st == 'land' || (this.st == 'air' && !this.mv);
     if (this.bchP) {   // soltou no meio de outro golpe: dispara assim que ficar livre (janela curta)
-      if (free && M.phase == 'fight') { const k = (air ? 'jcshot' : 'cshot') + this.bchP; this.bchP = 0; this.startMove(k, o); return; }
+      if (free && M.phase == 'fight') { const k = this.bchP; this.bchP = 0; this.startMove(k, o); return; }
       if (--this.bchPT <= 0) this.bchP = 0;
     }
     if (!this.bch) return;
     if (!['idle', 'atk', 'air', 'prejump', 'land'].includes(this.st)) { this.bch = 0; return; }
     const lvOf = n => bc.lv.filter(t => n >= t).length;
+    // ainda segurando o Soco quando o tiro ia sair: não atira, só entra na carga (como a esfera carregável do Valerius)
+    if (bc.holdAt && this.mv && this.mv.startsWith(bc.from + ':') && !this.mv.endsWith(':3') && this.t >= bc.holdAt && Cmd.holding(this, 'P')) {
+      const m = this.m; if (!(this.projMask & 1) && m.proj && this.t < m.proj.f) { this.mv = null; if (this.y > 0) this.st = 'air'; else this.setSt('idle'); this.bchHeld = 1; }
+    }
     if (Cmd.holding(this, 'P')) {
       if (this.bch < bc.max) { this.bch++; if (bc.lv.includes(this.bch) && !SIM.silent) { FX.aura(this, 10); Audio.sfx('superready', .8, this.x); } }
       if (!SIM.silent && this.bch > 6 && M.frame % 3 == 0) {
@@ -1871,9 +1875,10 @@ class Fighter {
       }
       return;
     }
-    const lv = lvOf(this.bch); this.bch = 0;
-    if (!lv) return;
-    if (free && M.phase == 'fight') this.startMove((air ? 'jcshot' : 'cshot') + lv, o); else { this.bchP = lv; this.bchPT = 12; }
+    const held = this.bchHeld, lv = lvOf(this.bch); this.bch = 0; this.bchHeld = 0;
+    if (!lv && !(held && bc.tap)) return;   // toque normal: o tiro já saiu pelo próprio golpe
+    const k = lv ? (air ? 'jcshot' : 'cshot') + lv : (air ? 'j' : '') + bc.tap;   // segurou e soltou antes do nível 1: sai o tiro pequeno
+    if (free && M.phase == 'fight') this.startMove(k, o); else { this.bchP = k; this.bchPT = 12; }
   }
   frozenInput(inp) { if (!inp) return; const r = this.simple ? this.simpleIn(inp) : inp; if (r.want) { this.wantBuf = r.want; this.wantBufT = 6; } Cmd.record(this, r, true); }
   // ---- controle simplificado: SF=leve, SM=médio, SFt=forte, CF=ESPECIAL (direção escolhe), CM=combo automático, CFt=SUPER ----
@@ -4666,8 +4671,10 @@ addVersion('roko', { id: '2.0.0', apply(ch) {
   const shot = (lv, air) => ({ anim: 'buster', name: lv == 2 ? 'CHARGE SHOT MÁXIMO' : 'CHARGE SHOT', special: 1, startup: 4, active: 1, recovery: air ? 0 : 16, air: air ? 1 : 0, multiProj: 1,
     proj: lv == 2 ? { f: 4, vx: 9, r: 32, life: 120, dmg: 5.5, hits: 3, gap: 6, hs: 22, bs: 12, col: '#6af0ff', glow: '#e0ffff', lv: 'SP', yOff: 92, ahead: 10, kd: 1, big: 1 }
       : { f: 4, vx: 8.5, r: 22, life: 120, dmg: 5, hits: 2, gap: 6, hs: 22, bs: 12, col: '#6af0ff', glow: '#e0ffff', lv: 'SP', yOff: 92, ahead: 10 } });
-  ch.extraMoves = Object.assign({}, ch.extraMoves, { cshot1: shot(1), cshot2: shot(2), jcshot1: shot(1, 1), jcshot2: shot(2, 1) });
-  ch.busterCharge = { from: 'mbuster', lv: [30, 70], max: 70, walk: .5, jump: .78 };
+  const small = air => ({ anim: 'buster', name: 'Mega Buster', special: 1, startup: 3, active: 1, recovery: air ? 0 : 10, air: air ? 1 : 0, multiProj: 1, proj: lemon(1, 3) });
+  ch.extraMoves = Object.assign({}, ch.extraMoves, { cshot1: shot(1), cshot2: shot(2), jcshot1: shot(1, 1), jcshot2: shot(2, 1), bshot: small(), jbshot: small(1) });
+  // holdAt: ainda segurando o Soco no 5º quadro do golpe = quer carregar (o tiro não sai); tap: o tiro pequeno de quem segurou e soltou antes do nível 1
+  ch.busterCharge = { from: 'mbuster', lv: [30, 70], max: 70, walk: .5, jump: .78, holdAt: 5, tap: 'bshot' };
   ch.charge = 0;
   ch.ai = Object.assign({}, ch.ai, { proj: 'mbuster', enders: ['mbuster', 'leaf'], charge: 0 });
 } });
