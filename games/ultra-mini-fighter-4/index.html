@@ -437,6 +437,30 @@ const Audio = {
     if (k > 1.1) { this.metal(t + .008, 2500, .4, .05, { send: R }); this.noise(t, .03, { f: 4200, q: 2, vol: .3 }); }
     this.noise(t, .025, { f: 2800, q: 1.4, vol: lv ? .36 : .22 });   // presença 1–4 kHz (alto-falantes pequenos)
   },
+  // carga do Mega Buster (Roko), como no Mega Man: enquanto carrega, um tom com vibrato rápido que vai subindo;
+  // na carga máxima, um "ui-ui-ui" agudo pulsando em loop até soltar. Fica fora da simulação: é ligado/desligado a cada quadro pelo estado da carga
+  chargeSnd: [null, null],
+  charge(i, n, lv, x) {   // n = quadros carregando (0 = parou), lv = [nível 1, carga máxima]
+    if (!this.ac) return;
+    let S = this.chargeSnd[i]; const t = this.now;
+    if (!n || !settings.sfx) { if (S) { S.g.gain.cancelScheduledValues(t); S.g.gain.setTargetAtTime(0, t, .02); S.os.stop(t + .15); S.lfo.stop(t + .15); S.trem.stop(t + .15); this.chargeSnd[i] = null; } return; }
+    const ac = this.ac;
+    if (!S) {
+      const os = ac.createOscillator(), lfo = ac.createOscillator(), lg = ac.createGain(), trem = ac.createOscillator(), tg = ac.createGain(), am = ac.createGain(), g = ac.createGain(), lp = ac.createBiquadFilter();
+      os.type = 'square'; os.frequency.value = 180; lfo.type = 'triangle'; lfo.frequency.value = 24; lg.gain.value = 40; lfo.connect(lg).connect(os.frequency);   // vibrato rápido
+      trem.type = 'square'; trem.frequency.value = 13; tg.gain.value = 0; am.gain.value = 1; trem.connect(tg).connect(am.gain);                                  // pulsar da carga máxima
+      lp.type = 'lowpass'; lp.frequency.value = 2600; g.gain.value = 0;
+      os.connect(lp).connect(am).connect(g);
+      if (ac.createStereoPanner) { const pn = ac.createStereoPanner(); S = { pn }; g.connect(pn).connect(this.sfxBus); } else { S = {}; g.connect(this.sfxBus); }
+      Object.assign(S, { os, lfo, lg, trem, tg, g }); os.start(t); lfo.start(t); trem.start(t); this.chargeSnd[i] = S;
+    }
+    const full = n >= lv[1], k = Math.min(1, n / lv[1]);
+    S.os.frequency.setTargetAtTime(full ? 1480 : 160 + 1050 * Math.pow(k, 1.3), t, .04);
+    S.lg.gain.setTargetAtTime(full ? 90 : 25 + 70 * k, t, .05); S.lfo.frequency.setTargetAtTime(full ? 30 : 18 + 14 * k, t, .05);
+    S.tg.gain.setTargetAtTime(full ? .5 : 0, t, .02);
+    S.g.gain.setTargetAtTime(.05 * (n >= lv[0] ? 1 : .7), t, .03);
+    if (S.pn) S.pn.pan.value = x == null || typeof Cam == 'undefined' ? 0 : clamp((x - Cam.x) / (W / 2), -1, 1) * .65;
+  },
   // ---- efeitos sonoros ----
   // x = posição no cenário (panorâmica estéreo segundo a câmera); k = intensidade/variação
   sfx(name, k = 1, x) {
@@ -6634,6 +6658,8 @@ const FX = {
   },
   aura(f, n = 40) { for (let i = 0; i < n; i++) this.add({ type: 'glow', x: f.x + rnd(-45, 45), y: f.y + rnd(0, 140) * f.sz, vy: rnd(1, 3.5), l: rnd(24, 50), s: rnd(3, 8), col: f.ch.aura }); },
   update() {
+    // som da carga do Mega Buster: segue o estado da carga do lutador (para em pausa, menus e fora da luta)
+    for (let i = 0; i < 2; i++) { const f = (M.f || [])[i], bc = f && f.ch.busterCharge; Audio.charge(i, bc && Game.scene == 'fight' && f.bch > 6 ? f.bch : 0, bc ? bc.lv : null, f && f.x); }
     for (const p of this.parts) { p.x += p.vx; p.y += p.vy; p.vy += p.g; p.s += p.grow; p.l--; if (p.type == 'dust') { p.vx *= .92; p.vy *= .95; } if (p.type == 'fire') { p.vx *= .9; p.s *= .96; } }
     this.parts = this.parts.filter(p => p.l > 0);
     if (Game.scene == 'fight') { for (const b of this.banners) b.l--; this.banners = this.banners.filter(b => b.l > 0); }
