@@ -1,0 +1,116 @@
+/* Fliperama · tokens do design system
+   Toda página do site importa este arquivo primeiro. Nenhuma cor, fonte, raio,
+   sombra ou duração solta no código: use sempre um token daqui. Ver DESIGN.md. */
+
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wdth,wght@0,75..100,400..700;1,75..100,400..700&family=Unbounded:wght@500..800&display=swap');
+
+
+:root {
+  /* ---------- cor: tema claro (padrão) ---------- */
+  --bg: #e9ebf5;            /* fundo do álbum */
+  --bg-deep: #dcdfee;       /* áreas rebaixadas, trilhos de controles */
+  --surface: #ffffff;       /* painéis, caixa de texto da carta */
+  --surface-2: #f4f5fb;     /* painel secundário, hover de controles */
+  --ink: #17183b;           /* texto principal */
+  --ink-2: #4a4d72;         /* texto secundário */
+  --ink-3: #75789c;         /* texto terciário, ícones apagados */
+  --line: rgb(23 24 59 / .12);
+  --line-strong: rgb(23 24 59 / .22);
+  --accent: #4b2bff;        /* ação principal, foco, seleção */
+  --accent-ink: #ffffff;    /* texto sobre --accent */
+  --accent-soft: rgb(75 43 255 / .12);
+  --hot: #e8176f;           /* "nova", alertas de novidade */
+  --hot-ink: #ffffff;
+  --scrim: rgb(233 235 245 / .82); /* fundo de barras fixas (com blur) */
+
+  /* tipos de mudança nas notas de atualização (fundo de selo + texto sobre ele) */
+  --change-novo: #9a6700;   --change-buff: #1a8547;   --change-nerf: #c93030;
+  --change-rework: #6a3df0; --change-ajuste: #0b7a96;  --change-ink: #ffffff;
+
+  /* espectro holográfico do logo e de destaques (5 paradas) */
+  --holo-1: #5b2bff; --holo-2: #d4148a; --holo-3: #ff7a00; --holo-4: #00a0bd; --holo-5: #3a2bd9;
+
+  /* carta: é um objeto físico, igual nos dois temas. O matiz (--h, --h2) vem do nome do jogo. */
+  --card-ink: #1d1e33;      /* texto impresso na carta */
+  --card-ink-2: #4d4f66;    /* texto secundário impresso */
+  --card-silver: linear-gradient(180deg, #fbfbfd 0%, #d9dce5 45%, #c3c7d3 55%, #f1f2f6 100%); /* faixas metálicas */
+  --card-silver-edge: #9ea3b3;
+  --card-dim: 1;            /* brilho geral da carta (o tema escuro abaixa um pouco) */
+
+  /* sombras (tingidas com a tinta, nunca preto puro) */
+  --shadow-1: 0 1px 2px rgb(23 24 59 / .08), 0 2px 6px rgb(23 24 59 / .06);
+  --shadow-2: 0 2px 4px rgb(23 24 59 / .06), 0 12px 28px -8px rgb(23 24 59 / .22);
+  --shadow-3: 0 4px 10px rgb(23 24 59 / .08), 0 28px 60px -16px rgb(23 24 59 / .35);
+
+  color-scheme: light;
+
+  /* ---------- tipografia ---------- */
+  --font-display: 'Unbounded', 'Arial Black', system-ui, sans-serif;
+  --font-body: 'Instrument Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  /* escala 1.25 (terça maior) a partir de 16px */
+  --fs-1: 0.75rem;   /* 12 · legendas, set line da carta */
+  --fs-2: 0.875rem;  /* 14 · texto de carta, controles */
+  --fs-3: 1rem;      /* 16 · corpo */
+  --fs-4: 1.25rem;   /* 20 · nome da carta, títulos de seção */
+  --fs-5: 1.5625rem; /* 25 */
+  --fs-6: 1.953rem;  /* 31 */
+  --fs-7: 2.441rem;  /* 39 */
+  --fs-8: 3.052rem;  /* 49 · logo no topo */
+  --lh-tight: 1.1; --lh-snug: 1.3; --lh-body: 1.5;
+
+  /* ---------- espaço (base 4) ---------- */
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 24px; --sp-6: 32px; --sp-7: 48px; --sp-8: 64px;
+  --gutter: 16px;          /* margem lateral mínima no celular */
+  --page-max: 1240px;
+
+  /* ---------- raios (por hierarquia, não um só pra tudo) ---------- */
+  --r-xs: 6px;    /* selos, tags dentro da carta */
+  --r-sm: 10px;   /* janela da arte, campos internos */
+  --r-md: 14px;   /* painéis, menus */
+  --r-card: 4.55% / 3.5%; /* a carta (proporção de carta colecionável) */
+  --r-pill: 999px;/* chips, botões, busca */
+
+  /* ---------- movimento ---------- */
+  --dur-1: 120ms;  /* micro: hover, press */
+  --dur-2: 220ms;  /* estado: seleção, tema */
+  --dur-3: 420ms;  /* layout: reordenar cartas, abrir painel */
+  --dur-4: 700ms;  /* movimentos longos: volta da carta, troca de tema */
+  --ease-out: cubic-bezier(.2, .8, .2, 1);
+  --ease-in-out: cubic-bezier(.65, 0, .35, 1);
+  --ease-spring: cubic-bezier(.34, 1.56, .64, 1);
+
+  /* ---------- camadas ---------- */
+  --z-card-ui: 3; --z-bar: 20; --z-pop: 30; --z-hint: 40; --z-intro: 100;
+}
+
+/* ---------- cor: tema escuro ---------- */
+:root[data-theme="dark"] {
+  --bg: #0f1030;
+  --bg-deep: #0a0b24;
+  --surface: #1a1c45;
+  --surface-2: #23265a;
+  --ink: #eef0ff;
+  --ink-2: #a9add8;
+  --ink-3: #7c80b0;
+  --line: rgb(238 240 255 / .12);
+  --line-strong: rgb(238 240 255 / .24);
+  --accent: #8f7dff;
+  --accent-ink: #0f1030;
+  --accent-soft: rgb(143 125 255 / .18);
+  --hot: #ff5ca8;
+  --hot-ink: #0f1030;
+  --scrim: rgb(15 16 48 / .8);
+
+  --change-novo: #ffc94d;   --change-buff: #4fe08f;   --change-nerf: #ff7070;
+  --change-rework: #b49bff; --change-ajuste: #5fd8f2;  --change-ink: #0f1030;
+
+  --holo-1: #b69cff; --holo-2: #ff7ac6; --holo-3: #ffd36e; --holo-4: #6ff2ff; --holo-5: #9dff8a;
+
+  --card-dim: .94;
+
+  --shadow-1: 0 1px 2px rgb(0 0 20 / .4), 0 2px 6px rgb(0 0 20 / .3);
+  --shadow-2: 0 2px 4px rgb(0 0 20 / .3), 0 14px 30px -8px rgb(0 0 20 / .6);
+  --shadow-3: 0 4px 10px rgb(0 0 20 / .35), 0 30px 60px -16px rgb(0 0 20 / .75);
+
+  color-scheme: dark;
+}
