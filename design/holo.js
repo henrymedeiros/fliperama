@@ -1,10 +1,10 @@
 // Fliperama · holo.js
-// Transforma um nome num brilho único: nome → hash → gerador pseudoaleatório → padrão + cores.
+// Transforma um nome numa carta única: nome → hash → gerador pseudoaleatório → cor, padrão e variante de holo.
 // O mesmo nome sempre gera a mesma carta. Uso:
 //   const s = Holo.style('Drink Heist');  // { h, h2, angle, family, variant, pattern }
 //   el.style.cssText = Holo.vars(s);      // --h, --h2, --angle, --foil
-//   el.dataset.holo = s.variant;          // variante de brilho (ver design/carta.css)
-//   const ctl = Holo.attach(el);          // inclinação e brilho seguindo o ponteiro, com molas
+//   el.dataset.holo = s.variant;          // variante de holo (receitas em design/carta.css)
+//   const ctl = Holo.attach(el);          // inclinação e holo seguindo o ponteiro, com molas (como no pokemon-cards-css)
 //   Holo.glyph('ação')                    // <svg> do símbolo de uma tag
 (() => {
   // cyrb53: hash rápido e bem distribuído
@@ -53,9 +53,7 @@
       const w2 = r() < .5 ? f(w * .35) : 0;
       return `<defs><pattern id="p" width="${gap}" height="${H}" patternUnits="userSpaceOnUse" patternTransform="rotate(${ang})">` +
         `<rect width="${f(w)}" height="${H}"/>${w2 ? `<rect x="${f(w + 4)}" width="${w2}" height="${H}" opacity=".6"/>` : ''}</pattern>` +
-        `<linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff"/><stop offset=".5" stop-color="#fff" stop-opacity=".25"/><stop offset="1" stop-color="#fff"/></linearGradient>` +
-        `<mask id="m"><rect width="${W}" height="${H}" fill="url(#g)"/></mask></defs>` +
-        `<rect width="${W}" height="${H}" fill="url(#p)" mask="url(#m)"/>`;
+        `</defs><rect width="${W}" height="${H}" fill="url(#p)"/>`;
     },
     losangos(r) {
       const s = 34 + Math.floor(r() * 50), sw = f(1.5 + r() * 5), rot = Math.floor(r() * 4) * 15;
@@ -82,7 +80,7 @@
         const a = i / n * 6.2832, b = a + 6.2832 / n * wid, R = 1400;
         d += `M${f(cx)} ${f(cy)}L${f(cx + Math.cos(a) * R)} ${f(cy + Math.sin(a) * R)}L${f(cx + Math.cos(b) * R)} ${f(cy + Math.sin(b) * R)}Z`;
       }
-      return `<defs><radialGradient id="g" cx="${f(cx / W)}" cy="${f(cy / H)}" r="1.1"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#fff" stop-opacity=".15"/></radialGradient></defs><path d="${d}" fill="url(#g)"/>`;
+      return `<path d="${d}"/>`;
     },
     aneis(r) {
       const k = 1 + Math.floor(r() * 3), sw = f(2 + r() * 6);
@@ -105,8 +103,11 @@
     },
   };
   const FAMILY_NAMES = Object.keys(FAMILIES);
-  // variantes de brilho da carta, como as raridades de um jogo de cartas (estilos em design/carta.css)
-  const VARIANTS = ['holo', 'cosmos', 'reverso', 'arco-iris', 'radiante', 'linhas', 'ouro'];
+  // variantes de holo, como as raridades do pokemon-cards-css (receitas em design/carta.css)
+  const VARIANTS = ['holo', 'reverso', 'cintilante', 'secreta'];
+  // ordem original do sorteio: mantém a variante de cada nome quando uma sai de circulação.
+  // 'linhas', 'cosmos' e 'radiante' foram retiradas; quem caía nelas sorteia de novo entre as que restam.
+  const DRAW = ['holo', 'cosmos', 'reverso', 'cintilante', 'radiante', 'linhas', 'secreta'];
 
   function style(name) {
     const seed = hash(norm(name));
@@ -115,8 +116,11 @@
     const h2 = (h + 30 + Math.floor(r() * 120)) % 360;
     const angle = Math.floor(r() * 180);
     const family = FAMILY_NAMES[Math.floor(r() * FAMILY_NAMES.length)];
-    const variant = VARIANTS[Math.floor(r() * VARIANTS.length)];
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid slice" fill="#fff">${FAMILIES[family](r)}</svg>`;
+    let variant = DRAW[Math.floor(r() * DRAW.length)];
+    // sorteio à parte, pra não mexer no padrão que vem depois
+    if (!VARIANTS.includes(variant)) variant = VARIANTS[Math.floor(rng(seed ^ 0x9e3779b9)() * VARIANTS.length)];
+    // estampa sólida: tira as transparências que as famílias usam pra variar as formas
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid slice" fill="#fff">${FAMILIES[family](r).replace(/ opacity="[^"]*"/g, '')}</svg>`;
     const pattern = `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
     return { seed, h, h2, angle, family, variant, svg, pattern };
   }
@@ -133,7 +137,6 @@
     'M8 14.5S1.5 10.4 1.5 5.8A3.4 3.4 0 0 1 8 4a3.4 3.4 0 0 1 6.5 1.8C14.5 10.4 8 14.5 8 14.5Z', // coração
     'M9.2 1 3 9h4.4L6.6 15 13 7H8.6Z',                               // raio
   ];
-  const tagHue = t => hash('tag:' + norm(t)) % 360;
   const glyph = (t, cls = 'glyph') =>
     `<svg class="${cls}" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="${GLYPHS[hash('glyph:' + norm(t)) % GLYPHS.length]}"/></svg>`;
 
@@ -203,5 +206,5 @@
     };
   }
 
-  window.Holo = { hash, rng, style, vars, attach, tagHue, glyph, FAMILIES: FAMILY_NAMES, VARIANTS };
+  window.Holo = { hash, rng, style, vars, attach, glyph, FAMILIES: FAMILY_NAMES, VARIANTS };
 })();

@@ -1,13 +1,16 @@
-/* Fliperama · carta holográfica
-   Estrutura de carta colecionável: moldura grossa, nome com símbolo de tipo, arte com bisel,
+/* Fliperama · carta
+   Estrutura de carta colecionável: moldura grossa, nome com símbolo de tipo, arte emoldurada,
    faixa de dados, texto, barra de atributos e rodapé de coleção.
-   As camadas de brilho seguem a técnica do pokemon-cards-css (shine + glare com blend modes,
-   movidos por variáveis que o holo.js atualiza com molas). Ver DESIGN.md, seção "A carta".
+
+   Superfícies em cores sólidas. O holo segue as receitas do pokemon-cards-css
+   (https://github.com/simeydotme/pokemon-cards-css): camadas shine + glare com blend modes e
+   filtros, movidas por variáveis que o holo.js atualiza com molas. Única mudança: as cores
+   "sunpillar" (arco-íris) do repositório viram um leque de tons do matiz da carta. Nada de arco-íris.
 
    Variáveis vindas do holo.js:
-     --h, --h2          matizes da carta (do nome do jogo)
-     --foil             padrão SVG do nome, usado como textura do brilho
-     data-holo          variante de raridade (holo, cosmos, reverso, arco-iris, radiante, linhas, ouro)
+     --h                matiz da carta (do nome do jogo)
+     --foil             padrão SVG do nome (textura de algumas variantes)
+     data-holo          variante, como as raridades: holo, reverso, cintilante, secreta
      --pointer-x/y, --pointer-from-center/top/left, --background-x/y,
      --rotate-x/y, --card-opacity   estado da interação */
 
@@ -17,17 +20,23 @@
   --background-x: 50%; --background-y: 50%;
   --rotate-x: 0deg; --rotate-y: 0deg;
   --card-opacity: 0;
-  /* brilho parado: a carta é brilhante mesmo sem ninguém mexer */
+  /* brilho parado: a carta já é brilhante sem ninguém mexer */
   --shine: calc(.32 + var(--card-opacity) * .68);
-  /* cores do brilho: um leque de 180° em volta do matiz do nome */
-  --sp-1: hsl(calc(var(--h) - 90) 100% 73%);
-  --sp-2: hsl(calc(var(--h) - 54) 100% 69%);
-  --sp-3: hsl(calc(var(--h) - 18) 100% 69%);
-  --sp-4: hsl(calc(var(--h) + 18) 100% 74%);
-  --sp-5: hsl(calc(var(--h) + 54) 100% 74%);
-  --sp-6: hsl(calc(var(--h) + 90) 100% 73%);
-  --card-glow: hsl(var(--h) 95% 62%);
-  --card-edge: hsl(var(--h) 90% 78%);
+
+  /* cores sólidas da carta, todas do mesmo matiz */
+  --card-frame: hsl(var(--h) 55% 50%);
+  --card-face: hsl(var(--h) 18% 80%);        /* prata em tom médio: o color-dodge só aparece sobre tons médios */
+  --card-strong: hsl(var(--h) 55% 32%);      /* símbolo de tipo, selo "Versão", ícones */
+  --card-panel: #ffffff;
+  --card-line: hsl(var(--h) 22% 72%);
+
+  /* "sunpillars" monocromáticos: seis tons do matiz da carta no lugar do arco-íris */
+  --sp-1: hsl(var(--h) 100% 73%);
+  --sp-2: hsl(var(--h) 55% 86%);
+  --sp-3: hsl(var(--h) 100% 62%);
+  --sp-4: hsl(var(--h) 35% 93%);
+  --sp-5: hsl(var(--h) 90% 78%);
+  --sp-6: hsl(var(--h) 70% 66%);
 
   position: relative;
   aspect-ratio: 63 / 88;
@@ -41,28 +50,20 @@
   position: absolute; inset: 0;
   border-radius: var(--r-card);
   padding: 3.4cqw;
-  /* moldura: a cor do nome, com bisel */
-  background:
-    linear-gradient(135deg, rgb(255 255 255 / .45), transparent 30%, transparent 70%, rgb(0 0 0 / .12)),
-    linear-gradient(160deg, hsl(var(--h) 88% 66%), hsl(var(--h) 92% 74%) 45%, hsl(var(--h2) 82% 60%));
+  background: var(--card-frame);
   transform: rotateY(var(--rotate-x)) rotateX(var(--rotate-y)) scale(var(--card-scale, 1));
   transform-style: preserve-3d;
   filter: brightness(var(--card-dim));
   overflow: hidden;
-  box-shadow:
-    inset 0 0 0 .5cqw rgb(255 255 255 / .35),
-    0 1px 2px rgb(23 24 59 / .12),
-    0 10px 20px -6px rgb(23 24 59 / .35);
+  box-shadow: var(--shadow-2);
   transition: box-shadow .4s ease, --card-scale .4s var(--ease-spring);
   will-change: transform;
 }
 @property --card-scale { syntax: '<number>'; inherits: true; initial-value: 1; }
 .card.is-active .card__rotator {
   --card-scale: 1.04;
-  box-shadow:
-    inset 0 0 0 .5cqw rgb(255 255 255 / .35),
-    0 2px 4px rgb(23 24 59 / .12),
-    0 18px 32px -10px rgb(23 24 59 / .45);
+  /* sombra neutra, nunca na cor do nome */
+  box-shadow: 0 2px 4px rgb(23 24 59 / .12), 0 18px 32px -10px rgb(23 24 59 / .45);
 }
 .card:has(.card__hit:focus-visible) .card__rotator,
 [data-input="pad"] .card:has(.card__hit:focus) .card__rotator { outline: 3px solid var(--accent); outline-offset: 5px; }
@@ -80,11 +81,7 @@
   border-radius: 2.6cqw / 1.9cqw;
   overflow: hidden;
   color: var(--card-ink);
-  /* prata em tom médio, tingida pelo nome: é o que deixa o color-dodge do brilho aparecer (no branco ele estoura) */
-  background:
-    radial-gradient(120% 45% at 50% -8%, hsl(var(--h) 45% 90% / .9), transparent 70%),
-    linear-gradient(170deg, hsl(var(--h) 28% 84%) 0%, hsl(var(--h) 16% 78%) 50%, hsl(var(--h2) 22% 73%) 100%);
-  box-shadow: inset 0 0 0 .4cqw rgb(255 255 255 / .55), inset 0 0 2cqw rgb(29 30 51 / .14);
+  background: var(--card-face);
 }
 .card__face > * { position: relative; }
 .face__shine { position: absolute !important; inset: 0; z-index: 0; display: none; pointer-events: none; mix-blend-mode: color-dodge; opacity: var(--shine); }
@@ -96,11 +93,11 @@
   display: inline-flex; align-items: center; gap: .8cqw;
   height: 100%; padding: 0 3cqw 0 1.4cqw;
   border-radius: 1cqw 0 0 1cqw;
-  background: var(--card-silver);
+  background: var(--card-panel);
   clip-path: polygon(0 0, 100% 0, calc(100% - 1.8cqw) 100%, 0 100%);
   font: italic 700 3.3cqw/1 var(--font-body); color: var(--card-ink); white-space: nowrap;
 }
-.card__stage .glyph { width: 3cqw; height: 3cqw; color: hsl(var(--tg) 80% 42%); }
+.card__stage .glyph { width: 3cqw; height: 3cqw; color: var(--card-strong); }
 
 /* linha 2: nome e símbolo de tipo (a primeira tag) */
 .card__title { display: flex; align-items: center; gap: 2cqw; height: 9.6cqw; margin-top: .6cqw; }
@@ -112,8 +109,8 @@
 .card__element {
   flex: none; width: 8cqw; height: 8cqw; border-radius: 50%;
   display: grid; place-items: center; color: #fff;
-  background: radial-gradient(circle at 35% 30%, hsl(var(--tg) 90% 72%), hsl(var(--tg) 78% 40%));
-  box-shadow: 0 0 0 .55cqw #fff, 0 .4cqw 1.2cqw rgb(0 0 0 / .3);
+  background: var(--card-strong);
+  box-shadow: 0 0 0 .55cqw var(--card-panel);
 }
 .card__element svg { width: 4.6cqw; height: 4.6cqw; }
 
@@ -122,57 +119,56 @@
 .card__avatar {
   position: absolute; left: 1.6cqw; top: .2cqw;
   width: 11.5cqw; height: 11.5cqw; padding: .7cqw;
-  border-radius: 1.2cqw; background: var(--card-silver);
-  box-shadow: 0 .5cqw 1.2cqw rgb(0 0 0 / .35);
+  border-radius: 1.2cqw; background: var(--card-panel);
+  box-shadow: 0 .4cqw 1cqw rgb(29 30 51 / .25);
 }
 .card__avatar img, .card__avatar span {
   width: 100%; height: 100%; border-radius: .7cqw; object-fit: cover;
   display: grid; place-items: center;
-  background: linear-gradient(135deg, hsl(var(--h) 60% 55%), hsl(var(--h2) 60% 40%));
+  background: var(--card-strong);
   font: 800 4cqw/1 var(--font-display); color: #fff;
 }
 .card__by {
-  margin-left: 14.5cqw; padding: .9cqw 5cqw .9cqw 1.4cqw;
+  margin-left: 14.5cqw; padding: .9cqw 3cqw .9cqw 1.4cqw;
   font: italic 600 3.2cqw/1 var(--font-body); color: var(--card-ink-2);
-  background: linear-gradient(90deg, rgb(255 255 255 / .9) 60%, rgb(255 255 255 / 0));
-  border-radius: .6cqw 0 0 .6cqw;
+  background: var(--card-panel);
+  border-radius: .6cqw;
 }
 .card__by b { color: var(--card-ink); font-weight: 700; }
 
-/* arte com bisel prateado */
+/* arte com moldura branca */
 .card__art {
   z-index: 1;
   padding: 1cqw;
   border-radius: .6cqw;
-  background: linear-gradient(125deg, #f8f9fb, #b4b9c7 28%, #f1f2f6 48%, #a3a9b9 72%, #eceef2);
-  box-shadow: 0 .5cqw 1.4cqw rgb(0 0 0 / .28);
+  background: var(--card-panel);
+  box-shadow: 0 .4cqw 1.2cqw rgb(29 30 51 / .2);
 }
 .card__window {
   position: relative; aspect-ratio: 16 / 10; overflow: hidden; isolation: isolate;
-  background: hsl(var(--h) 40% 25%);
-  box-shadow: inset 0 0 0 .3cqw rgb(0 0 0 / .3);
+  background: var(--card-strong);
 }
 .card__window img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transition: opacity var(--dur-2); }
 .card__window img.is-swapping { opacity: .2; }
 .art__shine { position: absolute; inset: 0; display: none; pointer-events: none; mix-blend-mode: color-dodge; opacity: var(--shine); }
 .card__gen {
   position: absolute; inset: 0; display: grid; place-items: center;
-  font: 800 14cqw/1 var(--font-display); color: rgb(255 255 255 / .92);
-  background: linear-gradient(135deg, hsl(var(--h) 70% 45%), hsl(var(--h2) 75% 28%));
+  font: 800 14cqw/1 var(--font-display); color: #fff;
+  background: var(--card-strong);
 }
 .card__stamp {
   position: absolute; top: 2cqw; right: 2cqw; z-index: 2;
   padding: 1cqw 1.8cqw; border-radius: .8cqw;
   background: var(--hot); color: #fff;
   font: 700 2.8cqw/1 var(--font-display);
-  rotate: 4deg; box-shadow: 0 .6cqw 1.4cqw rgb(0 0 0 / .3);
+  rotate: 4deg;
 }
 
 /* faixa de dados sob a arte */
 .card__strip {
   display: flex; align-items: center; justify-content: center; gap: 2.4cqw;
   height: 4.6cqw; margin: 1cqw 2.6cqw 0;
-  background: var(--card-silver);
+  background: var(--card-panel);
   clip-path: polygon(1.4cqw 0, calc(100% - 1.4cqw) 0, 100% 100%, 0 100%);
   font: italic 600 2.9cqw/1 var(--font-body); color: var(--card-ink-2); white-space: nowrap;
 }
@@ -191,7 +187,7 @@
 .card__pill {
   flex: none; padding: .9cqw 3.4cqw .9cqw 1.8cqw;
   border-radius: 1cqw 0 0 1cqw;
-  background: linear-gradient(180deg, hsl(var(--h2) 72% 50%), hsl(var(--h2) 78% 34%));
+  background: var(--card-strong);
   clip-path: polygon(0 0, 100% 0, calc(100% - 1.8cqw) 100%, 0 100%);
   font: italic 800 3cqw/1 var(--font-display); color: #fff;
 }
@@ -200,11 +196,11 @@
 .vers__opt {
   flex: none; display: inline-flex; align-items: center; gap: .8cqw;
   padding: .8cqw 1.2cqw; border: 0; border-radius: .8cqw; background: none;
-  font: 700 3.7cqw/1 var(--font-display); letter-spacing: -.02em; color: var(--card-ink-2); opacity: .6;
+  font: 700 3.7cqw/1 var(--font-display); letter-spacing: -.02em; color: var(--card-ink-2); opacity: .7;
   transition: opacity var(--dur-1), background-color var(--dur-1), color var(--dur-1);
 }
-.vers__opt:hover { opacity: 1; background: rgb(255 255 255 / .6); }
-.vers__opt[aria-pressed="true"] { opacity: 1; color: hsl(var(--h2) 78% 32%); }
+.vers__opt:hover { opacity: 1; background: var(--card-panel); }
+.vers__opt[aria-pressed="true"] { opacity: 1; color: var(--card-strong); }
 .vers__opt small { font: italic 500 2.4cqw/1 var(--font-body); }
 .vers__opt i { width: 1.4cqw; height: 1.4cqw; border-radius: 50%; background: var(--hot); }
 
@@ -212,30 +208,30 @@
 .card__stats {
   display: flex; height: 7.2cqw; margin-top: auto;
   border-radius: 3.6cqw; overflow: hidden;
-  background: var(--card-silver);
-  box-shadow: inset 0 0 0 .25cqw rgb(255 255 255 / .7), 0 .3cqw .9cqw rgb(0 0 0 / .18);
+  background: var(--card-panel);
+  box-shadow: inset 0 0 0 .25cqw var(--card-line);
 }
 .stat {
   flex: 1; position: relative;
   display: flex; align-items: center; justify-content: center; gap: 1.2cqw;
   font: 700 3.4cqw/1 var(--font-body); color: var(--card-ink); white-space: nowrap;
 }
-.stat + .stat::before { content: ""; position: absolute; left: 0; top: 18%; bottom: 18%; width: .3cqw; background: rgb(29 30 51 / .18); transform: skewX(-18deg); }
+.stat + .stat::before { content: ""; position: absolute; left: 0; top: 18%; bottom: 18%; width: .3cqw; background: var(--card-line); transform: skewX(-18deg); }
 .stat small { font: italic 500 2.8cqw/1 var(--font-body); color: var(--card-ink-2); }
-.stat svg { width: 4.2cqw; height: 4.2cqw; color: hsl(var(--h) 72% 38%); }
+.stat svg { width: 4.2cqw; height: 4.2cqw; color: var(--card-strong); }
 
 /* rodapé de coleção */
 .card__foot { display: flex; align-items: flex-end; gap: 2cqw; margin-top: 1.4cqw; }
-.card__set { display: flex; align-items: center; gap: .8cqw; font: 700 2.8cqw/1 var(--font-body); color: var(--card-ink-2); white-space: nowrap; }
-.card__set svg { width: 3.6cqw; height: 3.6cqw; }
+.card__set { display: flex; align-items: center; gap: .8cqw; font: 700 2.8cqw/1 var(--font-body); color: var(--card-ink); white-space: nowrap; }
 .card__flavor {
   margin-left: auto; padding: .8cqw 1.4cqw;
-  border: .25cqw solid rgb(29 30 51 / .14); border-radius: .6cqw;
+  border: .25cqw solid var(--card-line); border-radius: .6cqw;
+  background: var(--card-panel);
   font: italic 500 2.8cqw/1.3 var(--font-body); color: var(--card-ink-2); text-align: right; white-space: nowrap;
 }
-.card__notes { position: relative; z-index: 5; color: hsl(var(--h2) 78% 32%); font-weight: 700; text-underline-offset: .4cqw; }
+.card__notes { position: relative; z-index: 5; color: var(--card-strong); font-weight: 700; text-underline-offset: .4cqw; }
 
-/* ---------- reflexo de luz (todas as variantes) ---------- */
+/* ---------- glare (todas as variantes), como no pokemon-cards-css ---------- */
 .card__glare {
   position: absolute; inset: 0; z-index: 6; pointer-events: none; border-radius: var(--r-card);
   background-image: radial-gradient(farthest-corner circle at var(--pointer-x) var(--pointer-y),
@@ -245,15 +241,16 @@
 }
 
 /* =====================================================================
-   Variantes de brilho (data-holo). Cada nome cai numa delas pelo hash.
+   Variantes (data-holo), uma por nome, como as raridades do repositório.
+   Receitas do pokemon-cards-css; as cores de arco-íris viraram --sp-1…6.
    ===================================================================== */
 
-/* holo: arco-íris em faixas com linhas finas, só na arte (o holo clássico) */
+/* holo — "regular holo": faixas a 110° sobre scanlines + barras verticais, só na arte */
 .card[data-holo="holo"] .art__shine {
   display: block;
   background-image:
-    repeating-linear-gradient(110deg, var(--sp-6), var(--sp-5), var(--sp-4), var(--sp-3), var(--sp-1), var(--sp-6), var(--sp-5), var(--sp-4), var(--sp-3), var(--sp-1)),
-    repeating-linear-gradient(90deg, #000 0, #000 1px, #666 1px, #666 2px);
+    repeating-linear-gradient(110deg, var(--sp-6), var(--sp-5), var(--sp-4), var(--sp-3), var(--sp-1), var(--sp-6), var(--sp-5), var(--sp-4), var(--sp-3), var(--sp-1), var(--sp-6), var(--sp-5), var(--sp-4), var(--sp-3), var(--sp-1)),
+    repeating-linear-gradient(90deg, #000 0, #000 2px, #666 2px, #666 4px);
   background-position: calc(((50% - var(--background-x)) * 2.6) + 50%) calc(((50% - var(--background-y)) * 3.5) + 50%), center;
   background-size: 400% 400%, cover;
   background-blend-mode: overlay;
@@ -278,135 +275,75 @@
   filter: brightness(.6) contrast(4);
 }
 
-/* cosmos: o padrão do nome vira um céu de brilhos coloridos, só na arte */
-.card[data-holo="cosmos"] .art__shine {
-  display: block;
-  background-image:
-    repeating-linear-gradient(82deg, var(--sp-3) 4%, var(--sp-4) 8%, var(--sp-5) 12%, var(--sp-6) 16%, var(--sp-1) 20%, var(--sp-2) 24%, var(--sp-2) 28%, var(--sp-1) 32%, var(--sp-6) 36%, var(--sp-5) 40%, var(--sp-4) 44%, var(--sp-3) 48%);
-  background-size: 400% 900%;
-  background-position: calc(10% + var(--pointer-from-left) * 80%) calc(10% + var(--pointer-from-top) * 80%);
-  -webkit-mask: var(--foil) center / cover no-repeat; mask: var(--foil) center / cover no-repeat;
-  filter: brightness(1.15) contrast(1.2) saturate(1.1);
-}
-.card[data-holo="cosmos"] .art__shine::after {
-  background-image: radial-gradient(farthest-corner circle at var(--pointer-x) var(--pointer-y), hsla(180, 100%, 92%, .9) 5%, hsla(180, 14%, 57%, .3) 40%, #000 130%);
-  mix-blend-mode: overlay;
-}
-
-/* reverso: a carta toda brilha, menos a arte */
+/* reverso — "reverse holo": a carta toda brilha, menos a arte */
 .card[data-holo="reverso"] .face__shine {
   display: block;
   background-image:
     radial-gradient(circle at var(--pointer-x) var(--pointer-y), #fff 5%, #000 50%, #fff 80%),
-    linear-gradient(-45deg, #000 15%, #fff, #000 85%),
-    repeating-linear-gradient(-30deg, var(--sp-1), var(--sp-2), var(--sp-3), var(--sp-4), var(--sp-5), var(--sp-6), var(--sp-1));
-  background-blend-mode: soft-light, difference;
-  background-size: 120% 120%, 200% 200%, 300% 300%;
-  background-position: center, calc(100% * var(--pointer-from-left)) calc(100% * var(--pointer-from-top)), var(--background-x) var(--background-y);
-  filter: brightness(.6) contrast(1.5) saturate(1.3);
+    linear-gradient(-45deg, #000 15%, #fff, #000 85%);
+  background-blend-mode: soft-light;
+  background-size: 120% 120%, 200% 200%;
+  background-position: center, calc(100% * var(--pointer-from-left)) calc(100% * var(--pointer-from-top));
+  filter: brightness(.45) contrast(1.5) saturate(1);
 }
 .card[data-holo="reverso"] .face__shine::after {
-  background-image: linear-gradient(-60deg, var(--sp-1), var(--sp-3), var(--sp-5), var(--sp-2), var(--sp-4), var(--sp-6), var(--sp-1));
-  background-size: 400% 400%;
-  background-position: var(--pointer-x) var(--pointer-y);
+  background: var(--sp-4);
   -webkit-mask: var(--foil) center / cover no-repeat; mask: var(--foil) center / cover no-repeat;
   mix-blend-mode: color-dodge;
-  opacity: .7;
+  opacity: calc(.25 + var(--pointer-from-center) * .5);
 }
 
-/* arco-íris: carta inteira em arco-íris, com o padrão faiscando por cima */
-.card[data-holo="arco-iris"] .face__shine,
-.card[data-holo="arco-iris"] .art__shine {
+/* cintilante — "rainbow secret": faixas largas a -30° com o padrão faiscando, carta e arte */
+.card[data-holo="cintilante"] .face__shine,
+.card[data-holo="cintilante"] .art__shine {
   display: block;
-  background-image: linear-gradient(-30deg, var(--sp-1), var(--sp-2), var(--sp-3), var(--sp-4), var(--sp-5), var(--sp-6), var(--sp-1), var(--sp-2), var(--sp-3), var(--sp-4), var(--sp-5), var(--sp-6), var(--sp-1));
-  background-size: 400% 400%;
-  background-position: calc(25% + var(--pointer-x) / 2) calc(25% + var(--pointer-y) / 2);
-  filter: brightness(calc(var(--pointer-from-center) * .25 + .62)) contrast(1.8) saturate(.9);
+  background-image:
+    linear-gradient(-45deg, var(--sp-6), var(--sp-2)),
+    linear-gradient(-30deg, var(--sp-1), var(--sp-2), var(--sp-3), var(--sp-4), var(--sp-5), var(--sp-6), var(--sp-1), var(--sp-2), var(--sp-3), var(--sp-4), var(--sp-5), var(--sp-6), var(--sp-1));
+  background-blend-mode: luminosity;
+  background-size: 200% 200%, 400% 400%;
+  background-position: calc(25% + (50% * var(--pointer-from-left))) calc(25% + (50% * var(--pointer-from-top))), calc(25% + (var(--pointer-x) / 2)) calc(25% + (var(--pointer-y) / 2));
+  filter: brightness(calc((var(--pointer-from-center) * .25) + .6)) contrast(2.2) saturate(.75);
 }
-.card[data-holo="arco-iris"] .art__shine { opacity: calc(var(--shine) * .6); }
-.card[data-holo="arco-iris"] .face__shine::after,
-.card[data-holo="arco-iris"] .art__shine::after {
+.card[data-holo="cintilante"] .art__shine { opacity: calc(var(--shine) * .6); }
+.card[data-holo="cintilante"] .face__shine::after,
+.card[data-holo="cintilante"] .art__shine::after {
   background-image: linear-gradient(-60deg, var(--sp-1), var(--sp-2), var(--sp-3), var(--sp-4), var(--sp-5), var(--sp-6), var(--sp-1), var(--sp-2), var(--sp-3));
   background-size: 400% 400%;
   background-position: var(--pointer-x) var(--pointer-y);
   -webkit-mask: var(--foil) center / cover no-repeat; mask: var(--foil) center / cover no-repeat;
-  filter: brightness(1.2) contrast(1.5);
+  filter: brightness(calc((var(--pointer-from-center) * .3) + .55)) contrast(2) saturate(1);
   mix-blend-mode: color-dodge;
 }
 
-/* radiante: tramas cruzadas em 45° que acendem com a luz */
-.card[data-holo="radiante"] .face__shine {
-  --bar: 1.2%;
+/* secreta — "secret rare": cone de tons + metal na cor da carta, com faíscas no padrão do nome */
+.card[data-holo="secreta"] .face__shine,
+.card[data-holo="secreta"] .art__shine {
   display: block;
   background-image:
-    radial-gradient(farthest-corner ellipse at calc(var(--pointer-x) * .5 + 25%) calc(var(--pointer-y) * .5 + 25%), hsl(0 0% 95%) 20%, var(--card-glow) 130%),
-    repeating-linear-gradient(45deg, #1a1a1a 0, #1a1a1a var(--bar), #333 var(--bar), #333 calc(var(--bar) * 2), #595959 calc(var(--bar) * 2), #595959 calc(var(--bar) * 3), #6c6c6c calc(var(--bar) * 3), #6c6c6c calc(var(--bar) * 4), #808080 calc(var(--bar) * 4), #808080 calc(var(--bar) * 5), #6c6c6c calc(var(--bar) * 5), #6c6c6c calc(var(--bar) * 6), #595959 calc(var(--bar) * 6), #595959 calc(var(--bar) * 7), #333 calc(var(--bar) * 7), #333 calc(var(--bar) * 8), #1a1a1a calc(var(--bar) * 8), #1a1a1a calc(var(--bar) * 9), #000 calc(var(--bar) * 9), #000 calc(var(--bar) * 10)),
-    repeating-linear-gradient(-45deg, #1a1a1a 0, #1a1a1a var(--bar), #333 var(--bar), #333 calc(var(--bar) * 2), #595959 calc(var(--bar) * 2), #595959 calc(var(--bar) * 3), #6c6c6c calc(var(--bar) * 3), #6c6c6c calc(var(--bar) * 4), #808080 calc(var(--bar) * 4), #808080 calc(var(--bar) * 5), #6c6c6c calc(var(--bar) * 5), #6c6c6c calc(var(--bar) * 6), #595959 calc(var(--bar) * 6), #595959 calc(var(--bar) * 7), #333 calc(var(--bar) * 7), #333 calc(var(--bar) * 8), #1a1a1a calc(var(--bar) * 8), #1a1a1a calc(var(--bar) * 9), #000 calc(var(--bar) * 9), #000 calc(var(--bar) * 10));
-  background-size: cover, 210% 210%, 210% 210%;
-  background-position: center,
-    calc((var(--background-x) - 50%) * 1.5 + 50%) calc((var(--background-y) - 50%) * 1.5 + 50%),
-    calc((var(--background-x) - 50%) * 1.5 + 50%) calc((var(--background-y) - 50%) * 1.5 + 50%);
-  background-blend-mode: exclusion, darken, color-dodge;
-  filter: brightness(.55) contrast(2) saturate(1.75);
-}
-.card[data-holo="radiante"] .face__shine::after {
-  background-image: repeating-linear-gradient(55deg, var(--sp-1) 10%, var(--sp-3) 20%, var(--sp-5) 30%, var(--sp-2) 40%, var(--sp-6) 50%, var(--sp-4) 60%, var(--sp-1) 70%);
-  background-size: 400% 100%;
-  background-position: calc((var(--background-x) - 50%) * -2.5 + 50%) calc((var(--background-y) - 50%) * -2.5 + 50%);
-  -webkit-mask: var(--foil) center / cover no-repeat; mask: var(--foil) center / cover no-repeat;
-  filter: brightness(.9) contrast(2) saturate(1.6);
-  mix-blend-mode: color-dodge;
-}
-
-/* linhas: listras diagonais metálicas sobre faixas de cor, na carta inteira */
-.card[data-holo="linhas"] .face__shine,
-.card[data-holo="linhas"] .art__shine {
-  display: block;
-  background-image:
-    repeating-linear-gradient(0deg, var(--sp-1) 5%, var(--sp-2) 10%, var(--sp-3) 15%, var(--sp-4) 20%, var(--sp-5) 25%, var(--sp-6) 30%, var(--sp-1) 35%),
-    repeating-linear-gradient(133deg, #0e152e 0%, hsl(180 10% 60%) 3.8%, hsl(180 29% 66%) 4.5%, hsl(180 10% 60%) 5.2%, #0e152e 10%, #0e152e 12%),
-    radial-gradient(farthest-corner circle at var(--pointer-x) var(--pointer-y), hsla(0, 0%, 0%, .1) 12%, hsla(0, 0%, 0%, .15) 20%, hsla(0, 0%, 0%, .25) 120%);
-  background-blend-mode: hue, hard-light;
-  background-size: 200% 700%, 300% 100%, 200% 100%;
-  background-position: 0% var(--background-y), var(--background-x) var(--background-y), var(--background-x) var(--background-y);
-  filter: brightness(.8) contrast(2.4) saturate(.8);
-}
-.card[data-holo="linhas"] .art__shine { opacity: calc(var(--shine) * .55); }
-.card[data-holo="linhas"] .face__shine::after {
-  background-image:
-    repeating-linear-gradient(0deg, var(--sp-1) 5%, var(--sp-2) 10%, var(--sp-3) 15%, var(--sp-4) 20%, var(--sp-5) 25%, var(--sp-6) 30%, var(--sp-1) 35%),
-    repeating-linear-gradient(133deg, #0e152e 0%, hsl(180 10% 60%) 3.8%, hsl(180 29% 66%) 4.5%, hsl(180 10% 60%) 5.2%, #0e152e 10%, #0e152e 12%);
-  background-blend-mode: hue;
-  background-size: 200% 400%, 195% 100%;
-  background-position: 0% var(--background-y), calc(var(--background-x) * -1) calc(var(--background-y) * -1);
-  filter: brightness(1) contrast(2.5) saturate(1.75);
-  mix-blend-mode: soft-light;
-}
-
-/* ouro: carta dourada com faíscas no padrão do nome */
-.card[data-holo="ouro"] .face__shine,
-.card[data-holo="ouro"] .art__shine {
-  display: block;
-  background-image:
-    conic-gradient(from calc(var(--pointer-from-left) * 180deg), var(--sp-4), var(--sp-5), var(--sp-6), var(--sp-1), var(--sp-4)),
+    conic-gradient(var(--sp-4), var(--sp-5), var(--sp-6), var(--sp-1), var(--sp-4)),
     radial-gradient(farthest-corner circle at var(--pointer-x) var(--pointer-y), hsla(150, 0%, 0%, .98) 10%, hsla(0, 0%, 95%, .15) 90%);
   background-blend-mode: overlay;
-  filter: brightness(calc(.4 + var(--pointer-from-center) * .25)) contrast(1) saturate(2.4);
+  filter: brightness(calc(.4 + (var(--pointer-from-center) * .2))) contrast(1) saturate(2.7);
 }
-.card[data-holo="ouro"] .face__shine::before {
-  background-image: linear-gradient(45deg, hsl(46 95% 50%), hsl(52 100% 69%)), radial-gradient(farthest-corner circle at var(--pointer-x) var(--pointer-y), hsla(10, 20%, 90%, .95) 10%, #000 70%);
+.card[data-holo="secreta"] .face__shine::before {
+  background-image:
+    linear-gradient(45deg, hsl(var(--h) 95% 50%), hsl(var(--h) 100% 69%)),
+    radial-gradient(farthest-corner circle at var(--pointer-x) var(--pointer-y), hsla(10, 20%, 90%, .95) 10%, #000 70%);
   background-blend-mode: multiply;
   mix-blend-mode: lighten;
-  filter: brightness(1.25) contrast(1.25) saturate(.5);
-  opacity: .55;
+  filter: brightness(1.25) contrast(1.25) saturate(.35);
+  opacity: .8;
 }
-.card[data-holo="ouro"] .face__shine::after,
-.card[data-holo="ouro"] .art__shine::after {
+.card[data-holo="secreta"] .face__shine::after,
+.card[data-holo="secreta"] .art__shine::after {
   background: #fff;
   -webkit-mask: var(--foil) center / cover no-repeat; mask: var(--foil) center / cover no-repeat;
-  opacity: calc(.35 + var(--pointer-from-center) * .5);
+  filter: brightness(calc((var(--pointer-from-center) * .6) + .6)) contrast(1.5);
+  opacity: calc(.3 + var(--pointer-from-center) * .5);
   mix-blend-mode: overlay;
 }
+
 @media (prefers-reduced-motion: reduce) {
   .card__rotator { transform: none !important; }
 }

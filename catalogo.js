@@ -82,7 +82,6 @@
   const collection = new Map([...games].sort((a, b) => a.created.localeCompare(b.created)).map((g, i) => [g.slug, i + 1]));
   const pad2 = n => String(n).padStart(2, '0');
   const fmtDate = iso => new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-  const MARK = '<svg viewBox="0 0 48 48" aria-hidden="true"><g transform="rotate(-9 22 24)"><rect x="9" y="5" width="26" height="38" rx="5" fill="currentColor"/><path d="M22 13.5C22.9 21 23.6 21.8 30 24 23.6 26.2 22.9 27 22 34.5 21.1 27 20.4 26.2 14 24 20.4 21.8 21.1 21 22 13.5Z" fill="#fff"/></g></svg>';
 
   function buildCard(g) {
     const s = Holo.style(g.title);
@@ -111,9 +110,9 @@
       `<div class="card__rotator">` +
         `<div class="card__face">` +
           `<div class="face__shine"></div>` +
-          `<ul class="card__tags" aria-label="Tags">${tags.map(t => `<li class="card__stage" style="--tg:${Holo.tagHue(t)}">${Holo.glyph(t)}<span>${esc(t)}</span></li>`).join('')}</ul>` +
+          `<ul class="card__tags" aria-label="Tags">${tags.map(t => `<li class="card__stage">${Holo.glyph(t)}<span>${esc(t)}</span></li>`).join('')}</ul>` +
           `<div class="card__title"><h2 class="card__name"></h2>` +
-            `${element ? `<span class="card__element" style="--tg:${Holo.tagHue(element)}" title="${esc(element)}">${Holo.glyph(element, '')}</span>` : ''}</div>` +
+            `${element ? `<span class="card__element" title="${esc(element)}">${Holo.glyph(element, '')}</span>` : ''}</div>` +
           `<div class="card__evolve"><span class="card__avatar"><img src="https://github.com/${encodeURIComponent(g.author)}.png?size=96" alt="" loading="lazy" decoding="async"></span>` +
             `<span class="card__by">por <b></b></span></div>` +
           `<div class="card__art"><div class="card__window">` +
@@ -123,7 +122,7 @@
           `<p class="card__text"></p>` +
           `${vs ? `<div class="card__ability"><span class="card__pill">Versão</span><div class="vers" role="group" aria-label="Versão de ${esc(g.title)}" data-nav="skip"></div></div>` : ''}` +
           `<div class="card__stats">${stats}</div>` +
-          `<div class="card__foot"><span class="card__set">${MARK}FLP ${pad2(collection.get(g.slug))}/${pad2(games.length)}</span>` +
+          `<div class="card__foot"><span class="card__set">FLP ${pad2(collection.get(g.slug))}/${pad2(games.length)}</span>` +
             `${g.notes ? `<span class="card__flavor"><a class="card__notes" href="games/${esc(g.slug)}/${esc(g.notes)}" data-nav="skip">Notas de atualização</a></span>` : ''}</div>` +
         `</div>` +
         `<a class="card__hit" href="${esc(playUrl(g, c.cur))}"></a>` +
@@ -227,7 +226,6 @@
     }
     for (const [t, n] of [...tagCount].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'pt-BR'))) {
       const b = chip(t, n, () => { toggleSet(state.tags, t); render(); }, Holo.glyph(t, 'chip__glyph'));
-      b.style.setProperty('--c', `hsl(${Holo.tagHue(t)} 75% 50%)`);
       chips.push([b, () => state.tags.has(t)]);
       $('fTags').append(b);
     }
@@ -359,7 +357,7 @@
 
     A(intro.querySelector('.intro__orb'), [
       { opacity: 0, transform: 'scale(.2)' },
-      { opacity: 1, transform: 'scale(1.3)', offset: .4 },
+      { opacity: .18, transform: 'scale(1.3)', offset: .4 },
       { opacity: 0, transform: 'scale(3.4)' }], { duration: 1500, easing: 'cubic-bezier(.2,.8,.2,1)', fill: 'both' });
     intro.querySelectorAll('.intro__ring').forEach((ring, i) => {
       const tilt = i * 60 - 30;
@@ -375,7 +373,6 @@
       { transform: center, opacity: 1, filter: 'blur(0px)', offset: .42 },
       { transform: center, opacity: 1, filter: 'blur(0px)', offset: .68, easing: 'cubic-bezier(.65,0,.35,1)' },
       { transform: 'none', opacity: 1, filter: 'blur(0px)', offset: 1 }], { duration: T, fill: 'both' });
-    A(logo.querySelector('.logo__word'), { backgroundPosition: ['100% 0', '0% 0'] }, { duration: 900, delay: 1150, easing: 'cubic-bezier(.65,0,.35,1)', pseudoElement: '::after' });
     A(intro.querySelector('.intro__skip'), [{ opacity: 0 }, { opacity: 1 }], { duration: 400, delay: 700, fill: 'both' });
     const fade = A(intro, [{ opacity: 1 }, { opacity: 0 }], { duration: 650, delay: T * .72, easing: 'ease-out', fill: 'both' });
     document.querySelectorAll('.reveal').forEach((el, i) =>

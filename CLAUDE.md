@@ -9,7 +9,7 @@ index.html            catálogo de cartas (lê games.js)
 catalogo.js           busca, filtros, ordem e controle do catálogo
 play.html             player: abre games/<slug>/ num iframe com barra de voltar/tela cheia
 DESIGN.md             design system do site (obrigatório pra qualquer interface fora de games/)
-design/               tokens, componentes, tema, brilho das cartas (holo.js) e navegação por controle
+design/               tokens, componentes, tema, cor e padrão das cartas (holo.js) e navegação por controle
 games/<slug>/         um jogo por pasta
   index.html          entrada do jogo (ou o arquivo indicado em "entry")
   game.json           ficha do jogo (obrigatória)
@@ -37,7 +37,7 @@ scripts/dev.mjs       servidor local: http://localhost:5173
 }
 ```
 
-Obrigatórios: `title`, `author`, `description`. Só as 3 primeiras `tags` aparecem na carta do catálogo, então coloque as mais importantes primeiro. O brilho e a cor da carta saem do `title`; não há campo pra escolher. O `author` é o login do GitHub de quem criou (`gh api user --jq .login`). As datas de atualização vêm do git, não edite à mão.
+Obrigatórios: `title`, `author`, `description`. Só as 3 primeiras `tags` aparecem na carta do catálogo, então coloque as mais importantes primeiro. A cor e o padrão da carta saem do `title`; não há campo pra escolher. O `author` é o login do GitHub de quem criou (`gh api user --jq .login`). As datas de atualização vêm do git, não edite à mão.
 
 ## Versões
 

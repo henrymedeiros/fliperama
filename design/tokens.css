@@ -1,4 +1,5 @@
 /* Fliperama · tokens do design system
+   Só cores sólidas: nenhum degradê em fundo, texto, logo ou carta.
    Toda página do site importa este arquivo primeiro. Nenhuma cor, fonte, raio,
    sombra ou duração solta no código: use sempre um token daqui. Ver DESIGN.md. */
 
@@ -27,14 +28,10 @@
   --change-novo: #9a6700;   --change-buff: #1a8547;   --change-nerf: #c93030;
   --change-rework: #6a3df0; --change-ajuste: #0b7a96;  --change-ink: #ffffff;
 
-  /* espectro holográfico do logo e de destaques (5 paradas) */
-  --holo-1: #5b2bff; --holo-2: #d4148a; --holo-3: #ff7a00; --holo-4: #00a0bd; --holo-5: #3a2bd9;
 
   /* carta: é um objeto físico, igual nos dois temas. O matiz (--h, --h2) vem do nome do jogo. */
   --card-ink: #1d1e33;      /* texto impresso na carta */
   --card-ink-2: #4d4f66;    /* texto secundário impresso */
-  --card-silver: linear-gradient(180deg, #fbfbfd 0%, #d9dce5 45%, #c3c7d3 55%, #f1f2f6 100%); /* faixas metálicas */
-  --card-silver-edge: #9ea3b3;
   --card-dim: 1;            /* brilho geral da carta (o tema escuro abaixa um pouco) */
 
   /* sombras (tingidas com a tinta, nunca preto puro) */
@@ -104,7 +101,6 @@
   --change-novo: #ffc94d;   --change-buff: #4fe08f;   --change-nerf: #ff7070;
   --change-rework: #b49bff; --change-ajuste: #5fd8f2;  --change-ink: #0f1030;
 
-  --holo-1: #b69cff; --holo-2: #ff7ac6; --holo-3: #ffd36e; --holo-4: #6ff2ff; --holo-5: #9dff8a;
 
   --card-dim: .94;
 
