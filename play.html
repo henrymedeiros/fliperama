@@ -13,6 +13,7 @@
 <style>
 /* Player: só layout. Cores, fontes e raios vêm dos tokens (DESIGN.md). */
 html, body { height: 100%; }
+:root { --bar-h: calc(56px + env(safe-area-inset-top, 0px)); }
 body { display: flex; flex-direction: column; overflow: hidden; font-size: var(--fs-2); }
 .top {
   flex: none; display: flex; align-items: center; gap: var(--sp-3);
@@ -36,13 +37,35 @@ body { display: flex; flex-direction: column; overflow: hidden; font-size: var(-
 .tools .btn--icon svg { width: 18px; height: 18px; }
 .tools[hidden], .tools .btn[hidden] { display: none; }
 iframe { flex: 1; width: 100%; border: 0; display: block; background: #000; }
+/* jogando: a barra fica escondida; só a seta aparece, e a barra desce por cima do jogo */
+body.has-game .top {
+  position: fixed; top: 0; left: 0; right: 0; z-index: var(--z-bar);
+  box-shadow: var(--shadow-3);
+  transform: translateY(-100%); visibility: hidden;
+  transition: transform var(--dur-3) var(--ease-out), visibility 0s linear var(--dur-3);
+}
+body.has-game.bar-open .top { transform: none; visibility: visible; transition: transform var(--dur-3) var(--ease-out); }
+.bar-handle { display: none; }
+body.has-game .bar-handle {
+  position: fixed; top: env(safe-area-inset-top, 0px); left: 50%; z-index: calc(var(--z-bar) + 1);
+  display: grid; place-items: center; width: 56px; height: 28px;
+  transform: translateX(-50%);
+  border: 0; border-radius: 0 0 var(--r-sm) var(--r-sm);
+  background: var(--surface); color: var(--ink); box-shadow: var(--shadow-2);
+  opacity: .35;
+  transition: opacity var(--dur-2) var(--ease-out), top var(--dur-3) var(--ease-out);
+}
+body.has-game .bar-handle:hover, body.has-game .bar-handle:focus-visible, body.bar-open .bar-handle { opacity: 1; }
+body.bar-open .bar-handle { top: var(--bar-h); }
+.bar-handle svg { width: 18px; height: 18px; transition: rotate var(--dur-3) var(--ease-spring); }
+body.bar-open .bar-handle svg { rotate: 180deg; }
 .msg { margin: auto; max-width: 44ch; padding: var(--sp-5) var(--gutter); text-align: center; color: var(--ink-2); }
 .msg a { color: var(--accent); font-weight: 600; }
 @media (max-width: 640px) { .back { font-size: var(--fs-3); } .who span, .tools .opt, .ver span { display: none; } }
 </style>
 </head>
 <body>
-<div class="top">
+<div class="top" id="bar">
   <a class="logo back" href="./" aria-label="Voltar pro Fliperama">
     <span class="logo__word" data-text="Fliperama">Fliperama</span>
   </a>
@@ -58,6 +81,9 @@ iframe { flex: 1; width: 100%; border: 0; display: block; background: #000; }
     <button type="button" id="full" class="btn btn--primary">Tela cheia</button>
   </div>
 </div>
+<button type="button" class="bar-handle" id="handle" aria-controls="bar" aria-expanded="false" aria-label="Mostrar a barra do jogo">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+</button>
 <script src="games.js"></script>
 <script>
 (()=>{
@@ -98,6 +124,22 @@ showVersion();
 document.body.append(f);
 $('reload').addEventListener('click',()=>{ f.src=f.src; });
 $('full').addEventListener('click',()=>{ const p=f.requestFullscreen?f.requestFullscreen():null; if(p&&p.catch) p.catch(()=>{}); try{ f.focus(); }catch(e){} });
+
+// barra escondida durante o jogo: a seta abre por cima do jogo; voltar pro jogo (clique nele ou Esc) fecha
+const bar=$('bar'), handle=$('handle');
+function setBar(open, refocus){
+  document.body.classList.toggle('bar-open', open);
+  handle.setAttribute('aria-expanded', String(open));
+  handle.setAttribute('aria-label', open ? 'Esconder a barra do jogo' : 'Mostrar a barra do jogo');
+  bar.inert = !open;
+  if(!open && refocus){ try{ f.focus(); f.contentWindow.focus(); }catch(e){} }
+}
+document.body.classList.add('has-game');
+setBar(false);
+handle.addEventListener('click',()=>setBar(!document.body.classList.contains('bar-open'), true));
+// clicar no jogo tira o foco desta página e passa pro iframe
+addEventListener('blur',()=>setTimeout(()=>{ if(document.activeElement===f && document.body.classList.contains('bar-open')) setBar(false); },0));
+addEventListener('keydown',e=>{ if(e.key==='Escape' && document.body.classList.contains('bar-open')) setBar(false, true); });
 })();
 </script>
 </body>

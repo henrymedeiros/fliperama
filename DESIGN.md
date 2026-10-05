@@ -203,6 +203,7 @@ Tag symbols (`Holo.glyph(tag)`) also come from the tag's hash, and are the same 
 | On-screen keyboard | `.osk` | For typing with a gamepad. Trap navigation inside it with `Controle.trap`. |
 | Key or command | `kbd.kbd` | A game command inside text (`↓↘→ + Soco`). Does not wrap. |
 | Type badge | `.badge` with `--c: var(--change-*)` | Change type (Novo, Buff, Nerf, Rework, Ajuste). |
+| Bar handle | `.bar-handle[aria-expanded]` (player) | While a game runs, the player bar is hidden and only this small arrow tab shows at the top, at 35% opacity (100% on hover or focus). A click slides the bar down over the game, without resizing it. Clicking the game, pressing Esc or the arrow again hides it; the hidden bar is `inert`. |
 | Search highlight | `mark` | Solid `--accent-soft` background, no yellow. |
 
 ## Gamepad and keyboard
@@ -229,7 +230,7 @@ Rules:
 - `data-nav="skip"` removes an element from directional navigation (it stays in the Tab order). Use it for secondary controls inside a card that have their own shortcut.
 - Focus must be visible: `:focus-visible` and `[data-input="pad"] :focus` draw the ring in the action color.
 - `<html>` gets `data-input="pad" | "key" | "mouse"` according to the last input used.
-- The player (`play.html`) does not load `controle.js`: there, the gamepad belongs to the game.
+- The player (`play.html`) does not load `controle.js`: there, the gamepad belongs to the game. The game gets the whole screen; the bar stays behind the bar handle.
 
 ## Opening
 
