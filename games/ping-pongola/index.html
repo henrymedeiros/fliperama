@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <title>Ping Pongola</title>
+  <meta name="description" content="Tênis de mesa 3D em que o seu celular vira a raquete.">
+  <meta name="theme-color" content="#43bff5">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='28' fill='%23ff8c42'/%3E%3Ccircle cx='24' cy='22' r='8' fill='%23fff' opacity='.6'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+    }
+  }
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
+</head>
+<body>
+  <!-- ================= COMPUTADOR ================= -->
+  <div id="desk" hidden>
+    <canvas id="scene" aria-label="Ginásio 3D com a mesa de tênis de mesa"></canvas>
+    <div class="sky-veil" id="skyVeil"></div>
+
+    <header class="topbar">
+      <button class="me-chip" id="meChip" type="button" aria-label="Editar seu jogador">
+        <span class="mini-mii" id="meAvatar"><i class="h"></i><i class="b"></i></span>
+        <span class="me-name" id="meName">Você</span>
+      </button>
+      <div class="net-pill" id="netPill" role="status"><i></i><span>Conectando…</span></div>
+    </header>
+
+    <main class="screens" id="screens">
+      <!-- Menu principal -->
+      <section class="screen" id="scr-menu" data-screen="menu">
+        <div class="logo" aria-label="Ping Pongola">
+          <span class="logo-ball"></span>
+          <h1><span>Ping</span> <span>Pongola</span></h1>
+          <p class="tagline">Seu celular vira a raquete!</p>
+        </div>
+        <nav class="menu-list">
+          <button class="btn btn-primary btn-xl" data-go="create">Criar partida</button>
+          <button class="btn btn-secondary btn-xl" data-go="join">Entrar em sala</button>
+          <div class="menu-row">
+            <button class="btn btn-soft" data-go="options">Opções</button>
+            <button class="btn btn-soft" data-go="how">Como jogar</button>
+          </div>
+        </nav>
+      </section>
+
+      <!-- Criar partida -->
+      <section class="screen" id="scr-create" data-screen="create" hidden>
+        <h2 class="screen-title">Criar partida</h2>
+        <div class="mode-cards" role="radiogroup" aria-label="Tipo de partida">
+          <button class="mode-card" role="radio" data-mode="cpu" aria-checked="true">
+            <span class="mode-ico ico-cpu"></span>
+            <b>Contra o computador</b>
+            <small>Treine contra um bonequinho</small>
+          </button>
+          <button class="mode-card" role="radio" data-mode="local2" aria-checked="false">
+            <span class="mode-ico ico-duo"></span>
+            <b>Dois jogadores</b>
+            <small>Dois celulares, mesma tela</small>
+          </button>
+          <button class="mode-card" role="radio" data-mode="online" aria-checked="false">
+            <span class="mode-ico ico-online"></span>
+            <b>Online com amigo</b>
+            <small>Cada um no seu computador</small>
+          </button>
+        </div>
+        <div class="tray">
+          <div class="field" id="fDifficulty">
+            <label>Adversário</label>
+            <div class="chips" data-setting="difficulty">
+              <button data-v="easy">Fácil</button><button data-v="normal">Normal</button><button data-v="hard">Difícil</button>
+            </div>
+          </div>
+          <div class="field">
+            <label>Pontos para vencer</label>
+            <div class="chips" data-setting="points" data-type="number">
+              <button data-v="5">5</button><button data-v="7">7</button><button data-v="11">11</button>
+            </div>
+          </div>
+          <div class="field">
+            <label>Velocidade da bola</label>
+            <div class="chips" data-setting="gameSpeed" data-type="number">
+              <button data-v="0.75">Calma</button><button data-v="1">Normal</button><button data-v="1.15">Turbo</button>
+            </div>
+          </div>
+        </div>
+        <p class="note" id="createNote"></p>
+        <div class="actions">
+          <button class="btn btn-soft" data-back>Voltar</button>
+          <button class="btn btn-primary btn-lg" id="startBtn">Jogar!</button>
+        </div>
+      </section>
+
+      <!-- Sala online criada -->
+      <section class="screen" id="scr-host" data-screen="host" hidden>
+        <h2 class="screen-title">Sala criada</h2>
+        <p class="lead">Passe este código para o seu amigo. Ele abre o jogo e escolhe <b>Entrar em sala</b>.</p>
+        <div class="room-code" id="roomCode">-----</div>
+        <div class="actions">
+          <button class="btn btn-soft" id="copyLink">Copiar link da sala</button>
+        </div>
+        <div class="waiting"><span class="dots"><i></i><i></i><i></i></span> Esperando o amigo entrar…</div>
+        <div class="actions">
+          <button class="btn btn-soft" data-back>Cancelar</button>
+        </div>
+      </section>
+
+      <!-- Entrar em sala -->
+      <section class="screen" id="scr-join" data-screen="join" hidden>
+        <h2 class="screen-title">Entrar em sala</h2>
+        <p class="lead">Digite o código que aparece na tela do seu amigo.</p>
+        <form id="joinForm" class="join-form" autocomplete="off">
+          <input id="joinCode" class="code-input" maxlength="5" placeholder="ABCDE" aria-label="Código da sala" spellcheck="false" autocapitalize="characters">
+          <button class="btn btn-primary btn-lg" type="submit">Entrar</button>
+        </form>
+        <p class="note" id="joinNote" role="alert"></p>
+        <div class="actions"><button class="btn btn-soft" data-back>Voltar</button></div>
+      </section>
+
+      <!-- Opções -->
+      <section class="screen screen-wide" id="scr-options" data-screen="options" hidden>
+        <h2 class="screen-title">Opções</h2>
+        <div class="tabs" role="tablist">
+          <button role="tab" data-tab="gfx" aria-selected="true">Gráficos</button>
+          <button role="tab" data-tab="snd" aria-selected="false">Som</button>
+          <button role="tab" data-tab="ctl" aria-selected="false">Controle</button>
+        </div>
+        <div class="tab-panel" data-panel="gfx">
+          <div class="field"><label>Qualidade</label>
+            <div class="chips" data-setting="quality"><button data-v="low">Leve</button><button data-v="medium">Média</button><button data-v="high">Alta</button><button data-v="ultra">Ultra</button></div>
+          </div>
+          <div class="field"><label>Câmera</label>
+            <div class="chips" data-setting="camera"><button data-v="behind">Atrás</button><button data-v="high">Do alto</button><button data-v="tv">De lado (TV)</button></div>
+          </div>
+          <div class="toggles">
+            <label class="toggle"><input type="checkbox" data-setting="shadows"><span></span>Sombras</label>
+            <label class="toggle"><input type="checkbox" data-setting="trail"><span></span>Rastro da bola</label>
+            <label class="toggle"><input type="checkbox" data-setting="particles"><span></span>Faíscas</label>
+            <label class="toggle"><input type="checkbox" data-setting="showFps"><span></span>Mostrar FPS</label>
+            <label class="toggle"><input type="checkbox" data-setting="showSensors"><span></span>Painel dos sensores</label>
+          </div>
+          <p class="note">A suavização de bordas muda depois de recarregar a página.</p>
+        </div>
+        <div class="tab-panel" data-panel="snd" hidden>
+          <div class="field"><label for="sSfx">Efeitos</label><input id="sSfx" type="range" min="0" max="1" step="0.05" data-setting="sfx"></div>
+          <div class="field"><label for="sMusic">Música do menu</label><input id="sMusic" type="range" min="0" max="1" step="0.05" data-setting="music"></div>
+          <div class="field"><label for="sCrowd">Torcida</label><input id="sCrowd" type="range" min="0" max="1" step="0.05" data-setting="crowd"></div>
+          <div class="toggles">
+            <label class="toggle"><input type="checkbox" data-setting="phoneSound"><span></span>Som de batida no celular</label>
+          </div>
+        </div>
+        <div class="tab-panel" data-panel="ctl" hidden>
+          <div class="field"><label>Mão da raquete</label>
+            <div class="chips" data-setting="hand"><button data-v="right">Direita</button><button data-v="left">Esquerda</button></div>
+          </div>
+          <div class="field"><label>Ajuda de mira</label>
+            <div class="chips" data-setting="assist"><button data-v="low">Pouca</button><button data-v="medium">Média</button><button data-v="high">Muita</button></div>
+          </div>
+          <div class="field"><label for="sSens">Sensibilidade do golpe</label><input id="sSens" type="range" min="0.5" max="2" step="0.05" data-setting="sensitivity"></div>
+          <div class="toggles">
+            <label class="toggle"><input type="checkbox" data-setting="vibration"><span></span>Vibrar o celular</label>
+          </div>
+        </div>
+        <div class="actions"><button class="btn btn-primary" data-back>Pronto</button></div>
+      </section>
+
+      <!-- Seu jogador -->
+      <section class="screen" id="scr-player" data-screen="player" hidden>
+        <h2 class="screen-title">Seu jogador</h2>
+        <div class="player-edit">
+          <div class="mii-preview" id="miiPreview"><i class="hair"></i><i class="head"><b></b></i><i class="body"></i></div>
+          <div class="player-fields">
+            <div class="field"><label for="pName">Nome</label><input id="pName" class="text-input" maxlength="12" data-setting="name"></div>
+            <div class="field"><label>Camiseta</label><div class="swatches" data-setting="shirt"></div></div>
+            <div class="field"><label>Pele</label><div class="swatches" data-setting="skin"></div></div>
+            <div class="field"><label>Cabelo</label><div class="swatches" data-setting="hair"></div></div>
+            <div class="field"><label>Penteado</label>
+              <div class="chips" data-setting="hairStyle"><button data-v="short">Curto</button><button data-v="bob">Chanel</button><button data-v="pony">Rabo de cavalo</button></div>
+            </div>
+          </div>
+        </div>
+        <div class="actions"><button class="btn btn-primary" data-back>Pronto</button></div>
+      </section>
+
+      <!-- Como jogar -->
+      <section class="screen screen-wide" id="scr-how" data-screen="how" hidden>
+        <h2 class="screen-title">Como jogar</h2>
+        <ol class="how">
+          <li><span class="how-ico n1"></span><b>Conecte o celular</b><p>Aponte a câmera do celular para o QR code no canto da tela e toque em <i>Ligar raquete</i>.</p></li>
+          <li><span class="how-ico n2"></span><b>Segure como raquete</b><p>Celular em pé, com a parte de trás virada para a tela. Toque em <i>Calibrar</i> apontando para o computador.</p></li>
+          <li><span class="how-ico n3"></span><b>Saque</b><p>Dê um toque para cima com o celular (ou o botão <i>Sacar</i>) para lançar a bola. Depois, rebata!</p></li>
+          <li><span class="how-ico n4"></span><b>Rebata com força e efeito</b><p>Quanto mais rápido o golpe, mais rápida a bola. Gire para os lados para mirar. Golpe de baixo para cima faz <b>topspin</b>, de cima para baixo faz <b>backspin</b>, de lado faz <b>spin lateral</b>.</p></li>
+        </ol>
+        <p class="note">Sem celular? Use o mouse: mova para posicionar, clique para rebater. Segure W, S, A ou D enquanto clica para dar efeito. Espaço lança a bola no saque.</p>
+        <div class="actions"><button class="btn btn-primary" data-back>Entendi!</button></div>
+      </section>
+    </main>
+
+    <!-- HUD da partida -->
+    <div class="hud" id="hud" hidden>
+      <div class="scorebar" id="scorebar">
+        <div class="sb-side" data-side="0"><span class="sb-dot"></span><span class="sb-name">—</span><span class="sb-serve" aria-label="Saque"></span><span class="sb-score">0</span></div>
+        <div class="sb-vs">×</div>
+        <div class="sb-side" data-side="1"><span class="sb-score">0</span><span class="sb-serve" aria-label="Saque"></span><span class="sb-name">—</span><span class="sb-dot"></span></div>
+      </div>
+      <div class="callout" id="callout" aria-live="polite"><b></b><small></small></div>
+      <div class="shot-info" id="shotInfo"><span class="kmh"><b>0</b> km/h</span><span class="spin-chip">Direto</span></div>
+      <div class="hint" id="hint"></div>
+      <button class="hud-pause" id="pauseBtn" aria-label="Pausar">
+        <svg viewBox="0 0 24 24" width="22" height="22"><rect x="6" y="5" width="4" height="14" rx="1.5" fill="currentColor"/><rect x="14" y="5" width="4" height="14" rx="1.5" fill="currentColor"/></svg>
+      </button>
+      <div class="sensor-panel" id="sensorPanel" hidden></div>
+    </div>
+    <div class="fps" id="fps" hidden></div>
+
+    <div class="overlay" id="pauseOverlay" hidden>
+      <div class="sheet">
+        <h2>Pausa</h2>
+        <button class="btn btn-primary btn-lg" id="resumeBtn">Continuar</button>
+        <button class="btn btn-soft" id="recalBtn">Recalibrar celular</button>
+        <button class="btn btn-soft" id="pauseOptions">Opções</button>
+        <button class="btn btn-soft" id="quitBtn">Sair para o menu</button>
+      </div>
+    </div>
+    <div class="overlay" id="endOverlay" hidden>
+      <div class="sheet sheet-end">
+        <div class="trophy"></div>
+        <h2 id="endTitle">Você venceu!</h2>
+        <p class="end-score" id="endScore">7 × 3</p>
+        <button class="btn btn-primary btn-lg" id="rematchBtn">Revanche</button>
+        <button class="btn btn-soft" id="endMenuBtn">Menu</button>
+      </div>
+    </div>
+
+    <!-- QR para parear o celular -->
+    <aside class="qr-dock" id="qrDock" aria-label="Conectar celular">
+      <button class="qr-toggle" id="qrToggle" aria-label="Mostrar ou esconder QR code"></button>
+      <div class="qr-body">
+        <div class="qr-box" id="qrBox"><span class="qr-wait">gerando…</span></div>
+        <div class="qr-text">
+          <b>Celular = raquete</b>
+          <span>Aponte a câmera do celular aqui</span>
+          <code id="qrCode">-----</code>
+        </div>
+      </div>
+      <ul class="slots" id="slots">
+        <li data-slot="0"><b>J1</b><span>sem celular</span></li>
+        <li data-slot="1"><b>J2</b><span>sem celular</span></li>
+      </ul>
+      <p class="qr-warn" id="qrWarn" hidden></p>
+    </aside>
+
+    <div class="cursor-ball" id="cursorBall" aria-hidden="true"></div>
+    <div class="toast" id="toast" role="status"></div>
+  </div>
+
+  <!-- ================= CELULAR (raquete) ================= -->
+  <div id="pad" hidden>
+    <header class="pad-top">
+      <div class="pad-status" id="padStatus"><i></i><span>Desconectado</span></div>
+      <div class="pad-slot" id="padSlot">J?</div>
+    </header>
+
+    <section class="pad-start" id="padStart">
+      <div class="logo logo-sm"><span class="logo-ball"></span><h1><span>Ping</span> <span>Pongola</span></h1></div>
+      <div class="paddle-art"><i class="face"></i><i class="handle"></i></div>
+      <p class="pad-lead">Seu celular vai virar a raquete.</p>
+      <button class="btn btn-primary btn-xl" id="padGo">Ligar raquete</button>
+      <ul class="sensor-list" id="sensorList"></ul>
+      <p class="note" id="padNote" role="alert"></p>
+    </section>
+
+    <section class="pad-main" id="padMain" hidden>
+      <div class="pad-score" id="padScore"><span>0</span><small>×</small><span>0</span></div>
+      <div class="pad-msg" id="padMsg">Segure em pé, com a traseira virada para a tela.</div>
+      <div class="paddle-live" id="paddleLive"><i class="face"><b></b></i><i class="handle"></i></div>
+      <div class="meters">
+        <div class="meter"><label>Força</label><div class="bar"><i id="mPower"></i></div></div>
+        <div class="meter"><label>Giro</label><div class="bar"><i id="mGyro"></i></div></div>
+      </div>
+      <button class="btn-serve" id="padServe" aria-label="Sacar">Sacar</button>
+      <div class="pad-row">
+        <button class="btn btn-soft" id="padCalib">Calibrar</button>
+        <button class="btn btn-soft" id="padPause">Pausar</button>
+      </div>
+      <p class="pad-tiny" id="padInfo"></p>
+    </section>
+    <div class="pad-flash" id="padFlash"></div>
+    <label class="ios-haptic" aria-hidden="true"><input type="checkbox" switch id="iosHaptic"></label>
+  </div>
+
+  <noscript>Este jogo precisa de JavaScript.</noscript>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

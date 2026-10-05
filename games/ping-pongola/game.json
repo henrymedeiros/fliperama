@@ -1,0 +1,12 @@
+{
+  "title": "Ping Pongola",
+  "author": "lexmarcos",
+  "description": "Tênis de mesa 3D em que o celular vira a raquete: aponte a câmera pro QR code e rebata com golpes de verdade, com força, mira e efeito. Sem celular, dá pra jogar com o mouse.",
+  "tags": ["esporte", "3d", "multiplayer"],
+  "players": "1-2",
+  "controls": "Celular como raquete · ou mouse: move e clica, WASD dá efeito, Espaço saca",
+  "online": true,
+  "thumb": "thumb.svg",
+  "entry": "index.html",
+  "created": "2026-10-05"
+}

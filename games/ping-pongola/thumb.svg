@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 400">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#8fdcff"/>
+      <stop offset="1" stop-color="#43bff5"/>
+    </linearGradient>
+    <linearGradient id="table" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#168fd2"/>
+      <stop offset="1" stop-color="#0d5f95"/>
+    </linearGradient>
+    <radialGradient id="ball" cx=".35" cy=".3" r=".75">
+      <stop offset="0" stop-color="#ffd2a8"/>
+      <stop offset=".45" stop-color="#ff8c42"/>
+      <stop offset="1" stop-color="#f26b1d"/>
+    </radialGradient>
+    <linearGradient id="phone" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#dceff6"/>
+    </linearGradient>
+  </defs>
+  <rect width="640" height="400" fill="url(#sky)"/>
+  <ellipse cx="120" cy="70" rx="90" ry="26" fill="#fff" opacity=".55"/>
+  <ellipse cx="520" cy="50" rx="70" ry="20" fill="#fff" opacity=".45"/>
+  <rect y="300" width="640" height="100" fill="#5cc24f"/>
+  <!-- mesa em perspectiva -->
+  <polygon points="190,200 450,200 560,330 80,330" fill="url(#table)"/>
+  <polygon points="80,330 560,330 560,344 80,344" fill="#0b4d79"/>
+  <polygon points="190,200 450,200 560,330 80,330" fill="none" stroke="#fff" stroke-width="5" stroke-linejoin="round"/>
+  <line x1="320" y1="200" x2="320" y2="330" stroke="#fff" stroke-width="3" opacity=".85"/>
+  <!-- rede -->
+  <polygon points="136,262 504,262 504,236 136,236" fill="#ffffff" opacity=".35"/>
+  <line x1="136" y1="236" x2="504" y2="236" stroke="#fff" stroke-width="4"/>
+  <line x1="136" y1="236" x2="136" y2="268" stroke="#17384d" stroke-width="5"/>
+  <line x1="504" y1="236" x2="504" y2="268" stroke="#17384d" stroke-width="5"/>
+  <!-- rastro e bola -->
+  <path d="M250 300 Q330 120 420 150" fill="none" stroke="#ffd65a" stroke-width="10" stroke-linecap="round" opacity=".7"/>
+  <circle cx="428" cy="150" r="22" fill="url(#ball)"/>
+  <!-- celular-raquete -->
+  <g transform="translate(470 210) rotate(18)">
+    <rect x="-38" y="-70" width="76" height="140" rx="16" fill="url(#phone)" stroke="#17384d" stroke-width="5"/>
+    <circle cx="0" cy="-8" r="26" fill="#ff8c42"/>
+    <rect x="-8" y="18" width="16" height="36" rx="6" fill="#ffd65a"/>
+  </g>
+  <!-- título -->
+  <text x="320" y="388" text-anchor="middle" font-family="Fredoka, Nunito, system-ui, sans-serif" font-weight="700" font-size="50" fill="#17384d" opacity=".25" dy="4">Ping Pongola</text>
+  <text x="320" y="388" text-anchor="middle" font-family="Fredoka, Nunito, system-ui, sans-serif" font-weight="700" font-size="50" fill="#ffffff">Ping Pongola</text>
+</svg>
