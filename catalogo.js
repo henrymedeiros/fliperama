@@ -357,7 +357,7 @@
 
     A(intro.querySelector('.intro__orb'), [
       { opacity: 0, transform: 'scale(.2)' },
-      { opacity: .18, transform: 'scale(1.3)', offset: .4 },
+      { opacity: 1, transform: 'scale(1.3)', offset: .4 },
       { opacity: 0, transform: 'scale(3.4)' }], { duration: 1500, easing: 'cubic-bezier(.2,.8,.2,1)', fill: 'both' });
     intro.querySelectorAll('.intro__ring').forEach((ring, i) => {
       const tilt = i * 60 - 30;

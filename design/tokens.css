@@ -1,5 +1,7 @@
 /* Fliperama · tokens do design system
    Só cores sólidas: nenhum degradê em fundo, texto, logo ou carta.
+   Tema claro: só preto (#000) e branco (#fff) na interface; a única cor da tela são as cartas.
+   Nenhum canto arredondado, nos dois temas.
    Toda página do site importa este arquivo primeiro. Nenhuma cor, fonte, raio,
    sombra ou duração solta no código: use sempre um token daqui. Ver DESIGN.md. */
 
@@ -7,37 +9,39 @@
 
 
 :root {
-  /* ---------- cor: tema claro (padrão) ---------- */
-  --bg: #e9ebf5;            /* fundo do álbum */
-  --bg-deep: #dcdfee;       /* áreas rebaixadas, trilhos de controles */
-  --surface: #ffffff;       /* painéis, caixa de texto da carta */
-  --surface-2: #f4f5fb;     /* painel secundário, hover de controles */
-  --ink: #17183b;           /* texto principal */
-  --ink-2: #4a4d72;         /* texto secundário */
-  --ink-3: #75789c;         /* texto terciário, ícones apagados */
-  --line: rgb(23 24 59 / .12);
-  --line-strong: rgb(23 24 59 / .22);
-  --accent: #4b2bff;        /* ação principal, foco, seleção */
+  /* ---------- cor: tema claro (padrão) — só preto e branco ---------- */
+  --bg: #ffffff;            /* fundo da página */
+  --bg-deep: #ffffff;       /* trilhos de controles (o contorno é que separa) */
+  --surface: #ffffff;       /* painéis, campos, botões */
+  --surface-2: #ffffff;     /* painel secundário */
+  --ink: #000000;           /* texto principal */
+  --ink-2: #000000;         /* texto secundário (diferencie por tamanho e peso, não por cinza) */
+  --ink-3: #000000;         /* placeholder, ícones */
+  --line: #000000;          /* bordas e divisões */
+  --line-strong: #000000;
+  --accent: #000000;        /* ação principal, foco */
   --accent-ink: #ffffff;    /* texto sobre --accent */
-  --accent-soft: rgb(75 43 255 / .12);
-  --hot: #e8176f;           /* "nova", alertas de novidade */
+  --accent-soft: #ffffff;   /* sem tom intermediário no claro */
+  --hot: #000000;           /* "nova" */
   --hot-ink: #ffffff;
-  --scrim: rgb(233 235 245 / .82); /* fundo de barras fixas (com blur) */
+  --scrim: #ffffff;         /* fundo da barra grudada */
+  /* estado selecionado/ativo: invertido (preto com texto branco). No escuro não existe e cada componente usa o próprio. */
+  --pressed-bg: #000000;
+  --pressed-ink: #ffffff;
 
-  /* tipos de mudança nas notas de atualização (fundo de selo + texto sobre ele) */
-  --change-novo: #9a6700;   --change-buff: #1a8547;   --change-nerf: #c93030;
-  --change-rework: #6a3df0; --change-ajuste: #0b7a96;  --change-ink: #ffffff;
+  /* tipos de mudança nas notas de atualização: no claro todos pretos (o nome do tipo é que diferencia) */
+  --change-novo: #000000;   --change-buff: #000000;   --change-nerf: #000000;
+  --change-rework: #000000; --change-ajuste: #000000;  --change-ink: #ffffff;
 
 
-  /* carta: é um objeto físico, igual nos dois temas. O matiz (--h, --h2) vem do nome do jogo. */
-  --card-ink: #1d1e33;      /* texto impresso na carta */
-  --card-ink-2: #4d4f66;    /* texto secundário impresso */
-  --card-dim: 1;            /* brilho geral da carta (o tema escuro abaixa um pouco) */
+  /* carta: as cores dela ficam em design/carta.css (versão clara e escura, a partir do matiz do nome) */
 
-  /* sombras (tingidas com a tinta, nunca preto puro) */
-  --shadow-1: 0 1px 2px rgb(23 24 59 / .08), 0 2px 6px rgb(23 24 59 / .06);
-  --shadow-2: 0 2px 4px rgb(23 24 59 / .06), 0 12px 28px -8px rgb(23 24 59 / .22);
-  --shadow-3: 0 4px 10px rgb(23 24 59 / .08), 0 28px 60px -16px rgb(23 24 59 / .35);
+  /* sombras: no claro não há cinza, então painéis não têm sombra (o contorno preto separa).
+     --shadow-lift é a sombra sólida preta de algo que levanta (carta ativa). */
+  --shadow-1: 0 0 0 0 transparent;   /* "sem sombra", mas válido dentro de listas de box-shadow */
+  --shadow-2: 0 0 0 0 transparent;
+  --shadow-3: 0 0 0 0 transparent;
+  --shadow-lift: 8px 8px 0 #000000;
 
   color-scheme: light;
 
@@ -57,15 +61,13 @@
 
   /* ---------- espaço (base 4) ---------- */
   --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 24px; --sp-6: 32px; --sp-7: 48px; --sp-8: 64px;
+  --control-h: 48px;      /* altura de busca, seletor e botões lado a lado */
   --gutter: 16px;          /* margem lateral mínima no celular */
   --page-max: 1240px;
 
   /* ---------- raios (por hierarquia, não um só pra tudo) ---------- */
-  --r-xs: 6px;    /* selos, tags dentro da carta */
-  --r-sm: 10px;   /* janela da arte, campos internos */
-  --r-md: 14px;   /* painéis, menus */
-  --r-card: 4.55% / 3.5%; /* a carta (proporção de carta colecionável) */
-  --r-pill: 999px;/* chips, botões, busca */
+  /* ---------- raios: nenhum canto arredondado, nos dois temas ---------- */
+  --r-xs: 0; --r-sm: 0; --r-md: 0; --r-card: 0; --r-pill: 0;
 
   /* ---------- movimento ---------- */
   --dur-1: 120ms;  /* micro: hover, press */
@@ -97,16 +99,18 @@
   --hot: #ff5ca8;
   --hot-ink: #0f1030;
   --scrim: rgb(15 16 48 / .8);
+  --pressed-bg: initial;    /* no escuro cada componente usa a própria cor de seleção */
+  --pressed-ink: initial;
 
   --change-novo: #ffc94d;   --change-buff: #4fe08f;   --change-nerf: #ff7070;
   --change-rework: #b49bff; --change-ajuste: #5fd8f2;  --change-ink: #0f1030;
 
 
-  --card-dim: .94;
 
   --shadow-1: 0 1px 2px rgb(0 0 20 / .4), 0 2px 6px rgb(0 0 20 / .3);
   --shadow-2: 0 2px 4px rgb(0 0 20 / .3), 0 14px 30px -8px rgb(0 0 20 / .6);
   --shadow-3: 0 4px 10px rgb(0 0 20 / .35), 0 30px 60px -16px rgb(0 0 20 / .75);
+  --shadow-lift: 0 2px 4px rgb(0 0 20 / .3), 0 18px 32px -10px rgb(0 0 20 / .6);
 
   color-scheme: dark;
 }

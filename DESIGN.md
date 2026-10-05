@@ -38,7 +38,8 @@ A page's own CSS handles layout only (grid, position, spacing between blocks). C
 3. **Every name has its own card.** A card's color and printed pattern come from the game's name. Nobody picks card colors by hand; the same name always produces the same card.
 4. **Playable without a mouse.** Everything that works with a click works with the keyboard and with a gamepad. No action may depend on hover alone.
 5. **Motion answers someone.** Animations happen when the person does something (hovers, filters, switches theme). The only automatic sequence is the logo opening. Cards have no entrance animation. With `prefers-reduced-motion`, everything stays still.
-6. **Light first.** The light theme is the default. Dark is the person's choice, never the operating system's.
+6. **Dark first; light in black and white.** The dark theme is the default. The light theme is the person's choice (never the operating system's), and its interface uses only two colors: pure black (`#000`) and pure white (`#fff`), so the cards are the only color on screen.
+7. **Square corners.** `border-radius` is 0 everywhere, in both themes: buttons, fields, chips, panels, badges, dots and the card itself.
 
 ## Color
 
@@ -46,30 +47,30 @@ Token names are the same in both themes; only the value changes. Never write a h
 
 | Token | Light | Dark | Use |
 | --- | --- | --- | --- |
-| `--bg` | `#e9ebf5` | `#0f1030` | Page background (the "album"). |
-| `--bg-deep` | `#dcdfee` | `#0a0b24` | Segmented control track, recessed areas. |
-| `--surface` | `#ffffff` | `#1a1c45` | Panels, search field, buttons. |
-| `--surface-2` | `#f4f5fb` | `#23265a` | Control hover, secondary panel. |
-| `--ink` | `#17183b` | `#eef0ff` | Primary text. |
-| `--ink-2` | `#4a4d72` | `#a9add8` | Secondary text. |
-| `--ink-3` | `#75789c` | `#7c80b0` | Placeholder, muted icon. Do not use for text that must be read. |
-| `--line` / `--line-strong` | ink at 12% / 22% | ink at 12% / 24% | Borders and dividers. |
-| `--accent` | `#4b2bff` | `#8f7dff` | The only action color: primary button, focus, selection. |
-| `--accent-ink` | `#ffffff` | `#0f1030` | Text on `--accent`. |
-| `--accent-soft` | accent at 12% | accent at 18% | Selection background, focus halo. |
-| `--hot` | `#e8176f` | `#ff5ca8` | Only for "new": the "Nova" stamp, the new-version dot. |
-| `--scrim` | background at 82% | background at 80% | Sticky top bar (always with blur). |
-| `--change-novo`, `--change-buff`, `--change-nerf`, `--change-rework`, `--change-ajuste` | `#9a6700`, `#1a8547`, `#c93030`, `#6a3df0`, `#0b7a96` | `#ffc94d`, `#4fe08f`, `#ff7070`, `#b49bff`, `#5fd8f2` | Change types in update notes (new, buff, nerf, rework, tweak). Text on them: `--change-ink` (white in light, dark ink in dark); contrast of at least 4.5:1 in both themes. |
+| `--bg` | `#fff` | `#0f1030` | Page background. |
+| `--bg-deep` | `#fff` | `#0a0b24` | Segmented control track, recessed areas. |
+| `--surface` / `--surface-2` | `#fff` / `#fff` | `#1a1c45` / `#23265a` | Panels, fields, buttons, hover. |
+| `--ink` / `--ink-2` / `--ink-3` | `#000` / `#000` / `#000` | `#eef0ff` / `#a9add8` / `#7c80b0` | Text. In light, tell levels apart by size and weight, never by grey. |
+| `--line` / `--line-strong` | `#000` / `#000` | ink at 12% / 24% | Borders and dividers. In light, panels are separated by a 1px black outline. |
+| `--accent` / `--accent-ink` | `#000` / `#fff` | `#8f7dff` / `#0f1030` | The only action color: primary button, focus, search highlight. |
+| `--accent-soft` | `#fff` | accent at 18% | Soft background. In light it has no tint, so anything on it needs an outline. |
+| `--pressed-bg` / `--pressed-ink` | `#000` / `#fff` | not set | Selected or hovered state in light: inverted. In dark it is not set and each component falls back to its own selection color (`var(--pressed-bg, …)`). |
+| `--hot` / `--hot-ink` | `#000` / `#fff` | `#ff5ca8` / `#0f1030` | Only for "new": the "Nova" stamp, the new-version dot. |
+| `--scrim` | `#fff` | background at 80% | Sticky top bar (always with blur). |
+| `--change-*` / `--change-ink` | all `#000` / `#fff` | `#ffc94d`, `#4fe08f`, `#ff7070`, `#b49bff`, `#5fd8f2` / `#0f1030` | Change types in update notes. In light the type name tells them apart. |
+| `--shadow-1` to `--shadow-3` | `0 0 0 0 transparent` | soft shadows | No shadows in light (they would be grey). The value stays valid inside `box-shadow` lists, so never set it to `none`. |
+| `--shadow-lift` | `8px 8px 0 #000` | soft shadow | Something that lifts (the active card). In light, a solid black offset. |
 
 Rules:
 
+- Light theme: only `#000` and `#fff` outside the cards. No grey, and no opacity on interface text or icons (it turns them grey): show an empty or disabled state with a different treatment, such as a strikethrough or an outline.
 - One action color only (`--accent`). Buttons, links and focus never get other colors.
 - `--hot` is not an action color; it only signals something new.
 - Shadows are tinted with the page ink (`--shadow-1`, `--shadow-2`, `--shadow-3`), never pure black.
 - No `linear-gradient`, `radial-gradient` or `conic-gradient` in backgrounds, text or SVG fills. The single exception is the card holo (`carta.css`), which uses one hue plus black and white. Transparency is allowed to show a solid color lighter (for example `--accent-soft`).
 - Tags have no color of their own: their symbols use the text color.
 - The card hue comes from `holo.js`, not from tokens.
-- The card is a physical object and has the same colors in both themes. Its tokens are `--card-ink`, `--card-ink-2` (printed text) and `--card-dim` (the dark theme lowers the overall brightness slightly).
+- The card has a light and a dark design (see "The card"). Its colors live in `carta.css` as `--card-*` variables built from the name hue, not in `tokens.css`.
 
 ## Typography
 
@@ -90,8 +91,9 @@ Rules:
 ## Spacing, radius and layers
 
 - Spacing on a base of 4: `--sp-1` 4, `--sp-2` 8, `--sp-3` 12, `--sp-4` 16, `--sp-5` 24, `--sp-6` 32, `--sp-7` 48, `--sp-8` 64.
+- Control height (`--control-h`, 48px): search, segmented control and buttons share it, so controls placed side by side line up. Dense bars (like the player's) may go smaller, but all controls in the same row use the same height.
 - Side margin (`--gutter`): 16px on phones, 32px from 720px up. Maximum page width: `--page-max` (1240px). Use `.wrap` for both.
-- Radius by hierarchy, not one value for everything: `--r-xs` 6 (stamps), `--r-sm` 10 (inner boxes), `--r-md` 14 (panels), `--r-card` (the card: `4.55% / 3.5%`, the curve of a collectible card), `--r-pill` (chips, buttons, search).
+- Radius: every `--r-*` token is 0 and no component may set its own `border-radius`. Corners are always square, in both themes.
 - Layers: `--z-card-ui`, `--z-bar` (sticky bar), `--z-pop`, `--z-hint` (gamepad bar), `--z-intro` (opening).
 
 ## Motion
@@ -145,14 +147,21 @@ Attributes:
 2. **Seed** for a pseudorandom generator (mulberry32). Everything below comes from it.
 3. **Hue** `--h` (0–359). All card colors are solid tones of this one hue, set in `carta.css`:
 
-| Variable | Value | Use |
-| --- | --- | --- |
-| `--card-frame` | `hsl(h 55% 50%)` | Frame. |
-| `--card-face` | `hsl(h 18% 80%)` | Face. A mid tone on purpose: `color-dodge` only shows on mid tones, so do not lighten it. |
-| `--card-strong` | `hsl(h 55% 32%)` | Type symbol, "Versão" badge, icons, avatar and cover fallback. |
-| `--card-panel` | `#ffffff` | Tags, author strip, art frame, data strip, attributes. |
-| `--card-line` | `hsl(h 22% 72%)` | Panel borders and dividers. |
-| `--sp-1` to `--sp-6` | six tones of `h` | Monochrome "sunpillars": they replace the rainbow colors of pokemon-cards-css. |
+Dark card (default theme) and light card share the structure; only these variables change, set on `.card` and on `[data-theme="dark"] .card`:
+
+| Variable | Light card | Dark card | Use |
+| --- | --- | --- | --- |
+| `--card-frame` | `hsl(h 55% 50%)` | `hsl(h 60% 46%)` | Frame. |
+| `--card-face` | `hsl(h 18% 80%)` | `hsl(h 32% 15%)` | Face. The light one is a mid tone on purpose: `color-dodge` only shows on mid tones, so do not lighten it. |
+| `--card-panel` | `#fff` | `hsl(h 30% 22%)` | Tags, author strip, art frame, data strip, attributes. |
+| `--card-line` | `#000` | `hsl(h 35% 36%)` | Panel outlines and dividers (`--card-panel-edge`). |
+| `--card-ink` / `--card-ink-2` | `#000` / `#000` | `#eef0ff` / `hsl(h 25% 80%)` | Printed text. |
+| `--card-strong` / `--card-on-strong` | `hsl(h 55% 32%)` / `#fff` | `hsl(h 85% 72%)` / `hsl(h 45% 12%)` | Type symbol, "Versão" badge, icons, fallbacks, and the text on them. |
+| `--card-edge` | `#000` | transparent | Outline of the whole card. |
+| `--shine` | 32% at rest, 100% active | 20% at rest, 55% active | Holo strength. On the dark face `color-dodge` lights up much more, so it is capped to keep the text readable. |
+| `--sp-1` to `--sp-6` | six tones of `h` | same | Monochrome "sunpillars": they replace the rainbow colors of pokemon-cards-css. |
+
+The light card looks printed: black outlines on the card and every rectangular panel, black text, like the black and white interface. The dark card is a night version: dark face tinted by the name, panels one step lighter, light text and symbols in a light tone of the hue.
 
 4. **Pattern**, one of seven families (`estrelas` stars, `listras` stripes, `losangos` diamonds, `ondas` waves, `raios` rays, `aneis` rings, `pixels`), with randomized count, angle, thickness and position. It becomes a white SVG the size of the card, with no transparency: `--foil`, the texture some variants use (like the glitter and foil images in the original repo).
 5. **Holo variant** (`data-holo`), one of four, like the rarities of a card game.
@@ -172,13 +181,13 @@ The holo follows [pokemon-cards-css](https://github.com/simeydotme/pokemon-cards
 
 Retired variants: `linhas` (holo V), `cosmos` (cosmos holo) and `radiante` (radiant rare). To keep every other card unchanged, `holo.js` still draws from the original list of seven (`DRAW`); a name that lands on a retired variant draws again among the active ones (`VARIANTS`) with a separate generator, so its pattern does not change. To retire another variant, remove it from `VARIANTS` and from `carta.css`, and keep it in `DRAW`.
 
-At rest the shine sits at 32% (`--shine`), so the card already looks shiny; when active it goes to 100%. The original repo starts at 0%.
+At rest the shine sits at 32% on the light card and 20% on the dark card (`--shine`), so the card already looks shiny; the original repo starts at 0%.
 
 ### Interaction
 
 `Holo.attach(card)` starts springs with the same constants as pokemon-cards-css and updates `--pointer-x/y`, `--pointer-from-center/top/left`, `--background-x/y`, `--rotate-x/y` and `--card-opacity`:
 
-- **At rest:** the shine sits at 32%.
+- **At rest:** the shine sits at 32% on the light card and 20% on the dark card.
 - **Mouse over** (`.is-active`): the card grows 4%, tilts up to 14° toward the pointer, the shine and the glare follow it, and the shadow grows. The shadow is always neutral, never in the name's color. On leave, it wobbles back.
 - **Keyboard or gamepad focus:** the card tilts on its own, slowly (`ctl.auto(true)`).
 - **Reduced motion:** no tilt; the shine still follows the pointer.
@@ -254,4 +263,6 @@ On the first visit of each session, the logo appears large in the middle of the 
 3. Tested with the keyboard (Tab and arrows) and, if possible, with a gamepad.
 4. Tested at 375px wide with no horizontal scroll.
 5. Tested with `prefers-reduced-motion: reduce`.
-6. Any new component or token lives in `design/` and in this document.
+6. Light theme checked for color: outside the cards, only `#000` and `#fff`.
+7. No `border-radius` other than 0.
+8. Any new component or token lives in `design/` and in this document.

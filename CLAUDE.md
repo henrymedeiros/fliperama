@@ -64,7 +64,7 @@ Toda interface do site (catálogo, player e qualquer página nova fora de `games
 
 - Importe `design/tema.js`, `design/tokens.css` e `design/components.css` e use só os tokens: nada de cor, fonte, raio, sombra ou duração solta.
 - Reaproveite os componentes de `design/components.css`. Se precisar de um novo, crie lá, documente no `DESIGN.md` e só então use.
-- Tema claro é o padrão; tudo precisa funcionar nos dois temas, no celular (375px), com teclado, com controle (`design/controle.js`) e com movimento reduzido.
+- Tema escuro é o padrão; tudo precisa funcionar nos dois temas, no celular (375px), com teclado, com controle (`design/controle.js`) e com movimento reduzido.
 
 Os jogos em `games/` têm visual próprio e não precisam seguir o design system. A exceção são as páginas de notas de atualização (campo `notes`): elas fazem parte do site, seguem o design system e importam `../../design/` (modelo: `games/ultra-mini-fighter-4/notas.html`).
 

@@ -38,9 +38,9 @@ button { cursor: pointer; }
 /* ================= botões ================= */
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: var(--sp-2);
-  min-height: 44px; padding: 0 var(--sp-5);
+  min-height: var(--control-h); padding: 0 var(--sp-5);
   font: 600 var(--fs-2)/1 var(--font-body);
-  border-radius: var(--r-pill); border: 1px solid transparent;
+  border-radius: 0; border: 1px solid transparent;
   text-decoration: none; white-space: nowrap;
   transition: background-color var(--dur-1) var(--ease-out), transform var(--dur-1) var(--ease-out), border-color var(--dur-1);
 }
@@ -48,11 +48,11 @@ button { cursor: pointer; }
 .btn--primary { background: var(--accent); color: var(--accent-ink); }
 .btn--primary:hover { background: color-mix(in oklab, var(--accent) 88%, var(--ink)); }
 .btn--ghost { background: transparent; color: var(--ink); border-color: var(--line-strong); }
-.btn--ghost:hover { background: var(--surface-2); }
-.btn--icon { width: 44px; padding: 0; }
+.btn--ghost:hover { background: var(--pressed-bg, var(--surface-2)); color: var(--pressed-ink, var(--ink)); }
+.btn--icon { width: var(--control-h); padding: 0; }
 .btn svg { width: 20px; height: 20px; }
 .btn__count {
-  min-width: 20px; height: 20px; padding: 0 6px; border-radius: var(--r-pill);
+  min-width: 20px; height: 20px; padding: 0 6px; border-radius: 0;
   background: var(--accent); color: var(--accent-ink); font-size: var(--fs-1); display: inline-grid; place-items: center;
 }
 .btn__count:empty { display: none; }
@@ -67,8 +67,8 @@ button { cursor: pointer; }
 /* ================= busca ================= */
 .search {
   position: relative; display: flex; align-items: center;
-  flex: 1 1 320px; min-width: 0; height: 52px;
-  border-radius: var(--r-pill);
+  flex: 1 1 320px; min-width: 0; height: var(--control-h);
+  border-radius: 0;
   background: var(--surface);
   box-shadow: var(--shadow-1), inset 0 0 0 1px var(--line);
   transition: box-shadow var(--dur-2) var(--ease-out), transform var(--dur-2) var(--ease-out);
@@ -97,7 +97,7 @@ button { cursor: pointer; }
 @keyframes count-bump { 40% { transform: translateY(-3px) scale(1.25); color: var(--accent); } }
 .search__clear {
   flex: none; width: 32px; height: 32px; margin-right: var(--sp-2);
-  display: grid; place-items: center; border: 0; border-radius: 50%;
+  display: grid; place-items: center; border: 0; border-radius: 0;
   background: var(--surface-2); color: var(--ink-2);
   transform: scale(0); opacity: 0;
   transition: transform var(--dur-2) var(--ease-spring), opacity var(--dur-1), background-color var(--dur-1);
@@ -107,7 +107,7 @@ button { cursor: pointer; }
 .search.has-text .search__clear { transform: scale(1); opacity: 1; }
 .search__key {
   flex: none; margin-right: 14px; min-width: 26px; height: 26px; padding: 0 6px;
-  display: grid; place-items: center; border-radius: var(--r-xs);
+  display: grid; place-items: center; border-radius: 0;
   font: 600 var(--fs-1)/1 var(--font-body); color: var(--ink-3);
   box-shadow: inset 0 0 0 1px var(--line-strong), inset 0 -2px 0 var(--line);
   transition: opacity var(--dur-1);
@@ -118,7 +118,7 @@ button { cursor: pointer; }
 /* tecla ou comando de jogo dentro de um texto (ex.: ↓↘→ + Soco) */
 .kbd {
   display: inline-block; padding: 1px 7px; margin-inline: 1px;
-  border-radius: var(--r-xs); background: var(--surface-2); color: var(--ink);
+  border-radius: 0; background: var(--surface-2); color: var(--ink);
   box-shadow: inset 0 0 0 1px var(--line-strong), inset 0 -2px 0 var(--line);
   font: 600 .9em/1.5 var(--font-body); white-space: nowrap;
 }
@@ -126,48 +126,49 @@ button { cursor: pointer; }
 /* selo de tipo de mudança (notas de atualização): --c recebe um token --change-* */
 .badge {
   display: inline-flex; align-items: center; justify-content: center;
-  min-height: 22px; padding: 0 9px; border-radius: var(--r-xs);
+  min-height: 22px; padding: 0 9px; border-radius: 0;
   background: var(--c, var(--accent)); color: var(--change-ink);
   font: 700 var(--fs-1)/1 var(--font-body); white-space: nowrap;
 }
 
 /* destaque do termo buscado dentro das cartas */
-mark { color: inherit; background: var(--accent-soft); border-radius: 3px; box-shadow: 0 0 0 1px var(--accent-soft); }
+mark { color: var(--accent-ink); background: var(--accent); }
 
 /* ================= segmentado (ordenar, modo) ================= */
 .seg {
-  position: relative; display: inline-flex; padding: 4px; gap: 2px;
-  border-radius: var(--r-pill); background: var(--bg-deep);
+  position: relative; display: inline-flex; height: var(--control-h); padding: 4px; gap: 2px;
+  border-radius: 0; background: var(--bg-deep);
   box-shadow: inset 0 0 0 1px var(--line);
 }
 .seg__thumb {
   position: absolute; top: 4px; bottom: 4px; left: 0; width: var(--w, 0px);
   transform: translateX(var(--x, 0px));
-  border-radius: var(--r-pill); background: var(--surface); box-shadow: var(--shadow-1);
+  border-radius: 0; background: var(--pressed-bg, var(--surface)); box-shadow: var(--shadow-1);
   transition: transform var(--dur-3) var(--ease-spring), width var(--dur-3) var(--ease-spring);
 }
 .seg button {
-  position: relative; z-index: 1; min-height: 36px; padding: 0 14px;
-  border: 0; background: none; border-radius: var(--r-pill);
+  position: relative; z-index: 1; min-height: 0; padding: 0 14px;
+  border: 0; background: none; border-radius: 0;
   font: 600 var(--fs-2)/1 var(--font-body); color: var(--ink-2); white-space: nowrap;
   transition: color var(--dur-2);
 }
 .seg button:hover { color: var(--ink); }
-.seg button[aria-pressed="true"] { color: var(--ink); }
+.seg button[aria-pressed="true"] { color: var(--pressed-ink, var(--ink)); }
 
 /* ================= chips (filtros) ================= */
 .chip {
   --c: var(--accent);
   display: inline-flex; align-items: center; gap: 6px;
   min-height: 36px; padding: 0 14px 0 12px;
-  border-radius: var(--r-pill); border: 1px solid var(--line-strong);
+  border-radius: 0; border: 1px solid var(--line-strong);
   background: var(--surface); color: var(--ink-2);
   font: 600 var(--fs-2)/1 var(--font-body); white-space: nowrap;
   transition: background-color var(--dur-2), border-color var(--dur-2), color var(--dur-2), transform var(--dur-1) var(--ease-out);
 }
 .chip:hover { color: var(--ink); border-color: var(--c); }
 .chip:active { transform: scale(.96); }
-.chip[aria-pressed="true"] { background: color-mix(in oklab, var(--c) 16%, var(--surface)); border-color: var(--c); color: var(--ink); }
+.chip[aria-pressed="true"] { background: var(--pressed-bg, color-mix(in oklab, var(--c) 16%, var(--surface))); border-color: var(--pressed-bg, var(--c)); color: var(--pressed-ink, var(--ink)); }
+.chip[aria-pressed="true"] .chip__n, .chip[aria-pressed="true"] .chip__glyph { color: var(--pressed-ink, inherit); }
 .chip[disabled] { opacity: .45; cursor: default; }
 .chip__glyph { width: 14px; height: 14px; color: var(--c); }
 .chip__n { font-weight: 500; color: var(--ink-3); font-variant-numeric: tabular-nums; }
@@ -188,7 +189,7 @@ mark { color: inherit; background: var(--accent-soft); border-radius: 3px; box-s
   position: fixed; left: 50%; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); z-index: var(--z-hint);
   display: flex; gap: var(--sp-4); align-items: center;
   padding: 8px 16px 8px 10px;
-  border-radius: var(--r-pill);
+  border-radius: 0;
   background: var(--surface); box-shadow: var(--shadow-3), inset 0 0 0 1px var(--line);
   font: 600 var(--fs-1)/1 var(--font-body); color: var(--ink-2); white-space: nowrap;
   transform: translate(-50%, 140%); opacity: 0;
@@ -199,7 +200,7 @@ mark { color: inherit; background: var(--accent-soft); border-radius: 3px; box-s
 .hintbar span { display: inline-flex; align-items: center; gap: 6px; }
 .pad-btn {
   display: inline-grid; place-items: center; min-width: 22px; height: 22px; padding: 0 5px;
-  border-radius: var(--r-pill); background: var(--ink); color: var(--bg);
+  border-radius: 0; background: var(--ink); color: var(--bg);
   font: 700 11px/1 var(--font-body);
 }
 .pad-btn--a, .pad-btn--b, .pad-btn--x, .pad-btn--y { background: var(--accent); color: var(--accent-ink); }
@@ -208,16 +209,16 @@ mark { color: inherit; background: var(--accent-soft); border-radius: 3px; box-s
 .osk {
   display: grid; grid-template-columns: repeat(10, 1fr); gap: 6px;
   padding: var(--sp-3); margin-top: var(--sp-3);
-  border-radius: var(--r-md); background: var(--surface); box-shadow: var(--shadow-2), inset 0 0 0 1px var(--line);
+  border-radius: 0; background: var(--surface); box-shadow: var(--shadow-2), inset 0 0 0 1px var(--line);
 }
 .osk[hidden] { display: none; }
 .osk button {
-  min-height: 40px; border: 0; border-radius: var(--r-xs);
+  min-height: 40px; border: 1px solid var(--line); border-radius: 0;
   background: var(--surface-2); color: var(--ink);
   font: 600 var(--fs-2)/1 var(--font-body);
   transition: background-color var(--dur-1), transform var(--dur-1);
 }
-.osk button:hover, .osk button:focus { background: var(--accent-soft); }
+.osk button:hover, .osk button:focus { background: var(--pressed-bg, var(--accent-soft)); color: var(--pressed-ink, var(--ink)); }
 .osk button:active { transform: scale(.94); }
 .osk .osk__wide { grid-column: span 3; }
 .osk .osk__ok { grid-column: span 2; background: var(--accent); color: var(--accent-ink); }

@@ -1,11 +1,11 @@
 // Fliperama · tema.js — carregue no <head>, antes do CSS pintar, pra não piscar.
-// O tema claro é o padrão. A escolha fica salva em localStorage ('fliperama:tema') e vale pra todas as páginas do site.
+// O tema escuro é o padrão. A escolha fica salva em localStorage ('fliperama:tema') e vale pra todas as páginas do site.
 (() => {
   const KEY = 'fliperama:tema';
   const root = document.documentElement;
   let saved = null;
   try { saved = localStorage.getItem(KEY); } catch (e) {}
-  root.dataset.theme = saved === 'dark' ? 'dark' : 'light';
+  root.dataset.theme = saved === 'light' ? 'light' : 'dark';
 
   function set(theme, origin) {
     const apply = () => {

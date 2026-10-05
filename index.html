@@ -61,7 +61,7 @@ main { padding-block: var(--sp-5) var(--sp-8); }
 .grid > .card { width: 100%; max-width: 400px; justify-self: center; }
 .empty { display: grid; justify-items: center; gap: var(--sp-4); padding: var(--sp-8) 0; text-align: center; color: var(--ink-2); }
 .empty[hidden] { display: none; }
-.empty__card { width: 84px; aspect-ratio: 63 / 88; border-radius: 10px; border: 2px dashed var(--line-strong); rotate: -6deg; display: grid; place-items: center; color: var(--ink-3); }
+.empty__card { width: 84px; aspect-ratio: 63 / 88; border-radius: 0; border: 2px dashed var(--line-strong); rotate: -6deg; display: grid; place-items: center; color: var(--ink-3); }
 .empty__card svg { width: 28px; height: 28px; }
 .empty p { margin: 0; max-width: 40ch; font-size: var(--fs-3); }
 .empty b { color: var(--ink); }
@@ -70,9 +70,9 @@ main { padding-block: var(--sp-5) var(--sp-8); }
 .how { padding-block: var(--sp-7) var(--sp-8); border-top: 1px solid var(--line); }
 .how h2 { margin: 0 0 var(--sp-5); font: 700 var(--fs-4)/var(--lh-tight) var(--font-display); letter-spacing: -.02em; }
 .how ol { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--sp-4); grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); counter-reset: passo; }
-.how li { counter-increment: passo; padding: var(--sp-4); border-radius: var(--r-md); background: var(--surface); box-shadow: var(--shadow-1), inset 0 0 0 1px var(--line); color: var(--ink-2); font-size: var(--fs-2); }
-.how li::before { content: counter(passo); display: grid; place-items: center; width: 28px; height: 28px; margin-bottom: var(--sp-3); border-radius: 50%; background: var(--accent-soft); color: var(--accent); font: 700 var(--fs-2)/1 var(--font-display); }
-.how code { font-family: ui-monospace, Consolas, monospace; font-size: .95em; color: var(--ink); background: var(--bg-deep); padding: 1px 6px; border-radius: var(--r-xs); }
+.how li { counter-increment: passo; padding: var(--sp-4); border-radius: 0; background: var(--surface); box-shadow: var(--shadow-1), inset 0 0 0 1px var(--line); color: var(--ink-2); font-size: var(--fs-2); }
+.how li::before { content: counter(passo); display: grid; place-items: center; width: 28px; height: 28px; margin-bottom: var(--sp-3); border-radius: 0; background: var(--accent-soft); color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); font: 700 var(--fs-2)/1 var(--font-display); }
+.how code { font-family: ui-monospace, Consolas, monospace; font-size: .95em; color: var(--ink); background: var(--bg-deep); padding: 1px 6px; border-radius: 0; }
 
 
 /* abertura: o logo nasce no meio da tela e voa pro canto (estilo Xbox 360), só com cor sólida */
@@ -80,8 +80,8 @@ main { padding-block: var(--sp-5) var(--sp-8); }
 .is-intro .intro { display: grid; }
 .is-intro .logo { position: relative; z-index: calc(var(--z-intro) + 1); }
 .is-intro .reveal { opacity: 0; }
-.intro__orb { position: absolute; width: 40vmin; aspect-ratio: 1; border-radius: 50%; background: var(--accent); opacity: 0; }
-.intro__ring { position: absolute; width: 70vmin; aspect-ratio: 1; border-radius: 50%; border: 4px solid var(--accent); opacity: 0; }
+.intro__orb { position: absolute; width: 40vmin; aspect-ratio: 1; border-radius: 0; border: 8px solid var(--accent); opacity: 0; }
+.intro__ring { position: absolute; width: 70vmin; aspect-ratio: 1; border-radius: 0; border: 4px solid var(--accent); opacity: 0; }
 .intro__skip { position: absolute; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); font: 500 var(--fs-1)/1 var(--font-body); color: var(--ink-3); opacity: 0; }
 </style>
 </head>
@@ -98,7 +98,7 @@ main { padding-block: var(--sp-5) var(--sp-8); }
   <a class="logo" id="logo" href="./" aria-label="Fliperama, início">
     <span class="logo__word" data-text="Fliperama">Fliperama</span>
   </a>
-  <button type="button" class="btn btn--ghost btn--icon theme-toggle reveal" data-theme-toggle aria-label="Usar tema escuro" aria-pressed="false">
+  <button type="button" class="btn btn--ghost btn--icon theme-toggle reveal" data-theme-toggle aria-label="Usar tema claro" aria-pressed="true">
     <svg class="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/></svg>
     <svg class="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z"/></svg>
   </button>
