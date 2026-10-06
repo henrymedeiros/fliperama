@@ -90,6 +90,7 @@
   scroll-margin: 96px var(--gutter) var(--sp-7);
 }
 .fighter__face { width: 72px; height: 72px; border-radius: 0; background: var(--bg-deep); box-shadow: 0 0 0 3px var(--surface), 0 0 0 5px var(--c); }
+.fighter__face--geral { display: grid; place-items: center; font: 700 var(--fs-1)/1 var(--font-display); color: var(--ink); text-transform: uppercase; }
 .fighter h3 { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); margin: 0; font: 700 var(--fs-4)/1.2 var(--font-display); letter-spacing: -.02em; }
 .fighter__ver { padding: 3px 8px; border-radius: 0; background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--line-strong); font: 600 var(--fs-1)/1.2 var(--font-body); letter-spacing: 0; color: var(--ink-2); }
 .fighter__types { display: inline-flex; gap: 4px; margin-left: auto; }
@@ -185,6 +186,27 @@ const TYPES = { novo: ['Novo', 'var(--change-novo)'], buff: ['Buff', 'var(--chan
 const C = s => `<kbd class="kbd">${s}</kbd>`;
 // notas por lançamento (o mais novo primeiro). Lutador: [id do retrato, nome, [[tipo, mudança], ...], versão do lutador (padrão: a do lançamento)]
 const RELEASES = [{
+  id: 'punicao-colt-2.0.0', title: 'Punição + Colt 2.0', kind: 'Mecânica e ajustes de personagens', date: '2026-10-06',
+  chars: [
+    [null, 'Geral', [['ajuste', 'Pouso de golpe agora é recuperação de verdade: Shoryuken, super que sobe e outros golpes que terminam pousando não defendem nem aparam até poder agir, e apanhar ali é PUNISH COUNTER. O pouso de pulo comum continua defendendo.'],
+      ['ajuste', 'Especial ou super pego caindo depois dos quadros ativos (um Shoryuken defendido, por exemplo) fica em juggle em vez de cair de pé: dá pra emendar um especial.'],
+      ['ajuste', 'Projétil de vários acertos não atravessa mais a defesa quando passa do meio do corpo de quem defende (Shinku Hadouken do Kai, ossos da Dança das Samambaias do Shiro). Agora a defesa é pelo lado de onde o projétil vem.'],
+      ['ajuste', 'Correção: defender o Inferno Iogue do Ravi deixava quem defendeu preso na defesa.'],
+      ['ajuste', 'Treino: o boneco na DEFESA (e na DEFESA APÓS 1º HIT) defende parado, sem andar pra trás, e defende golpe baixo em vez de aparar.']], 'Base'],
+    ['colt', 'Colt', [['rework', `Super novo: SONIC HURRICANE (como o do Guile no SF5, no mesmo ${C('↓↘→↓↘→ + Soco')}). Gira os braços e solta na frente um redemoinho verde-limão que fica parado acertando 5 vezes, segura quem pula (anti-aéreo) e termina com uma meia-lua que lança.`],
+      ['novo', 'Sonic Hurricane sai em 7 quadros, invencível do 1º ao 6º; anula qualquer projétil sem perder força e continua mesmo se o Colt apanhar. Na defesa é bem punível (-24).'],
+      ['buff', 'Flash Kick com o alcance do SF4: o pé varre de baixo pra cima bem na frente (forte alcança mais que o médio, que alcança mais que o fraco) e deixa a meia-lua amarela de energia no caminho do pé.']], '2.0.0'],
+    ['optik', 'Optik', [['nerf', 'Mega Optic Blast defendido colado agora é punível (-14): o Optik segura a pose até o feixe acabar.']], '1.2.0'],
+    ['roko', 'Roko', [['nerf', 'Hyper Mega Buster defendido colado agora é punível (-12): o Roko segura a pose até o feixe acabar.']], '2.1.0'],
+    ['genoma', 'Genoma', [['nerf', 'Kamehameha Solar defendido colado agora é punível (-14): o Genoma segura a pose até o feixe acabar.']], '1.2.0'],
+    ['goen', 'Goen', [['nerf', 'Kamehameha Pai e Filho defendido colado agora é punível (-14): o Goen segura a pose até o feixe acabar.']], '1.1.0'],
+    ['kazan', 'Kazan', [['nerf', 'Devil Blaster defendido colado agora é punível (-12): o Kazan segura a pose até o feixe acabar.']], '1.1.0'],
+    ['shiro', 'Shiro', [['nerf', 'Dança das Samambaias defendida agora é punível (-9): o Shiro segura a pose enquanto os ossos saem.']], '1.1.0'],
+    ['winston', 'Holyfield', [['ajuste', 'Visual novo: careca, bigode, pele mais escura, mais magro, regata branca com estampa azul, bermuda azul-marinho e pulseira dourada.'],
+      ['ajuste', 'Guarda na altura do queixo: as luvas não cobrem mais o rosto (na luta e nos retratos).']], 'Base'],
+    ['rodney', 'Papangu', [['ajuste', 'Rodney agora se chama Papangu.'], ['ajuste', 'Guarda na altura do queixo: as luvas não cobrem mais o rosto (na luta e nos retratos).']], 'Base'],
+  ]
+}, {
   id: 'gunter-eterno-g', title: 'Gunter e Eterno G.', kind: 'Ajuste de personagem', date: '2026-10-03',
   chars: [
     ['gunter', 'Gunter', [['ajuste', `A antiga 1.0.0 virou a Base: Giant Palm Bomber em ${C('↓↙← + Soco')} e V-Skill Joelho Gigante. O Gunter original saiu do seletor; agora são só a Base e o Eterno G.`]], 'Base'],
@@ -277,7 +299,7 @@ const RELEASES = [{
     ['nervo', 'Nervo', [['ajuste', `Comandos como os do Necro no SF3: Tornado Hook ${C('←↙↓↘→ + Soco')}, Flying Viper ${C('↓↙← + Soco')}, Snake Fang (agarrão baixo) ${C('←↙↓↘→ + Chute')}.`], ['ajuste', `A descarga dos 3 socos (Cobra Elétrica) agora é ${C('↓↙← + Chute')}.`], ['buff', `Novo: Electric Shock (${C('→↓↘ + Soco')}), anti-aéreo elétrico que sobe.`], ['buff', `Novo: Drill Kick no ar (${C('↓ + Chute')}), ângulo muda com a força.`], ['buff', 'Tempestade Magnética quase não empurra no acerto.']]],
     ['optik', 'Optik', [['ajuste', 'Optic Blast (alto, baixo e aéreo) e o super com menos acertos e o mesmo dano total: dá pra aparar.']]],
     ['ravi', 'Ravi', [['buff', 'Golpes no ar alcançam bem mais.'], ['buff', `${C('↓ + Soco')} e ${C('↓ + Chute')} no ar com 3 ângulos pela força (fraco quase vertical, forte mais aberto).`], ['buff', `Teleporte no ar (${C('→↓↘ + Soco')} no pulo), também levitando.`]]],
-    ['rodney', 'Rodney', [['buff', 'Buffalo Headbutt fraco como anti-aéreo deixa emendar outro Headbutt ou o Dash Punch.']]],
+    ['rodney', 'Papangu', [['buff', 'Buffalo Headbutt fraco como anti-aéreo deixa emendar outro Headbutt ou o Dash Punch.']]],
     ['roko', 'Roko', [['rework', `${C('↓↘→ + Soco')} virou um lança-chamas de curto alcance (como o do Alek e do Joe).`], ['ajuste', `O Mega Buster foi pra carga ${C('(segure ←) → + Soco')}.`], ['rework', 'Charge Shot virou a V-Skill: segurando, carrega até 3 acertos, com mais dano e tiro maior.'], ['ajuste', 'Rush Coil com efeito de fogo.'], ['ajuste', 'Hyper Mega Buster com menos acertos e o mesmo dano total.']]],
     ['shiro', 'Shiro', [['buff', `Super novo: Dança das Samambaias (${C('↓↙←↓↙← + Soco')}, 2 barras). Uma fileira de ossos sai do chão na frente dele, lança e deixa emendar um especial (combo e anti-aéreo).`], ['buff', 'Dança do Lariço dura mais e alcança mais; tudo cresce com a força (fraco mais rápido e menor). No ar, joga o oponente pra cima e deixa emendar.'], ['rework', 'V-Skill nova: Corrente de Osso. Puxa o oponente pra perto mesmo se ele defender; no acerto deixa emendar combo.']]],
     ['valerius', 'Valerius', [['rework', 'Super novo: Dominant Crush (o do Urien no SFV) no lugar do Aegis Reflector.'], ['buff', 'Chariot Tackle que pega alguém no ar deixa o oponente caindo devagar: dá pra emendar o super.'], ['rework', 'Metallic Sphere como no SFV: fraco reto e lento, médio reto e rápido, forte sobe em 45°. Segurando o soco, carrega uma esfera maior com 2 acertos.'], ['ajuste', 'A Aura Metálica (V-Skill com armadura e pele escura) já estava na Base.']]],
@@ -344,7 +366,7 @@ function render() {
       const el = document.createElement('article'); el.className = 'fighter'; el.tabIndex = 0;
       el.style.setProperty('--c', TYPES[main][1]);
       el.setAttribute('aria-label', `${name}, versão ${ver}`);
-      el.innerHTML = `<img class="fighter__face" src="retratos/${id}.webp" alt="" width="72" height="72" loading="lazy">
+      el.innerHTML = `${id ? `<img class="fighter__face" src="retratos/${id}.webp" alt="" width="72" height="72" loading="lazy">` : '<span class="fighter__face fighter__face--geral" aria-hidden="true">Geral</span>'}
         <div><h3><span class="fighter__name">${name}</span><span class="fighter__ver">${ver}</span>
           <span class="fighter__types">${ty.map(t => `<span class="badge" style="--c:${TYPES[t][1]}">${TYPES[t][0]}</span>`).join('')}</span></h3>
         <ul>${its.map(([t, s]) => `<li><span class="badge" style="--c:${TYPES[t][1]}">${TYPES[t][0]}</span><span class="fighter__text">${s}</span></li>`).join('')}</ul></div>`;

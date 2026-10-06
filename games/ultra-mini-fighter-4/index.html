@@ -1425,11 +1425,11 @@ const Cmd = {
     const s = f.in; if (!frozen) s.ic++;
     const t = s.ic, n = this.numpad(inp, f.face), p = s.dir;
     f.fx = (inp.r ? 1 : 0) - (inp.l ? 1 : 0); f.fwd = f.fx * f.face;
-    f.holdBack = n == 1 || n == 4 || n == 7; f.holdDown = n <= 3; f.up = n >= 7;
+    f.holdBack = n == 1 || n == 4 || n == 7; f.holdDown = n <= 3; f.up = n >= 7; f.guard = !!inp.g;   // g: segura pra trás só pra defender, sem andar (boneco do treino)
     if (n != p) {
       const wasF = p == 6 || p == 3 || p == 9, wasD = p <= 3;
-      if ((n == 6 || n == 9) && !wasF) this.tap(s, 'tapF', t);
-      if (n <= 3 && !wasD) this.tap(s, 'tapD', t);
+      if ((n == 6 || n == 9) && !wasF && !inp.g) this.tap(s, 'tapF', t);   // a guarda do boneco não conta como toque (senão ele aparra em vez de defender)
+      if (n <= 3 && !wasD && !inp.g) this.tap(s, 'tapD', t);
       const h = s.hist; h.push(n, t); if (h.length > 64) h.splice(0, 2);
       const L = h.length;
       if ((n == 6 || n == 4) && L >= 6 && h[L - 4] == 5 && h[L - 6] == n && t - h[L - 5] <= 12) { if (n == 6) s.dashF = t; else s.dashB = t; }
@@ -1667,11 +1667,11 @@ class Fighter {
       combo: 0, comboDmg: 0, comboScale: 1, starterL: false, juggle: 0, airReset: false, airUsed: false,
       hitMask: 0, contact: 0, cancelUntil: -1, grabDone: false, armorLeft: 0, projMask: 0, throwInv: 0, throwBack: false,
       flash: 0, flashCol: 0, shakeT: 0, cine: null, thr: null, cineRot: 0, parryFx: 0, want: null, in: Cmd.fresh(),
-      mode: 0, modeT: 0, tStop: 0, frozen: 0, sPrev: 0, sStep: 0, wantBuf: null, wantBufT: 0, bounced: 0, lastDmg: 'V', grey: 0, greyT: 0, airVs: false, mvId: 0, lastSrc: '', floatK: 0, quickLand: 0, vbuff: null, boostMv: -1, boostMult: 1, boostCol: '', boostSu: false, aura: 0, auraMv: -1, bch: 0, bchP: 0, bchPT: 0, bchHeld: 0 });
+      mode: 0, modeT: 0, tStop: 0, frozen: 0, sPrev: 0, sStep: 0, wantBuf: null, wantBufT: 0, bounced: 0, lastDmg: 'V', grey: 0, greyT: 0, airVs: false, mvId: 0, lastSrc: '', floatK: 0, quickLand: 0, recov: false, guard: false, vbuff: null, boostMv: -1, boostMult: 1, boostCol: '', boostSu: false, aura: 0, auraMv: -1, bch: 0, bchP: 0, bchPT: 0, bchHeld: 0 });
     this.trail = [];
   }
   get m() { return this.mv ? getMove(this.ch, this.mv) : null; }
-  setSt(s) { this.st = s; this.stT = 0; if (s == 'idle') { this.mv = null; this.juggle = 0; this.crouchHit = false; this.airReset = false; this.airVs = false; } }
+  setSt(s) { this.st = s; this.stT = 0; this.recov = false; if (s == 'idle') { this.mv = null; this.juggle = 0; this.crouchHit = false; this.airReset = false; this.airVs = false; } }
 
   // ---------------- decisão ----------------
   normalKey(air) {
@@ -1947,7 +1947,7 @@ class Fighter {
     this.crouch = this.holdDown; this.walking = 0;
     if (M.phase != 'fight') return;
     if (this.up) { this.setSt('prejump'); this.jdir = this.fx; this.crouch = false; return; }
-    if (!this.crouch && this.fx) { const sp = (this.fwd > 0 ? this.ch.walkF : this.ch.walkB) * (this.mode && this.ch.modeStats ? this.ch.modeStats.walk || 1 : 1) * (this.bch ? this.ch.busterCharge.walk : 1); this.x += this.fx * sp; this.walking = this.fwd; this.walkPh += sp * .1; }
+    if (!this.crouch && this.fx && !(this.guard && this.fwd < 0)) { const sp = (this.fwd > 0 ? this.ch.walkF : this.ch.walkB) * (this.mode && this.ch.modeStats ? this.ch.modeStats.walk || 1 : 1) * (this.bch ? this.ch.busterCharge.walk : 1); this.x += this.fx * sp; this.walking = this.fwd; this.walkPh += sp * .1; }
   }
   launchJump() {
     const ch = this.ch, back = this.jdir * this.face < 0;
@@ -1994,6 +1994,7 @@ class Fighter {
     }
     const projs = m.projs || (m.proj ? [m.proj] : []);
     projs.forEach((p, i) => { if (this.t == p.f && !(this.projMask & (1 << i))) { this.projMask |= 1 << i; Combat.spawnProj(this, p); } });
+    if (m.arc && this.t == m.s && !SIM.silent) FX.add({ type: 'arc', x: this.x + this.face * 6 * this.sz, y: this.y, l: 26, s: this.sz, face: this.face, col: m.arc.col });
     if (this.t == m.s && m.hits.length) Audio.sfx('whiff', m.hits[0].lv == 'H' ? 1.6 : m.hits[0].lv == 'M' ? 1.25 : 1, this.x);
     // estouro visual num ponto do corpo (palmas do Giant Palm Bomber): bursts = [{ f, x, y, s, col, snd }]
     if (m.bursts) for (const B of m.bursts) if (this.t == B.f) {
@@ -2029,7 +2030,8 @@ class Fighter {
     else if (this.st == 'atk' && m) {
       this.vx = 0; FX.dust(this.x, 0, 8);
       if (m.onLand) Combat.shock(this, o, m.onLand);
-      if (m.landEnd) { this.mv = null; this.setSt('land'); this.landT = this.quickLand ? 3 : m.landEnd === true ? (m.super ? 16 : 11) : m.landEnd; }
+      // pouso de golpe (Shoryuken, super que sobe...) é recuperação de verdade: não defende nem aparra, e apanhar aqui é PUNISH COUNTER (o pouso de pulo comum continua defendendo)
+      if (m.landEnd) { this.mv = null; this.setSt('land'); this.recov = true; this.landT = this.quickLand ? 3 : m.landEnd === true ? (m.super ? 16 : 11) : m.landEnd; }
       this.quickLand = 0;
     } else if (this.st == 'knock') {
       this.floatK = 0;
@@ -2086,7 +2088,7 @@ const Combat = {
   },
   canBlock(o, h, srcX) {
     if (h.unblockable || o.y > 0 || o.tStop > 0) return false;
-    if (!(o.st == 'idle' || o.st == 'block' || o.st == 'land')) return false;
+    if (!(o.st == 'idle' || o.st == 'block' || (o.st == 'land' && !o.recov))) return false;
     const away = o.x == srcX ? -o.face : Math.sign(o.x - srcX);
     if (o.fx != away) return false;
     if (h.low && !o.holdDown) return false;
@@ -2100,7 +2102,7 @@ const Combat = {
     if (!h.unparryable) {
       const air = o.y > 0, red = o.st == 'block';
       if (air ? (o.st == 'air' && !o.mv && !h.low && Cmd.parryOk(o, false, true, false))
-        : (o.st == 'idle' || o.st == 'prejump' || o.st == 'land' || red) &&
+        : (o.st == 'idle' || o.st == 'prejump' || (o.st == 'land' && !o.recov) || red) &&
           (h.low ? Cmd.parryOk(o, true, false, red) : h.high ? Cmd.parryOk(o, false, false, red) : Cmd.parryOk(o, false, false, red) || Cmd.parryOk(o, true, false, red)))
         return { r: 'parry', red };
     }
@@ -2110,6 +2112,7 @@ const Combat = {
     if (arm && o.t >= arm.f[0] && o.t <= arm.f[1] && o.armorLeft > 0 && !h.armorBreak) return { r: 'armor', lethal: !!arm.lethal };
     let ctr = null;
     if (om && !om.move && (o.st == 'atk' || o.st == 'air')) ctr = o.t <= om.e ? 'counter' : 'punish';
+    else if (o.st == 'land' && o.recov) ctr = 'punish';   // pegou no pouso de um especial/super
     return { r: 'hit', ctr };
   },
   // quadros até o atacante pousar (cross up: compensa a altura do acerto; 3 = um pulo que acertou fundo)
@@ -2122,7 +2125,7 @@ const Combat = {
   },
   apply(a, o, h, out, px, py, proj, m) {
     const dir = proj ? Math.sign(h.vx) || 1 : (a.x <= o.x ? 1 : -1), L = LEVEL[h.lv] || LEVEL.M;
-    if (!proj) a.hitMask |= 1 << h.idx;
+    if (!proj) { a.hitMask |= 1 << h.idx; if (h.grp != null && m) for (const x of m.hits) if (x.grp === h.grp) a.hitMask |= 1 << x.idx; }   // grp: caixas que mudam com o tempo mas valem um acerto só
     // acerto seguido do mesmo golpe/projétil (o último, que derruba, mantém o impacto cheio)
     const src = proj ? h.src : a.i + ':' + a.mvId, rep = !!src && o.lastSrc === src && !h.kd && !h.launch; o.lastSrc = src || '';
     const touch = kind => { if (!proj) { a.contact = a.contact || kind; a.cancelUntil = a.t + 14; } };
@@ -2180,6 +2183,8 @@ const Combat = {
     if (o.ch.heal && o.hp > 0) { o.grey = Math.min(o.ch.healMax || 25 * HPK, gPrev + Math.round(dmg * o.ch.heal)); o.greyT = GREY_DELAY; }   // fator de cura
     if (h.drain && !proj && a.hp > 0) { a.hp = Math.min(a.ch.hp, a.hp + Math.max(1, Math.round(dmg * h.drain))); a.hpS = Math.max(a.hpS, a.hp); FX.aura(a, 10); }   // absorção
     a.comboDmg += dmg; a.stats.dmg += dmg; a.stats.hits++; a.stats.maxCombo = Math.max(a.stats.maxCombo, a.combo);
+    // especial/super pego no ar depois dos quadros ativos (Shoryuken caindo): fica em juggle em vez de cair de pé, dá pra emendar um especial
+    const recAir = out.ctr == 'punish' && o.y > 0 && o.st != 'knock' && !!o.m && (o.m.special || o.m.super);
     o.mv = null; o.combo = 0; o.cine = null; o.flash = 2; o.flashCol = out.ctr ? 2 : 1;
     const air = o.y > 0 || o.st == 'knock';
     o.hitKind = py > o.y + 90 * o.sz ? 'head' : 'gut'; o.hitLv = h.lv;
@@ -2192,8 +2197,8 @@ const Combat = {
     if (h.crumple && out.ctr == 'punish' && !air && o.hp > 0) { o.setSt('crumple'); o.stun = 48; o.vx = dir * 2; }
     else if (h.kd || h.launch || lnch || air || o.hp <= 0) {
       const aL = air && !apex && !lnch && !h.launch && h.airLaunch;
-      o.airReset = air && !h.kd && !h.launch && !lnch && !aL && o.st != 'knock' && o.hp > 0;
-      if (o.st == 'knock') o.juggle += h.jAdd || 1; else o.juggle = lnch ? 0 : 1;
+      o.airReset = air && !recAir && !h.kd && !h.launch && !lnch && !aL && o.st != 'knock' && o.hp > 0;
+      if (o.st == 'knock') o.juggle += h.jAdd || 1; else o.juggle = lnch || recAir ? 0 : 1;
       if (h.jSet != null) o.juggle = h.jSet;   // golpe que zera o contador de juggle (deixa emendar um especial depois)   // só o lançador deixa o contador em 0 (qualquer especial pega)
       o.kdType = h.kd == 'hard' ? 'hard' : 'soft';
       const L2 = apex ? { vy: 9, vx: .8 } : lnch || h.launch || aL;
@@ -2329,7 +2334,7 @@ const Combat = {
   spawnProj(f, p) {
     const opp = M.f[1 - f.i];
     M.projs.push({ ex: !!(f.mv && f.mv.endsWith(':3')), id: M.projSeq = (M.projSeq || 0) + 1, x: p.atOpp ? opp.x : f.x + f.face * (52 + (p.ahead || 0)) * f.sz, y: p.atOpp ? (p.yOff || 0) : f.y + (p.yOff || (p.shape == 'kunai' ? 92 : 84)) * f.sz,
-      vx: f.face * p.vx, vy: p.vy || 0, ax: p.accel ? -f.face * p.accel : 0, o: f.i, p: JSON.parse(JSON.stringify(p)), left: p.hits || 1, gapT: p.delay || 0, life: p.life || 200, t: 0, dead: 0, src: f.i + ':' + (f.mvId || 0) });
+      vx: f.face * p.vx, fc: f.face, vy: p.vy || 0, ax: p.accel ? -f.face * p.accel : 0, o: f.i, p: JSON.parse(JSON.stringify(p)), left: p.hits || 1, gapT: p.delay || 0, life: p.life || 200, t: 0, dead: 0, src: f.i + ':' + (f.mvId || 0) });
     const np = M.projs[M.projs.length - 1]; np.sx = np.x; np.sy = np.y;
     // projétil turbinado pela V-Skill (ex.: ANGRY CHARGE do Sakda: a bola de fogo vira multi-hit e lança pra juggle)
     const vbp = f.boostMv >= 0 && f.boostMv === f.mvId && f.ch.vskill && f.ch.vskill.vbuff && f.ch.vskill.vbuff.proj;
@@ -2371,10 +2376,12 @@ const Combat = {
         continue;
       }
       if (pr.gapT <= 0 && !(pr.p.activeT && pr.t > pr.p.activeT) && !o.invulTo('proj') && !(o.st == 'knock' && !(pr.p.jLimit > o.juggle))) {
-        const box = { x1: pr.x - r, x2: pr.x + r, y1: pr.y - r, y2: pr.y + r };
+        const rw = pr.p.rw || r, box = { x1: pr.x - rw, x2: pr.x + rw, y1: pr.y - r, y2: pr.y + r };   // rw: raio horizontal próprio (Sonic Hurricane, achatado)
         if (o.hurt().some(h => overlap(h, box))) {
-          const h = Object.assign({ lv: 'SP', idx: 31 }, pr.p, { vx: pr.vx, src: pr.src, kd: pr.left <= 1 && pr.p.kd ? 'soft' : null }, pr.left <= 1 ? pr.p.lastHit : null);   // lastHit: propriedades só do último acerto
-          const out = this.judge(owner, o, h, true, pr.x);
+          const h = Object.assign({ lv: 'SP', idx: 31, hs: 16, bs: 12 }, pr.p, { vx: pr.vx, src: pr.src, kd: pr.left <= 1 && pr.p.kd ? 'soft' : null }, pr.left <= 1 ? pr.p.lastHit : null);   // lastHit: propriedades só do último acerto
+          // defende pelo lado de onde o projétil vem (direção do voo; parado, como os ossos do chão, pelo lado pra onde o dono olhava):
+          // um multi-hit que passa do meio do corpo, ou uma fileira que vai além dele, não vira o lado da defesa
+          const out = this.judge(owner, o, h, true, pr.vx ? o.x - Math.sign(pr.vx) : pr.fc ? o.x - pr.fc : pr.x);
           this.apply(owner, o, h, out, pr.x, pr.y, true, null);
           pr.left--; pr.gapT = pr.p.gap || 0; if (pr.p.beam || pr.p.stickHit) pr.lock = 1;   // stickHit: projétil multi-hit que gruda no oponente ao acertar
           if (pr.left <= 0) { if (pr.p.keep) pr.gapT = 1e9; else { pr.dead = 1; FX.projEnd(pr); } }   // keep: continua visível até o fim da vida, sem acertar de novo
@@ -2387,7 +2394,9 @@ const Combat = {
       const a = L[i], b = L[j];
       const straight = p => !p.p.grav && !p.p.vy && !p.p.atOpp, yTol = a.p.r + b.p.r + (straight(a) && straight(b) ? 44 : 0);
       if (a.o != b.o && !a.dead && !b.dead && !a.p.ghost && !b.p.ghost && Math.abs(a.x - b.x) < a.p.r + b.p.r && Math.abs(a.y - b.y) < yTol) {
-        const da = a.left, db = b.left; a.left -= db; b.left -= da;
+        const da = a.left, db = b.left;
+        if (a.p.pierce && !b.p.pierce) b.left = 0; else if (b.p.pierce && !a.p.pierce) a.left = 0;   // pierce (Sonic Hurricane): anula o outro sem perder força
+        else { a.left -= db; b.left -= da; }
         if (a.left <= 0) a.dead = 1; if (b.left <= 0) b.dead = 1;
         FX.hit((a.x + b.x) / 2, a.y, 1, 1.4, 'proj'); Audio.sfx('clash', 1, a.x);
       }
@@ -2919,7 +2928,7 @@ defChar({
       proj: { f: 14, vx: .6, vy: 2.4, r: 30, life: 26, dmg: 4, hits: s == 3 ? 3 : 2, gap: 8, shape: 'flame', col: '#ff5a1a', glow: '#ffe08a', yOff: 130, ahead: 20, hs: 20, bs: 10, kd: 1 } }),
     tele: s => ({ anim: 'tele', startup: 99, dur: 44, inv: { strike: [1, 34], throw: [1, 34], proj: [1, 34] }, ghost: 1, fade: [4, 28], tele: { f: 16, behind: s >= 1, front: false } }),
     super: () => ({ anim: 'flame', super: 1, startup: 20, active: 40, recovery: 22, inv: { strike: [1, 20], proj: [1, 20] }, name: 'INFERNO IOGUE', shout: 'yogainferno',
-      proj: { f: 20, vx: 3.5, r: 44, life: 100, dmg: 6, hits: 6, gap: 6, shape: 'flame', big: 1, col: '#ff3a0a', glow: '#fff0a0', kd: 1, yOff: 96, ahead: 50, lv: 'SA' } }),
+      proj: { f: 20, vx: 3.5, r: 44, life: 100, dmg: 6, hits: 6, gap: 6, hs: 20, bs: 10, shape: 'flame', big: 1, col: '#ff3a0a', glow: '#fff0a0', kd: 1, yOff: 96, ahead: 50, lv: 'SA' } }),
   },
   vskill: { anim: 'float', air: 0, airOk: 1, startup: 99, dur: 60, move: 1, vel: [[2, 2, 0, 9]], hover: [14, 50], landEnd: 4, drift: 3.4, name: 'LEVITAÇÃO', airActs: 1 },
   ai: { proj: 'fire', aa: 'blast', enders: ['flame'], zoner: 1, tele: 'tele', poke: 'smp', bnb: ['clp', 'cmp'] }
@@ -3069,11 +3078,11 @@ const PUNCH_KICKS = {
   jlk: { anim: 'jp' }, jmk: { anim: 'jmp' }, jhk: { anim: 'jhp' },
 };
 defChar({
-  id: 'rodney', name: 'RODNEY', title: 'Touro de Las Vegas', style: 'Carga / Pressão', stats: [5, 3, 3], stage: 'neon', aura: '#48f', charge: 1,
+  id: 'rodney', name: 'PAPANGU', renamed: 1, title: 'Touro de Las Vegas', style: 'Carga / Pressão', stats: [5, 3, 3], stage: 'neon', aura: '#48f', charge: 1,
   quote: 'Dinheiro na mão, oponente no chão. Simples assim.', voice: { spk: 'rodney', pitch: .7 },
   look: { brow: 'thick', gloveType: 'boxing', skin: '#7a4a2e', hair: 'flattop', hairC: '#141010', torso: 'tank', top: '#2a4ab0', pants: '#2a4ab0', shorts: 1, sleeve: 'none', glove: '#2050d0', feet: '#1a1a1a', build: 1.25 },
   palettes: [{}, { top: '#b01818', pants: '#b01818', glove: '#b01818' }, { top: '#e8e8e8', pants: '#e8e8e8', glove: '#e8c040' }, { top: '#1a1a1a', pants: '#1a1a1a', glove: '#8a1aa0' }],
-  sz: 1.1, hp: 110, walkF: 3.4, walkB: 3, jumpV: 14.5, jumpX: 4.2, stance: [54, 10, 30, 108, 20, 102, 16, 0, -20, 0, 0],
+  sz: 1.1, hp: 110, walkF: 3.4, walkB: 3, jumpV: 14.5, jumpX: 4.2, stance: [54, 10, 34, 96, 24, 90, 16, 0, -20, 0, 0],   // guarda na altura do queixo (as luvas não cobrem o rosto)
   normals: PUNCH_KICKS,
   specials: [{ id: 'turn', input: 'P3', btn: 'P', fixed: 2 }, { id: 'buff', input: '[2]8', btn: 'P' }, { id: 'dup', input: '[4]6', btn: 'K' }, { id: 'dstr', input: '[4]6', btn: 'P' }],
   moves: {
@@ -3123,9 +3132,9 @@ defChar({
 defChar({
   id: 'winston', name: 'HOLYFIELD', renamed: 1, title: 'O Cavalheiro do Ringue', style: 'Boxe clássico', stats: [4, 4, 2], stage: 'airbase', aura: '#fd6',
   quote: 'Uma luta digna. Aceite esta rosa como lembrança.', voice: { spk: 'winston', pitch: .75 },
-  look: { gloveType: 'boxing', skin: '#6a4028', hair: 'flattop', hairC: '#141010', mustache: '#141010', torso: 'bare', pants: '#e8e8e8', shorts: 1, sleeve: 'none', glove: '#d8d8e0', feet: '#1a1a1a', belt: '#1a2a6a', build: 1.12 },
-  palettes: [{}, { pants: '#1a2a6a', glove: '#1a2a6a' }, { pants: '#6a1a1a', glove: '#e8c040' }, { pants: '#1a1a1a', glove: '#1a1a1a', belt: '#e8c040' }],
-  sz: 1.02, hp: 100, walkF: 3.8, walkB: 3.1, jumpV: 15, jumpX: 4.4, stance: [55, 8, 28, 110, 18, 104, 14, 0, -20, 0, 0],
+  look: { gloveType: 'boxing', skin: '#4e2f1f', hair: 'bald', hairC: '#141010', mustache: '#141010', torso: 'tank', top: '#f2f2f4', print: '#2a5ad8', neck: '#2a5ad8', pants: '#1a2a6a', shorts: 1, sleeve: 'none', glove: '#d8d8e0', feet: '#1a1a1a', belt: '#e8e8e8', bracelets: 1, build: 1.04 },
+  palettes: [{}, { top: '#1a2a6a', print: '#9ab8ff', neck: '#9ab8ff', pants: '#e8e8e8', belt: '#1a2a6a', glove: '#1a2a6a' }, { pants: '#6a1a1a', glove: '#e8c040', print: '#c83a3a', neck: '#c83a3a' }, { top: '#1a1a1a', print: '#e8c040', neck: '#e8c040', pants: '#1a1a1a', glove: '#1a1a1a', belt: '#e8c040' }],
+  sz: 1.02, hp: 100, walkF: 3.8, walkB: 3.1, jumpV: 15, jumpX: 4.4, stance: [55, 8, 32, 98, 22, 92, 14, 0, -20, 0, 0],   // guarda na altura do queixo (as luvas não cobrem o rosto)
   normals: PUNCH_KICKS,
   specials: [{ id: 'jet', input: '623', btn: 'P' }, { id: 'cross', input: '214', btn: 'P' }, { id: 'mgb', input: '236', btn: 'P' }, { id: 'ssb', input: '236', btn: 'K' }],
   moves: {
@@ -4433,6 +4442,13 @@ addVersion('shiro', { id: '1.0.0', apply(ch) {
     proj: { f: 12, vx: 11, r: 14, life: 42, dmg: 4, hs: 20, bs: 14, shape: 'spear', bone: 1, lv: 'SP', snd: 'hitM', pullTo: 72, pullStun: 34, pullBlock: 1 } };
 } });
 
+// ===== SHIRO 1.1.0 =====
+addVersion('shiro', { id: '1.1.0', apply(ch) {
+  // Dança das Samambaias punível colado: ele segura a pose enquanto os ossos saem (antes recuperava antes de quem defendeu)
+  const sup2 = ch.moves.super2;
+  ch.moves.super2 = s => Object.assign(sup2(s), { recovery: 44 });
+} });
+
 </script>
 <script>/* src/data/versions/goen.js */
 // ===== GOEN 1.0.0 =====
@@ -4441,6 +4457,13 @@ addVersion('goen', { id: '1.0.0', apply(ch) {
   beamFewerHits(ch);
   // Carregar Ki: não enche mais segurando; cada uso dá 1/9 da barra (3 usos = 1/3 da barra de super)
   ch.vskill = Object.assign({}, ch.vskill, { dur: 30, ki: [12, 12, METER_MAX / 9] });
+} });
+
+// ===== GOEN 1.1.0 =====
+addVersion('goen', { id: '1.1.0', apply(ch) {
+  // super punível colado: o lutador segura a pose enquanto o feixe sai (antes recuperava antes de quem defendeu)
+  const sup = ch.moves.super;
+  ch.moves.super = s => Object.assign(sup(s), { recovery: 66 });
 } });
 
 </script>
@@ -4460,6 +4483,13 @@ addVersion('optik', { id: '1.1.0', apply(ch) {
   ch.moves.super = s => { const m = sup(s); m.proj = Object.assign({}, m.proj, { dmg: m.proj.dmg * 2, jLimit: 99, trackY: 1, airLaunch: { vy: 3.4, vx: .3 } }); return m; };
 } });
 
+// ===== OPTIK 1.2.0 =====
+addVersion('optik', { id: '1.2.0', apply(ch) {
+  // super punível colado: o lutador segura a pose enquanto o feixe sai (antes recuperava antes de quem defendeu)
+  const sup = ch.moves.super;
+  ch.moves.super = s => Object.assign(sup(s), { recovery: 64 });
+} });
+
 </script>
 <script>/* src/data/versions/genoma.js */
 // ===== GENOMA 1.0.0 =====
@@ -4474,6 +4504,13 @@ addVersion('genoma', { id: '1.0.0', apply(ch) {
 addVersion('genoma', { id: '1.1.0', apply(ch) {
   // Absorção: roubo de barra 85% menor — rouba só 15 de barra (antes 1 barra de EX inteira = 100)
   ch.vskill = Object.assign({}, ch.vskill, { hits: ch.vskill.hits.map(h => Object.assign({}, h, { meterSteal: Math.round(EX_COST * .15) })) });
+} });
+
+// ===== GENOMA 1.2.0 =====
+addVersion('genoma', { id: '1.2.0', apply(ch) {
+  // super punível colado: o lutador segura a pose enquanto o feixe sai (antes recuperava antes de quem defendeu)
+  const sup = ch.moves.super;
+  ch.moves.super = s => Object.assign(sup(s), { recovery: 66 });
 } });
 
 </script>
@@ -4506,6 +4543,27 @@ addVersion('colt', { id: '1.0.0', apply(ch) {
 addVersion('colt', { id: '1.1.0', apply(ch) {
   // Solid Puncher: só 1 na tela por vez (continua não contando no limite do Sonic Boom: no máximo 1 Solid Puncher + 1 Sonic Boom)
   ch.vskill = Object.assign({}, ch.vskill, { multiProj: 0, proj: Object.assign({}, ch.vskill.proj, { kind: 'solid' }) });
+} });
+
+// ===== COLT 2.0.0 =====
+addVersion('colt', { id: '2.0.0', apply(ch) {
+  // Flash Kick com o alcance do SF4: o pé varre de baixo pra cima na frente — caixa longa e baixa no começo, alta depois (um acerto só) —
+  // e deixa a meia-lua de energia no caminho do pé. Forte alcança mais que o médio, que alcança mais que o fraco. O EX continua com 2 acertos
+  const flashK = ch.moves.flash;
+  ch.moves.flash = s => {
+    const m = flashK(s), k = S3(s, [.8, .9, 1, 1]), far = { box: [8, 10, Math.round(124 * k), 84] }, high = { box: [0, 50, Math.round(90 * k), 110] };
+    if (s == 3) m.hits = [Object.assign({}, m.hits[0], far, { f: [3, 7] }), Object.assign({}, m.hits[1], high)];
+    else m.hits = [Object.assign({}, m.hits[0], far, { f: [3, 6], grp: 1 }), Object.assign({}, m.hits[0], high, { f: [7, 12], grp: 1 })];
+    m.arc = { col: '#ffd84a' }; return m;
+  };
+  // super novo: SONIC HURRICANE (como o do Guile no SF5, no mesmo comando ↓↘→↓↘→ + Soco). Gira os braços e solta na frente um furacão de energia
+  // que fica parado acertando 5 vezes e derruba; segura quem está no chão e quem pula (anti-aéreo). Sai em 7 quadros, invencível do 1 ao 6.
+  // O furacão anula qualquer projétil sem perder força e continua mesmo se o Colt apanhar. Na defesa é bem punível: o Colt segura a pose até o fim.
+  // pose como no SF5: joga os braços pra frente na preparação e fica numa base baixa e larga, com os braços cruzados na frente do peito
+  const SWING = [50, 10, 46, 96, 40, 90, 40, 0, -42, 0, 0], LUNGE = [50, 12, 14, 92, 30, 86, 46, 0, -46, 0, 0];
+  const keys = [[4, SWING], [8, LUNGE], [66, LUNGE], [75, 'base']];
+  ch.moves.super = () => ({ anim: 'boom', keys, super: 1, startup: 7, active: 1, recovery: 78, inv: { strike: [1, 6], throw: [1, 6], proj: [1, 56] }, name: 'SONIC HURRICANE', shout: 'sonic_hurricane', multiProj: 1,
+    proj: { f: 7, vx: 0, r: 52, life: 54, dmg: 7, hits: 5, gap: 10, hs: 24, bs: 14, push: .5, airLaunch: { vy: 4, vx: .3 }, shape: 'hurricane', col: '#c8f03a', glow: '#f0ffb0', lv: 'SA', yOff: 84, ahead: 50, rw: 80, kd: 1, pierce: 1 } });
 } });
 
 </script>
@@ -4561,6 +4619,13 @@ addVersion('kazan', { id: '1.0.0', apply(ch) {
   ch.moves.hellsweep = s => { const m = hs(s); m.vel = [[2, m.startup + 2, S3(s, [6, 7, 8, 8]), null]]; m.hurtShape = 'flat'; m.inv = Object.assign({}, m.inv, { proj: [1, m.startup + m.active + 8] }); return m; };
   // Devil Blaster com menos acertos e o mesmo dano total (dá pra aparar)
   beamFewerHits(ch);
+} });
+
+// ===== KAZAN 1.1.0 =====
+addVersion('kazan', { id: '1.1.0', apply(ch) {
+  // super punível colado: o lutador segura a pose enquanto o feixe sai (antes recuperava antes de quem defendeu)
+  const sup = ch.moves.super;
+  ch.moves.super = s => Object.assign(sup(s), { recovery: 46 });
 } });
 
 </script>
@@ -4708,6 +4773,13 @@ addVersion('roko', { id: '2.0.0', apply(ch) {
   ch.busterCharge = { from: 'mbuster', lv: [30, 70], max: 70, walk: .5, jump: .78, holdAt: 5, tap: 'bshot' };
   ch.charge = 0;
   ch.ai = Object.assign({}, ch.ai, { proj: 'mbuster', enders: ['mbuster', 'leaf'], charge: 0 });
+} });
+
+// ===== ROKO 2.1.0 =====
+addVersion('roko', { id: '2.1.0', apply(ch) {
+  // super punível colado: o lutador segura a pose enquanto o feixe sai (antes recuperava antes de quem defendeu)
+  const sup = ch.moves.super;
+  ch.moves.super = s => Object.assign(sup(s), { recovery: 57 });
 } });
 
 </script>
@@ -4990,7 +5062,7 @@ const ENDINGS = {
   ren: 'Ren desaparece na névoa antes da cerimônia. Na manhã seguinte, o dossiê de Kaiser aparece nas mesas de três governos. Ninguém a viu chegar.',
   kaiser: 'O poder de todos os lutadores agora corre em suas veias. De sua fortaleza, Kaiser contempla o mundo: "Isto é só o começo da minha era."',
   sakda: 'Sakda senta-se no trono de pedra do templo, solitário. "Só existe um rei." Mas, no fundo, ele espera pelo dia em que alguém o fará sangrar de novo.',
-  rodney: 'Rodney enche uma banheira com o dinheiro do prêmio e sorri para a câmera. "Minha grana, meu cinturão, minha cidade!" Las Vegas nunca dormiu tão barulhenta.',
+  rodney: 'Papangu enche uma banheira com o dinheiro do prêmio e sorri para a câmera. "Minha grana, meu cinturão, minha cidade!" Las Vegas nunca dormiu tão barulhenta.',
   gunter: 'Gunter e seu empresário abrem uma liga de luta livre só para gigantes. Os cartazes anunciam: "Gunter contra... ninguém! Todos são pequenos demais!"',
   winston: 'Holyfield devolve o carro de luxo que lhe tomaram e oferece chá ao derrotado. "Uma luta digna merece um fim digno." Uma rosa repousa sobre o troféu.',
   altair: 'Diante do espelho, Altair admira o próprio reflexo sem nenhum arranhão. "A beleza vence tudo." Esta noite, a lua de Barcelona pertence só a ele.',
@@ -6020,7 +6092,9 @@ function drawFighter(c, f, pz, tint) {
       } else if (L.torso == 'tank') {
         c.fillStyle = L.top; c.beginPath(); polyPath(c, [Pt(-.1, -hipW - 4), Pt(-.1, hipW + 2), Pt(.72, chestW + 2), Pt(.86, shW * .3), Pt(.84, -shW * .1), Pt(.74, -chestW)]); c.fill();
         c.strokeStyle = OUTLINE; c.lineWidth = 1.3; c.stroke(); line(Pt(.86, shW * .3), Pt(1.02, 2), L.top, 3.5); line(Pt(.84, -shW * .1), Pt(1.01, -4), L.top, 3.5);
-        if (!L.plain) { c.fillStyle = shade(L.top, .7); for (let i = 0; i < 6; i++) { const q = Pt(.15 + i * .1, (i % 2 ? -4 : 5) * K); c.beginPath(); c.ellipse(q.x, q.y, 3.5, 2, i, 0, 7); c.fill(); } }   // plain: camiseta lisa, sem manchas
+        if (L.neck) { line(Pt(1.02, 2), Pt(.9, -1), L.neck, 1.6); line(Pt(.9, -1), Pt(1.01, -4), L.neck, 1.6); line(Pt(.86, shW * .3), Pt(.72, chestW + 2), L.neck, 1.4); }   // acabamento colorido na gola e na cava
+        if (L.print) { c.strokeStyle = L.print; c.lineWidth = 1.3; for (let i = 0; i < 9; i++) { const q = Pt(.18 + (i % 3) * .22 + ((i / 3) | 0) * .04, (((i / 3) | 0) - 1) * chestW * .55); c.beginPath(); c.moveTo(q.x - 2.6, q.y - 1.4); c.lineTo(q.x - .4, q.y + 1.6); c.lineTo(q.x + 2.4, q.y - 1.2); c.stroke(); } }   // estampa de rabiscos (regata do Holyfield)
+        else if (!L.plain) { c.fillStyle = shade(L.top, .7); for (let i = 0; i < 6; i++) { const q = Pt(.15 + i * .1, (i % 2 ? -4 : 5) * K); c.beginPath(); c.ellipse(q.x, q.y, 3.5, 2, i, 0, 7); c.fill(); } }   // plain: camiseta lisa, sem manchas
       } else if (L.torso == 'uniform') {
         line(Pt(1.03, -5), Pt(1.03, 4), shade(L.top, .55), 4); c.fillStyle = '#e8c040'; for (const u of [.3, .45, .6, .75]) { const q = Pt(u, waistW * .45); c.beginPath(); c.arc(q.x, q.y, 1.9, 0, 7); c.fill(); }
         line(Pt(.9, 0), Pt(.2, waistW * .2), shade(L.top, .65), 1.3);
@@ -6554,6 +6628,26 @@ function drawProj(c, pr) {
     }
     case 'banana': { c.fillStyle = '#f2d43a'; c.strokeStyle = '#6a5010'; c.lineWidth = 1.5; c.beginPath(); c.arc(0, -4, 10, .2, Math.PI - .2); c.arc(0, -8, 8, Math.PI - .3, .3, true); c.closePath(); c.fill(); c.stroke(); break; }
     case 'rose': { c.fillStyle = '#2a8a2a'; c.fillRect(-16, -1, 16, 2); c.fillStyle = '#d4142a'; c.beginPath(); c.arc(2, 0, 5, 0, 7); c.fill(); c.strokeStyle = '#7a0a14'; c.beginPath(); c.arc(2, 0, 2.5, 0, 5); c.stroke(); break; }
+    case 'hurricane': {   // Sonic Hurricane (como no SF5): redemoinho achatado, deitado, de energia verde-limão girando na frente do Colt, com poeira no chão
+      const R = p.r, grow = Math.min(1, T / 6), fade = Math.min(1, pr.life / 10), k = grow * fade, sc = .55 + .45 * grow;
+      const rx = (p.rw || R * 1.5) * sc, ry = R * .4 * sc, spin = T * .5;   // mesma largura da caixa de acerto
+      // poeira levantada no chão (fica por baixo)
+      for (let i = 0; i < 7; i++) { const ph = (T * .035 + i / 7) % 1, x = (i % 2 ? 1 : -1) * rx * (.25 + .12 * (i % 4)), r0 = 9 + 24 * ph; c.fillStyle = `rgba(205,205,195,${.3 * (1 - ph) * k})`; c.beginPath(); c.arc(x, pr.y - r0 * .45, r0, 0, TAU); c.fill(); }
+      c.globalCompositeOperation = 'lighter';
+      // brilho achatado
+      c.save(); c.scale(1, ry / rx); let g = c.createRadialGradient(0, 0, 0, 0, 0, rx * 1.2); g.addColorStop(0, `rgba(240,255,180,${.65 * k})`); g.addColorStop(.45, `rgba(190,240,50,${.32 * k})`); g.addColorStop(1, 'rgba(140,220,30,0)'); c.fillStyle = g; c.beginPath(); c.arc(0, 0, rx * 1.2, 0, TAU); c.fill(); c.restore();
+      // faixas do redemoinho: arcos de elipse girando (mais rápidos perto do centro), verde-limão e branco
+      c.lineCap = 'round';
+      for (let i = 0; i < 14; i++) { const f = .22 + .78 * ((i * 5) % 14) / 13, a0 = spin * (1.7 - f) + i * 2.1, len = 1.4 + (i % 3) * .8;
+        c.strokeStyle = i % 4 == 0 ? `rgba(255,255,255,${.8 * k})` : i % 2 ? `rgba(205,245,55,${.85 * k})` : `rgba(235,255,130,${.8 * k})`; c.lineWidth = (i % 4 == 0 ? 2 : 4) * (1.25 - f * .55);
+        c.beginPath(); c.ellipse(0, 0, rx * f, ry * f, 0, a0, a0 + len); c.stroke(); }
+      // riscos brancos soltos na borda (velocidade)
+      for (let i = 0; i < 9; i++) { const a = spin * 1.15 + i * TAU / 9, x = Math.cos(a) * rx * 1.06, y = Math.sin(a) * ry * 1.06, tx = -Math.sin(a) * rx, ty = Math.cos(a) * ry, l = Math.hypot(tx, ty) || 1;
+        c.strokeStyle = `rgba(255,255,235,${.65 * k})`; c.lineWidth = 1.6; c.beginPath(); c.moveTo(x, y); c.lineTo(x - tx / l * 24, y - ty / l * 24); c.stroke(); }
+      // núcleo branco achatado
+      c.save(); c.scale(1, .42); g = c.createRadialGradient(0, 0, 0, 0, 0, R * .55); g.addColorStop(0, `rgba(255,255,255,${.9 * k})`); g.addColorStop(1, 'rgba(225,255,120,0)'); c.fillStyle = g; c.beginPath(); c.arc(0, 0, R * .55, 0, TAU); c.fill(); c.restore();
+      break;
+    }
     case 'aegis': {
       const k = Math.min(1, T / 8); c.globalAlpha = .9; const g = c.createLinearGradient(-10, 0, 10, 0); g.addColorStop(0, '#6a5a8a'); g.addColorStop(.5, '#e8e0ff'); g.addColorStop(1, '#6a5a8a');
       c.fillStyle = g; c.strokeStyle = '#fff'; c.lineWidth = 2; c.beginPath(); c.rect(-9, -p.r * 1.6 * k, 18, p.r * 3.2 * k); c.fill(); c.stroke();
@@ -6607,7 +6701,7 @@ function drawProj(c, pr) {
 }
 
 const EX_COL = ['#ffffff', '#7ff4ff'];   // EX: branco + ciano, diferente das auras dos lutadores
-const NO_TRAIL = { spray: 1, quake: 1, kame: 1, shieldp: 1, bone: 1, leaf: 1, molotov: 1, kunai: 1, spear: 1, knife: 1, bullet: 1, beam: 1, statue: 1, pillar: 1, clacker: 1, banana: 1, rose: 1, aegis: 1 };
+const NO_TRAIL = { spray: 1, quake: 1, kame: 1, shieldp: 1, bone: 1, leaf: 1, molotov: 1, kunai: 1, spear: 1, knife: 1, bullet: 1, beam: 1, statue: 1, pillar: 1, clacker: 1, banana: 1, rose: 1, aegis: 1, hurricane: 1 };
 const FX = {
   parts: [], texts: [],
   add(o) { if (SIM.silent || this.parts.length > 700) return; this.parts.push(Object.assign({ l: 20, g: 0, s: 3, vx: 0, vy: 0, grow: 0, rot: 0 }, o, { m: o.l || 20 })); },
@@ -6643,6 +6737,7 @@ const FX = {
     if (!red && !noText) this.text('PARRY!', x, y + 60, '#8adcff');
   },
   projEnd(pr) {
+    if (pr.p.shape == 'hurricane') { const d = Math.sign(pr.vx) || pr.fc || 1; this.add({ type: 'hslash', x: pr.x, y: pr.y, l: 16, s: pr.p.r, d }); this.add({ type: 'hring', x: pr.x, y: 2, l: 34, s: pr.p.r * 1.5 }); Audio.sfx('fizzle', 1, pr.x); return; }
     Audio.sfx('fizzle', 1, pr.x);
     const col = pr.p.col || '#9cf';
     this.add({ type: 'flash', x: pr.x, y: pr.y, l: 8, s: pr.p.r * 2.4, col: pr.p.glow || '#fff' });
@@ -6696,6 +6791,25 @@ const FX = {
           c.fillStyle = p.col; c.globalAlpha = a * .45; st(1.25); c.globalAlpha = a; st(1); c.fillStyle = '#fff'; st(.45); c.globalCompositeOperation = 'source-over'; break; }
         case 'streak': c.save(); c.globalCompositeOperation = 'lighter'; c.translate(x, y); c.rotate(p.rot); c.fillStyle = p.col; c.beginPath(); c.moveTo(0, -6 * a); c.lineTo(p.s * (1.4 - a * .4), 0); c.lineTo(0, 6 * a); c.globalAlpha = a * .4; c.fill(); c.beginPath(); c.moveTo(0, -2.5 * a); c.lineTo(p.s * (1.4 - a * .4), 0); c.lineTo(0, 2.5 * a); c.globalAlpha = a; c.fill(); c.restore(); break;
         case 'spark': c.globalCompositeOperation = 'lighter'; c.lineCap = 'round'; c.strokeStyle = p.col; c.globalAlpha = a * .35; c.lineWidth = 7; c.beginPath(); c.moveTo(x, y); c.lineTo(x - p.vx * 2.6, y + p.vy * 2.6); c.stroke(); c.globalAlpha = a; c.lineWidth = 2.2; c.strokeStyle = '#fff'; c.stroke(); c.globalCompositeOperation = 'source-over'; c.lineCap = 'butt'; break;
+        case 'arc': {   // meia-lua do Flash Kick (como no SF4): rastro de energia que segue o pé, do chão na frente até atrás da cabeça, e fica no lugar
+          const age = p.m - p.l, rev = Math.min(1, (age + 1) / 4), al = Math.min(1, a * 1.8), N = 30, W = .36;   // aparece varrendo em 4 quadros, fica forte e depois some
+          const cx = 32, cy = -96, RX = 92, RY = 112, A0 = -1.25, A1 = A0 + 3.2 * rev;   // ângulos com y pra cima: -72° (chão, na frente) até ~111° (atrás da cabeça)
+          const pt = (an, rr) => [cx + Math.cos(an) * RX * rr, cy - Math.sin(an) * RY * rr];
+          c.save(); c.translate(x, y); c.scale(p.face * p.s, p.s); c.globalAlpha = 1;
+          const body = (wk, col, jag, add) => { c.globalCompositeOperation = add ? 'lighter' : 'source-over'; c.fillStyle = col; c.beginPath();
+            for (let i = 0; i <= N; i++) { const [px, py] = pt(A0 + (A1 - A0) * i / N, 1); c.lineTo(px, py); }   // borda de fora: lisa
+            for (let i = N; i >= 0; i--) { const u = i / N, w = W * wk * Math.pow(Math.sin(Math.PI * Math.min(1, u * 1.1)), .6) * (jag && i % 2 ? .45 : 1); const [px, py] = pt(A0 + (A1 - A0) * u, 1 - w); c.lineTo(px, py); }   // de dentro: serrilhada, como chama
+            c.closePath(); c.fill(); };
+          body(1.35, `rgba(255,190,50,${.4 * al})`, 1, 1);   // brilho em volta
+          body(1, `rgba(255,212,58,${.92 * al})`, 1);        // corpo amarelo
+          body(.55, `rgba(255,244,170,${.95 * al})`, 0);     // miolo claro
+          body(.2, `rgba(255,255,255,${al})`, 0);            // fio branco na borda de fora
+          c.restore(); c.globalCompositeOperation = 'source-over'; break; }
+        case 'hslash': {   // Sonic Hurricane: meia-lua verde-limão subindo na diagonal
+          const r = p.s, sw = 1 - a; c.save(); c.globalCompositeOperation = 'lighter'; c.translate(x, y); c.scale(p.d, 1); c.rotate(-.5 - sw * .9); c.lineCap = 'round';
+          for (const [w, col] of [[16, `rgba(170,230,40,${.5 * a})`], [8, `rgba(220,255,90,${.9 * a})`], [3, `rgba(255,255,255,${a})`]]) { c.strokeStyle = col; c.lineWidth = w; c.beginPath(); c.ellipse(0, 0, r * 1.7, r * .8, 0, -2.4, .2); c.stroke(); }
+          c.restore(); break; }
+        case 'hring': c.save(); c.translate(x, y); c.scale(1, .28); c.strokeStyle = `rgba(60,150,40,${.7 * a})`; c.lineWidth = 6; c.beginPath(); c.arc(0, 0, p.s * (1.2 - a * .3), 0, 7); c.stroke(); c.strokeStyle = `rgba(150,230,70,${.5 * a})`; c.lineWidth = 2; c.beginPath(); c.arc(0, 0, p.s * (1 - a * .3), 0, 7); c.stroke(); c.restore(); break;
         case 'dust': c.fillStyle = `rgba(215,185,150,${.5 * a})`; c.globalAlpha = 1; c.beginPath(); c.arc(x, y, p.s, 0, 7); c.fill(); break;
         case 'dia': c.strokeStyle = p.col; c.lineWidth = 4; c.beginPath(); c.moveTo(x, y - p.s); c.lineTo(x + p.s * .7, y); c.lineTo(x, y + p.s); c.lineTo(x - p.s * .7, y); c.closePath(); c.stroke(); break;
         case 'slash': c.save(); c.translate(x, y); c.rotate(p.rot); c.fillStyle = p.col; c.shadowColor = '#c8f'; c.shadowBlur = 16; c.beginPath(); c.ellipse(0, 0, p.s * (1.2 - a * .4), 4 * a, 0, 0, 7); c.fill(); c.restore(); break;
@@ -8934,8 +9048,8 @@ const Training = {
     switch (this.modes[this.mode]) {
       case 'PARADO': return {};
       case 'AGACHADO': return { d: 1 };
-      case 'DEFESA': return { [bk]: 1, d: low ? 1 : 0 };
-      case 'DEFESA APÓS 1º HIT': return this.wasHit > 0 || f.st == 'block' ? { [bk]: 1, d: low ? 1 : 0 } : {};
+      case 'DEFESA': return { [bk]: 1, d: low ? 1 : 0, g: 1 };   // defende parado (não anda pra trás)
+      case 'DEFESA APÓS 1º HIT': return this.wasHit > 0 || f.st == 'block' ? { [bk]: 1, d: low ? 1 : 0, g: 1 } : {};
       case 'PULANDO': return { u: 1 };
       case 'PARRY': {
         // toca → (ou ↓ em golpe baixo) logo antes do golpe/projétil chegar
@@ -9320,7 +9434,7 @@ const Game = {
       for (const h of m.hits) if (f.t >= h.f[0] && f.t <= h.f[1] && !(f.hitMask & (1 << h.idx))) R(f.box(h.box), 'rgba(255,60,60,.25)');
       if (m.grab && f.t >= m.s && f.t <= m.e) { c.strokeStyle = 'rgba(80,255,120,.9)'; R({ x1: f.x - (f.face < 0 ? m.grab.range * f.sz : 0), x2: f.x + (f.face > 0 ? m.grab.range * f.sz : 0), y1: f.y + 20, y2: f.y + 100 }, 'rgba(80,255,120,.15)'); }
     }
-    c.strokeStyle = 'rgba(255,60,60,.95)'; for (const p of M.projs) { c.beginPath(); c.arc(p.x, -p.y, p.p.r, 0, 7); c.stroke(); }
+    c.strokeStyle = 'rgba(255,60,60,.95)'; for (const p of M.projs) { c.beginPath(); c.ellipse(p.x, -p.y, p.p.rw || p.p.r, p.p.r, 0, 0, 7); c.stroke(); }
   }
 };
 Match.onNewRound = () => { if (window.__testHP && Game.mode == 'online') M.f.forEach(f => f.hp = window.__testHP); };   // só para testes automatizados

@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UMF4 · teste de punição</title>
+<style>
+  body { margin: 0; padding: 16px; background: #111; color: #eee; font: 14px/1.4 system-ui, sans-serif; }
+  h1 { font-size: 18px; margin: 0 0 8px; }
+  .ok { color: #4fe08f; } .erro { color: #ff7070; }
+  table { border-collapse: collapse; margin-top: 12px; }
+  td, th { border: 1px solid #333; padding: 3px 8px; text-align: left; }
+  iframe { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+</style>
+</head>
+<body>
+<h1>Ultra Mini Fighter IV · teste de punição</h1>
+<p>Bloqueia de perto cada Shoryuken e cada super de todos os lutadores (versão mais nova de cada um) e confere se dá pra punir. Rode depois de mexer em frame data.</p>
+<p id="status">Rodando…</p>
+<div id="out"></div>
+<iframe id="jogo" src="../index.html"></iframe>
+<script>
+// Regras (quadros a 60 fps, golpe defendido colado no oponente):
+//  1. Shoryuken (fraco, médio e forte) deixa pelo menos 12 quadros em que o atacante não consegue defender.
+//  2. Super corpo a corpo: no mínimo -5 na defesa e pelo menos 10 quadros sem poder defender.
+//  3. Super de projétil: negativo na defesa, e nenhum acerto atravessa a defesa.
+//  4. No pouso de um golpe (recuperação), o lutador nunca consegue defender.
+function auditoria() {
+  SIM.silent = true;
+  const falhas = [], linhas = [];
+  const run = (ci, key, agachado) => {
+    Match.create(ci, 0, 'temple', { mode: 'training', ctrl: ['human', 'human'], ver: [newestVer(ci), newestVer(0)] });
+    M.phase = 'fight'; const [a, b] = M.f; for (const f of M.f) f.setSt('idle'); a.meter = b.meter = METER_MAX;
+    a.x = 600; b.x = 600 + 26 * (a.sz + b.sz) + 2; a.face = 1; b.face = -1;
+    const defesa = agachado ? { r: 1, d: 1 } : { r: 1 };
+    let defendeu = 0, apanhou = 0, bLivre = -1, bOcupado = 0, aLivre = -1, aDefende = -1, pousoDefende = 0;
+    for (let fr = 1; fr < 400; fr++) {
+      Match.step(fr == 1 ? { want: key } : { l: 1 }, defesa);
+      if (b.st == 'block') defendeu = 1;
+      if (b.st == 'hit' || b.st == 'knock' || b.st == 'cine' || b.st == 'cineD' || b.st == 'thrown') apanhou = 1;
+      if (b.st != 'idle') bOcupado = fr;
+      if (defendeu && bLivre < 0 && b.st == 'idle' && !M.projs.some(q => !q.dead)) bLivre = fr;
+      if (a.st == 'land' && a.recov && Combat.canBlock(a, { lv: 'M' }, a.x - a.face)) pousoDefende = 1;
+      if (aDefende < 0 && (a.st == 'idle' || (a.st == 'land' && !a.recov))) aDefende = fr;
+      if (aLivre < 0 && a.st == 'idle') aLivre = fr;
+      if (aLivre >= 0 && fr > bOcupado + 2 && b.st == 'idle' && !M.projs.some(q => !q.dead)) break;
+    }
+    return { defendeu, apanhou, vantagem: bOcupado + 1 - aLivre, janela: aDefende - bLivre, pousoDefende };
+  };
+  CHARS.forEach((c0, ci) => {
+    const ch = latestCh(ci);   // só a versão mais nova de cada lutador (a que vem marcada na seleção)
+    const keys = [];
+    for (const sp of ch.specials) if (sp.air != 'only') for (const s of [0, 1, 2]) keys.push(sp.id + ':' + s);
+    keys.push('super'); if (ch.moves.super2) keys.push('super2');
+    for (const key of keys) {
+      let m; try { m = getMove(ch, key); } catch (e) { continue; }
+      if (m.air || !(m.dpLike || m.super)) continue;
+      if (!m.hits.length && !m.proj && !m.projs) continue;
+      let r = run(ci, key, 0);
+      if (!r.defendeu) { const r2 = run(ci, key, 1); if (r2.defendeu) r = r2; }
+      if (!r.defendeu) continue;   // não dá pra defender (agarrão de comando, cinemática) ou não alcança colado
+      const proj = !!(m.proj || m.projs), err = [];
+      if (r.pousoDefende) err.push('defende no pouso');
+      if (m.dpLike && r.janela < 12) err.push('Shoryuken com só ' + r.janela + ' quadros pra punir');
+      if (m.super && !proj && (r.vantagem > -5 || r.janela < 10)) err.push('super seguro: ' + r.vantagem + ' na defesa, ' + r.janela + ' quadros pra punir');
+      if (m.super && proj && r.vantagem >= 0) err.push('super de projétil +' + r.vantagem + ' na defesa');
+      if (m.super && proj && r.apanhou) err.push('acerto atravessa a defesa');
+      linhas.push({ lutador: ch.id + (ch.fullVer ? ' ' + ch.fullVer : ''), golpe: key, vantagem: r.vantagem, janela: r.janela, err });
+      if (err.length) falhas.push(ch.id + ' ' + key + ': ' + err.join('; '));
+    }
+  });
+  return { falhas, linhas };
+}
+const jogo = document.getElementById('jogo');
+jogo.addEventListener('load', () => setTimeout(() => {
+  let res;
+  try { res = jogo.contentWindow.eval('(' + auditoria + ')()'); }
+  catch (e) { res = { falhas: ['erro ao rodar: ' + e.message], linhas: [] }; }
+  window.RESULTADO = res;
+  const st = document.getElementById('status');
+  st.className = res.falhas.length ? 'erro' : 'ok';
+  st.textContent = res.falhas.length ? res.falhas.length + ' problema(s):' : 'Tudo certo: ' + res.linhas.length + ' golpes conferidos.';
+  const esc = s => String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]);
+  document.getElementById('out').innerHTML = (res.falhas.length ? '<ul>' + res.falhas.map(f => '<li class="erro">' + esc(f) + '</li>').join('') + '</ul>' : '') +
+    '<table><tr><th>Lutador</th><th>Golpe</th><th>Na defesa</th><th>Quadros pra punir</th><th></th></tr>' +
+    res.linhas.map(l => '<tr><td>' + esc(l.lutador) + '</td><td>' + esc(l.golpe) + '</td><td>' + l.vantagem + '</td><td>' + l.janela + '</td><td class="' + (l.err.length ? 'erro' : 'ok') + '">' + (l.err.length ? esc(l.err.join('; ')) : 'ok') + '</td></tr>').join('') + '</table>';
+}, 500));
+</script>
+</body>
+</html>
