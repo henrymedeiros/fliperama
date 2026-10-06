@@ -7776,6 +7776,21 @@ const Menus = {
     }
   },
   leaveRoom() { const g = Game; TextInput.active = false; Net.close(); g.netMsg = ''; Audio.sfx('back'); g.go('online'); },
+  // link de convite: abre o jogo já entrando na sala (...#CÓDIGO). Dentro do player do site, o link é o do play.html (que repassa o # pro jogo).
+  inviteLink() {
+    const u = new URL(location.href), m = /^(.*\/)games\/([^/]+)\//.exec(u.pathname);
+    const link = window.parent !== window && m ? new URL(m[1] + 'play.html?g=' + m[2], u.origin) : u;
+    link.hash = Net.code; return link.href;
+  },
+  copyInvite() {
+    const link = this.inviteLink(), fail = () => prompt('Copie o link da sala:', link);
+    try { navigator.clipboard.writeText(link).then(() => { padToast = { t: 180, msg: 'Link da sala copiado! Mande pros amigos.' }; }, fail); } catch (e) { fail(); }
+  },
+  joinInvite(code) {
+    const g = Game; g.netMsg = ''; this.lobbyJoin = true; this.fromList = false;
+    TextInput.filter = /^[A-Z0-9]$/; TextInput.max = 5; TextInput.value = code; TextInput.active = false;   // se falhar, cai na tela de digitar com o código já preenchido
+    Net.join(code); g.goNow('lobby'); Music.play('select');
+  },
   lobbyUpdate(mi) {
     const g = Game;
     if (YTM.editing) { YTM.editUpdate(); return; }
@@ -7783,6 +7798,7 @@ const Menus = {
     if (!TextInput.active) {
       if (keys.KeyY) { keys.KeyY = false; Audio.sfx('select'); YTM.edit(); return; }
       if (keys.KeyL) { keys.KeyL = false; YTM.toggleLoop(); }
+      if (keys.KeyC) { keys.KeyC = false; if (Net.role && Net.code) { Audio.sfx('select'); this.copyInvite(); } }
     }
     if (this.lobbyJoin && TextInput.active) {
       if (keys.Enter && TextInput.value.length == 5) { keys.Enter = false; TextInput.active = false; Net.join(TextInput.value); }
@@ -8525,7 +8541,7 @@ Object.assign(Menus, {
     const info = pick ? (g.idx == 2
       ? ['Treino online:', 'Os dois lutadores treinam juntos,', 'sem K.O. e sem tempo.', 'O anfitrião configura na luta (Esc):', 'vida, barra de super, resetar', 'posições e trocar personagem.']
       : g.idx == 1
-      ? ['Sala privada:', 'Só entra quem tiver o código.', 'Você recebe um código de 5 letras', 'e passa pros amigos.', '', 'Não aparece em "Procurar salas".']
+      ? ['Sala privada:', 'Só entra quem tiver o código.', 'Você recebe um código de 5 letras', 'e passa pros amigos. Ou aperte C', 'na sala e mande o link de convite.', 'Não aparece em "Procurar salas".']
       : ['Sala pública:', 'Aparece em "Procurar salas" para', 'qualquer jogador, sem código.', 'Mostra seu nome e quantos estão', 'na sala. O código também funciona', 'para chamar amigos.'])
       : ['Como funciona:', '1. Crie uma sala (pública ou privada)', '   ou procure uma sala pública aberta', '2. Sala privada: passe o código', '3. Até 8 na sala: dois lutam, o resto assiste', '4. Quem ganha fica; quem perde vai pra fila', '', 'Rollback netcode para esconder o lag.', 'Precisa de internet em todos.'];
     info.forEach((l, i) => ui(c, l, 556, 148 + i * 24, i == 0 ? 19 : 16, i == 0 ? '#3cf' : '#dde'));
@@ -8561,7 +8577,7 @@ Object.assign(Menus, {
     this.bg(c, '#3cf'); this.header(c, joining ? 'ENTRAR NA SALA' : (host ? (Net.pub ? 'SALA PÚBLICA ' : 'SALA PRIVADA ') : 'SALA ') + (Net.code || '') + (Room.train ? ' · TREINO' : ''), '#3cf');
     if (joining) {
       c.fillStyle = 'rgba(0,0,0,.6)'; c.fillRect(W / 2 - 280, 120, 560, 250); c.strokeStyle = '#3cf'; c.lineWidth = 2; c.strokeRect(W / 2 - 280, 120, 560, 250);
-      ui(c, this.fromList ? 'Entrando na sala pública:' : 'Digite o código da sala (5 letras/números):', W / 2, 170, 20, '#dde', 'center');
+      ui(c, TextInput.active ? 'Digite o código da sala (5 letras/números):' : this.fromList ? 'Entrando na sala pública:' : 'Entrando na sala:', W / 2, 170, 20, '#dde', 'center');
       const v = TextInput.value.padEnd(5, '_');
       for (let i = 0; i < 5; i++) { const x = W / 2 - 150 + i * 62; c.fillStyle = '#10182a'; c.fillRect(x, 195, 54, 70); c.strokeStyle = i == TextInput.value.length && TextInput.active && UIF % 40 < 20 ? '#ffd21e' : '#3cf'; c.lineWidth = 3; c.strokeRect(x, 195, 54, 70); txt(c, v[i] == '_' ? '' : v[i], x + 27, 250, 48, '#fff', 'center', 0); }
       ui(c, TextInput.active ? (TextInput.value.length == 5 ? 'ENTER para conectar' : 'Ctrl+V cola o código') : Net.status, W / 2, 300, 20, '#ffd21e', 'center');
@@ -8589,7 +8605,7 @@ Object.assign(Menus, {
       ui(c, 'MÚSICA DA SALA (YOUTUBE): ' + YTM.roomLabel(), W / 2, 486, 15, '#ff8a8a', 'center', 3);
       ui(c, (host ? 'Y troca o link · L repete · N pula · X apaga (pra todos) · ' : 'Quem escolhe é o anfitrião · ') + 'M ' + (settings.ytRoom === false ? 'liga' : 'desliga') + ' a música só pra você', W / 2, 506, 13, '#c9a0a0', 'center', 3);
     }
-    this.hint(c, 'Esc para sair da sala');
+    this.hint(c, joining ? 'Esc para sair da sala' : 'C copia o link da sala (quem abrir entra direto) · Esc para sair da sala');
     YTM.drawEdit(c);
   },
   drawPadTest(c) {
@@ -9330,6 +9346,11 @@ function loop(now) {
 fitCanvas();
 
 </script>
-<script>Music.play('title'); requestAnimationFrame(loop);</script>
+<script>
+// link de convite (...#CÓDIGO): abre direto entrando na sala
+const INVITE = /^#([A-Za-z0-9]{5})$/.exec(location.hash || '');
+if (INVITE) Menus.joinInvite(INVITE[1].toUpperCase()); else Music.play('title');
+requestAnimationFrame(loop);
+</script>
 </body>
 </html>
