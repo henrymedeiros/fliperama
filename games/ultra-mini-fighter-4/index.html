@@ -1794,7 +1794,7 @@ class Fighter {
       if (vb && !m.super && (vb.any ? (m.hits.length || m.proj || m.projs) : id && m.special && (!vb.sp || vb.sp.includes(id)))) { this.boostMv = this.mvId; this.boostMult = vb.mult; this.boostCol = vb.col; this.boostSu = !!vb.su; this.vbuff = null; }
       if (chainSu) { this.boostMv = this.mvId; this.boostSu = false; }
       const au = this.ch.vskill && this.ch.vskill.aura;
-      if (this.aura && au && id && au.sp.includes(id)) { this.auraMv = this.mvId; this.armorLeft = Math.max(this.armorLeft, 1); } }
+      if (this.aura && au && id && au.sp.includes(id)) { this.auraMv = this.mvId; this.armorLeft = m.armor ? this.armorLeft + 1 : Math.max(this.armorLeft, 1); } }   // golpe que já tem armadura ganha +1 acerto
     if (key == 'throw') this.throwBack = this.holdBack;
     if (this.ch.busterCharge && key.startsWith(this.ch.busterCharge.from + ':')) this.bch = 1;   // o tiro do Mega Buster começa a carga (segurando o Soco)
     if (key == 'vskill') this.airVs = true;             // uma V-Skill por pulo (a do chão também conta se decolar)
@@ -4386,6 +4386,14 @@ addVersion('valerius', { id: '1.1.0', apply(ch) {
   // e dá pra emendar a Chariot Tackle (que joga pro super): esfera forte → Chariot Tackle → super
   const sphere = ch.moves.sphere;
   ch.moves.sphere = s => { const m = sphere(s); if (s == 2) Object.assign(m.proj, { airLaunch: { vy: 8, vx: .6, float: .55 }, jSet: 0 }); return m; };
+} });
+
+// ===== VALERIUS 1.2.0 =====
+addVersion('valerius', { id: '1.2.0', apply(ch) {
+  // Chariot Tackle EX não atravessa mais projétil: aguenta 1 acerto (golpe ou projétil) com armadura até o fim dos quadros ativos.
+  // Com a Aura Metálica ativa, aguenta 2
+  const chariot = ch.moves.chariot;
+  ch.moves.chariot = s => { const m = chariot(s); if (s == 3) { m.inv = {}; m.armor = { f: [1, m.startup + m.active - 1], hits: 1 }; } return m; };
 } });
 
 </script>

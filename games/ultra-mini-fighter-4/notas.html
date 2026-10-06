@@ -186,6 +186,12 @@ const TYPES = { novo: ['Novo', 'var(--change-novo)'], buff: ['Buff', 'var(--chan
 const C = s => `<kbd class="kbd">${s}</kbd>`;
 // notas por lançamento (o mais novo primeiro). Lutador: [id do retrato, nome, [[tipo, mudança], ...], versão do lutador (padrão: a do lançamento)]
 const RELEASES = [{
+  id: 'valerius-1.2.0', title: 'Valerius 1.2.0', kind: 'Ajuste de personagem', date: '2026-10-06',
+  chars: [
+    ['valerius', 'Valerius', [['ajuste', 'Chariot Tackle EX não atravessa mais projéteis: em vez disso aguenta 1 acerto (golpe ou projétil) com armadura até o fim dos quadros ativos.'],
+      ['buff', 'Com a Aura Metálica ativa, a Chariot Tackle EX aguenta 2 acertos.']], '1.2.0'],
+  ]
+}, {
   id: 'punicao-colt-2.0.0', title: 'Punição + Colt 2.0', kind: 'Mecânica e ajustes de personagens', date: '2026-10-06',
   chars: [
     [null, 'Geral', [['ajuste', 'Pouso de golpe agora é recuperação de verdade: Shoryuken, super que sobe e outros golpes que terminam pousando não defendem nem aparam até poder agir, e apanhar ali é PUNISH COUNTER. O pouso de pulo comum continua defendendo.'],
