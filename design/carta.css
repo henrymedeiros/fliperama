@@ -1,0 +1,371 @@
+/* Fliperama · carta
+   Estrutura de carta colecionável: moldura grossa, nome com símbolo de tipo, arte emoldurada,
+   faixa de dados, texto, barra de atributos e rodapé de coleção.
+
+   Superfícies em cores sólidas. O holo segue as receitas do pokemon-cards-css
+   (https://github.com/simeydotme/pokemon-cards-css): camadas shine + glare com blend modes e
+   filtros, movidas por variáveis que o holo.js atualiza com molas. Única mudança: as cores
+   "sunpillar" (arco-íris) do repositório viram um leque de tons do matiz da carta. Nada de arco-íris.
+
+   Variáveis vindas do holo.js:
+     --h                matiz da carta (do nome do jogo)
+     --foil             padrão SVG do nome (textura de algumas variantes)
+     data-holo          variante, como as raridades: holo, reverso, cintilante, secreta
+     --pointer-x/y, --pointer-from-center/top/left, --background-x/y,
+     --rotate-x/y, --card-opacity   estado da interação */
+
+.card {
+  --pointer-x: 50%; --pointer-y: 50%;
+  --pointer-from-center: 0; --pointer-from-top: .5; --pointer-from-left: .5;
+  --background-x: 50%; --background-y: 50%;
+  --rotate-x: 0deg; --rotate-y: 0deg;
+  --card-opacity: 0;
+  /* brilho parado: a carta já é brilhante sem ninguém mexer */
+  --shine: calc(.32 + var(--card-opacity) * .68);
+
+  /* ---------- carta clara (padrão): impressa, combina com a interface em preto e branco ----------
+     A cor vem só do matiz do nome; textos e linhas são pretos, painéis brancos. */
+  --card-frame: hsl(var(--h) 55% 50%);
+  --card-face: hsl(var(--h) 18% 80%);        /* prata em tom médio: o color-dodge só aparece sobre tons médios */
+  --card-strong: hsl(var(--h) 55% 32%);      /* símbolo de tipo, selo "Versão", ícones */
+  --card-on-strong: #ffffff;                 /* texto e glifo sobre --card-strong */
+  --card-panel: #ffffff;
+  --card-line: #000000;                      /* contorno dos painéis */
+  --card-ink: #000000;
+  --card-ink-2: #000000;
+  --card-edge: #000000;                      /* contorno da carta inteira */
+  --card-panel-edge: 0 0 0 .25cqw var(--card-line); /* contorno dos painéis retangulares */
+
+  /* "sunpillars" monocromáticos: seis tons do matiz da carta no lugar do arco-íris */
+  --sp-1: hsl(var(--h) 100% 73%);
+  --sp-2: hsl(var(--h) 55% 86%);
+  --sp-3: hsl(var(--h) 100% 62%);
+  --sp-4: hsl(var(--h) 35% 93%);
+  --sp-5: hsl(var(--h) 90% 78%);
+  --sp-6: hsl(var(--h) 70% 66%);
+
+  position: relative;
+  aspect-ratio: 63 / 88;
+  container-type: inline-size;
+  perspective: 600px;
+  scroll-margin: 140px var(--gutter) 96px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ---------- carta escura: noturna ----------
+   Face escura tingida pelo nome, painéis um tom acima, texto claro e símbolos no tom claro da cor.
+   O holo fica um pouco mais contido parado, porque o color-dodge acende muito sobre o escuro. */
+:root[data-theme="dark"] .card {
+  --card-frame: hsl(var(--h) 60% 46%);
+  --card-face: hsl(var(--h) 32% 15%);
+  --card-strong: hsl(var(--h) 85% 72%);
+  --card-on-strong: hsl(var(--h) 45% 12%);
+  --card-panel: hsl(var(--h) 30% 22%);
+  --card-line: hsl(var(--h) 35% 36%);
+  --card-ink: #eef0ff;
+  --card-ink-2: hsl(var(--h) 25% 80%);
+  --card-edge: transparent;
+  --shine: calc(.2 + var(--card-opacity) * .35);
+}
+
+.card__rotator {
+  position: absolute; inset: 0;
+  border-radius: 0;
+  padding: 3.4cqw;
+  background: var(--card-frame);
+  transform: rotateY(var(--rotate-x)) rotateX(var(--rotate-y)) scale(var(--card-scale, 1));
+  transform-style: preserve-3d;
+  overflow: hidden;
+  box-shadow: 0 0 0 2px var(--card-edge), var(--shadow-2);
+  transition: box-shadow .4s ease, --card-scale .4s var(--ease-spring);
+  will-change: transform;
+}
+@property --card-scale { syntax: '<number>'; inherits: true; initial-value: 1; }
+.card.is-active .card__rotator {
+  --card-scale: 1.04;
+  /* sombra neutra, nunca na cor do nome (preta sólida no claro) */
+  box-shadow: 0 0 0 2px var(--card-edge), var(--shadow-lift);
+}
+.card:has(.card__hit:focus-visible) .card__rotator,
+[data-input="pad"] .card:has(.card__hit:focus) .card__rotator { outline: 3px solid var(--accent); outline-offset: 5px; }
+
+/* o link cobre a carta inteira; versões e notas ficam por cima dele */
+.card__hit { position: absolute; inset: 0; z-index: 4; border-radius: 0; }
+.card__hit:focus-visible, [data-input="pad"] .card__hit:focus { outline: none; }
+
+/* ---------- face ---------- */
+.card__face {
+  position: relative;
+  height: 100%;
+  display: flex; flex-direction: column;
+  padding: 2.4cqw 3.2cqw 2cqw;
+  border-radius: 0;
+  overflow: hidden;
+  color: var(--card-ink);
+  background: var(--card-face);
+}
+.card__face > * { position: relative; }
+.face__shine { position: absolute !important; inset: 0; z-index: 0; display: none; pointer-events: none; mix-blend-mode: color-dodge; opacity: var(--shine); }
+.face__shine::before, .face__shine::after, .art__shine::before, .art__shine::after { content: ""; position: absolute; inset: 0; }
+
+/* linha 1: as tags, no formato do selo de estágio */
+.card__tags { display: flex; gap: 1cqw; height: 5.6cqw; margin: 0; padding: 0; list-style: none; }
+.card__stage {
+  display: inline-flex; align-items: center; gap: .8cqw;
+  height: 100%; padding: 0 3cqw 0 1.4cqw;
+  border-radius: 0;
+  background: var(--card-panel);
+  clip-path: polygon(0 0, 100% 0, calc(100% - 1.8cqw) 100%, 0 100%);
+  font: italic 700 3.3cqw/1 var(--font-body); color: var(--card-ink); white-space: nowrap;
+}
+.card__stage .glyph { width: 3cqw; height: 3cqw; color: var(--card-strong); }
+
+/* linha 2: nome e símbolo de tipo (a primeira tag) */
+.card__title { display: flex; align-items: center; gap: 2cqw; height: 9.6cqw; margin-top: .6cqw; }
+.card__name {
+  flex: 1; min-width: 0; margin: 0;
+  font: 800 calc(7.4cqw * var(--fit, 1))/1 var(--font-display); letter-spacing: -.035em;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.card__element {
+  flex: none; width: 8cqw; height: 8cqw; border-radius: 0;
+  display: grid; place-items: center; color: var(--card-on-strong);
+  background: var(--card-strong);
+  box-shadow: 0 0 0 .55cqw var(--card-panel);
+}
+.card__element svg { width: 4.6cqw; height: 4.6cqw; }
+
+/* linha 3: o autor, como o "evolui de", com o avatar sobre a arte */
+.card__evolve { z-index: 2; display: flex; align-items: center; height: 5cqw; margin-bottom: -.4cqw; }
+.card__avatar {
+  position: absolute; left: 1.6cqw; top: .2cqw;
+  width: 11.5cqw; height: 11.5cqw; padding: .7cqw;
+  border-radius: 0; background: var(--card-panel);
+  box-shadow: var(--card-panel-edge);
+}
+.card__avatar img, .card__avatar span {
+  width: 100%; height: 100%; border-radius: 0; object-fit: cover;
+  display: grid; place-items: center;
+  background: var(--card-strong);
+  font: 800 4cqw/1 var(--font-display); color: var(--card-on-strong);
+}
+.card__by {
+  margin-left: 14.5cqw; padding: .9cqw 3cqw .9cqw 1.4cqw;
+  font: italic 600 3.2cqw/1 var(--font-body); color: var(--card-ink-2);
+  background: var(--card-panel);
+  border-radius: 0;
+  box-shadow: var(--card-panel-edge);
+}
+.card__by b { color: var(--card-ink); font-weight: 700; }
+
+/* arte com moldura branca */
+.card__art {
+  z-index: 1;
+  padding: 1cqw;
+  border-radius: 0;
+  background: var(--card-panel);
+  box-shadow: var(--card-panel-edge);
+}
+.card__window {
+  position: relative; aspect-ratio: 16 / 10; overflow: hidden; isolation: isolate;
+  background: var(--card-strong);
+}
+.card__window img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transition: opacity var(--dur-2); }
+.card__window img.is-swapping { opacity: .2; }
+.art__shine { position: absolute; inset: 0; display: none; pointer-events: none; mix-blend-mode: color-dodge; opacity: var(--shine); }
+.card__gen {
+  position: absolute; inset: 0; display: grid; place-items: center;
+  font: 800 14cqw/1 var(--font-display); color: var(--card-on-strong);
+  background: var(--card-strong);
+}
+.card__stamp {
+  position: absolute; top: 2cqw; right: 2cqw; z-index: 2;
+  padding: 1cqw 1.8cqw; border-radius: 0;
+  background: var(--hot); color: var(--hot-ink);
+  font: 700 2.8cqw/1 var(--font-display);
+  rotate: 4deg;
+}
+
+/* faixa de dados sob a arte */
+.card__strip {
+  display: flex; align-items: center; justify-content: center; gap: 2.4cqw;
+  height: 4.6cqw; margin: 1cqw 2.6cqw 0;
+  background: var(--card-panel);
+  clip-path: polygon(1.4cqw 0, calc(100% - 1.4cqw) 0, 100% 100%, 0 100%);
+  font: italic 600 2.9cqw/1 var(--font-body); color: var(--card-ink-2); white-space: nowrap;
+}
+
+/* texto: a descrição */
+.card__text {
+  margin: 2.2cqw .6cqw 0;
+  font: 400 3.9cqw/1.36 var(--font-body); color: var(--card-ink);
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: var(--lines, 5); line-clamp: var(--lines, 5);
+  overflow: hidden; text-wrap: pretty;
+}
+.card.has-versions { --lines: 4; }
+
+/* versões, no lugar de uma "habilidade" */
+.card__ability { display: flex; align-items: center; gap: 1.6cqw; margin-top: 2cqw; }
+.card__pill {
+  flex: none; padding: .9cqw 3.4cqw .9cqw 1.8cqw;
+  border-radius: 0;
+  background: var(--card-strong);
+  clip-path: polygon(0 0, 100% 0, calc(100% - 1.8cqw) 100%, 0 100%);
+  font: italic 800 3cqw/1 var(--font-display); color: var(--card-on-strong);
+}
+.vers { z-index: 5; display: flex; gap: .6cqw; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.vers::-webkit-scrollbar { display: none; }
+.vers__opt {
+  flex: none; display: inline-flex; align-items: center; gap: .8cqw;
+  padding: .8cqw 1.2cqw; border: 0; border-radius: 0; background: none;
+  font: 700 3.7cqw/1 var(--font-display); letter-spacing: -.02em; color: var(--card-ink-2); opacity: .7;
+  transition: opacity var(--dur-1), background-color var(--dur-1), color var(--dur-1);
+}
+.vers__opt:hover { opacity: 1; background: var(--card-panel); }
+.vers__opt[aria-pressed="true"] { opacity: 1; color: var(--card-strong); }
+.vers__opt small { font: italic 500 2.4cqw/1 var(--font-body); }
+.vers__opt i { width: 1.4cqw; height: 1.4cqw; border-radius: 0; background: var(--hot); }
+
+/* atributos: modo e jogadores, como fraqueza/resistência/recuo */
+.card__stats {
+  display: flex; height: 7.2cqw; margin-top: auto;
+  border-radius: 0; overflow: hidden;
+  background: var(--card-panel);
+  box-shadow: var(--card-panel-edge);
+}
+.stat {
+  flex: 1; position: relative;
+  display: flex; align-items: center; justify-content: center; gap: 1.2cqw;
+  font: 700 3.4cqw/1 var(--font-body); color: var(--card-ink); white-space: nowrap;
+}
+.stat + .stat::before { content: ""; position: absolute; left: 0; top: 18%; bottom: 18%; width: .3cqw; background: var(--card-line); transform: skewX(-18deg); }
+.stat small { font: italic 500 2.8cqw/1 var(--font-body); color: var(--card-ink-2); }
+.stat svg { width: 4.2cqw; height: 4.2cqw; color: var(--card-strong); }
+
+/* rodapé de coleção */
+.card__foot { display: flex; align-items: flex-end; gap: 2cqw; margin-top: 1.4cqw; }
+.card__set { display: flex; align-items: center; gap: .8cqw; font: 700 2.8cqw/1 var(--font-body); color: var(--card-ink); white-space: nowrap; }
+.card__flavor {
+  margin-left: auto; padding: .8cqw 1.4cqw;
+  border: .25cqw solid var(--card-line); border-radius: 0;
+  background: var(--card-panel);
+  font: italic 500 2.8cqw/1.3 var(--font-body); color: var(--card-ink-2); text-align: right; white-space: nowrap;
+}
+.card__notes { position: relative; z-index: 5; color: var(--card-strong); font-weight: 700; text-underline-offset: .4cqw; }
+
+/* ---------- glare (todas as variantes), como no pokemon-cards-css ---------- */
+.card__glare {
+  position: absolute; inset: 0; z-index: 6; pointer-events: none; border-radius: 0;
+  background-image: radial-gradient(farthest-corner circle at var(--pointer-x) var(--pointer-y),
+    hsla(0, 0%, 100%, .8) 10%, hsla(0, 0%, 100%, .65) 20%, hsla(0, 0%, 0%, .5) 90%);
+  mix-blend-mode: overlay;
+  opacity: calc(var(--card-opacity) * .7);
+}
+
+/* =====================================================================
+   Variantes (data-holo), uma por nome, como as raridades do repositório.
+   Receitas do pokemon-cards-css; as cores de arco-íris viraram --sp-1…6.
+   ===================================================================== */
+
+/* holo — "regular holo": faixas a 110° sobre scanlines + barras verticais, só na arte */
+.card[data-holo="holo"] .art__shine {
+  display: block;
+  background-image:
+    repeating-linear-gradient(110deg, var(--sp-6), var(--sp-5), var(--sp-4), var(--sp-3), var(--sp-1), var(--sp-6), var(--sp-5), var(--sp-4), var(--sp-3), var(--sp-1), var(--sp-6), var(--sp-5), var(--sp-4), var(--sp-3), var(--sp-1)),
+    repeating-linear-gradient(90deg, #000 0, #000 2px, #666 2px, #666 4px);
+  background-position: calc(((50% - var(--background-x)) * 2.6) + 50%) calc(((50% - var(--background-y)) * 3.5) + 50%), center;
+  background-size: 400% 400%, cover;
+  background-blend-mode: overlay;
+  filter: brightness(1.1) contrast(1.1) saturate(1.2);
+}
+.card[data-holo="holo"] .art__shine::before {
+  --bars: 3%;
+  background-image:
+    repeating-linear-gradient(90deg, #000 calc(var(--bars) * 2), #b3b3b3 calc(var(--bars) * 3), #000 calc(var(--bars) * 3.5), #b3b3b3 calc(var(--bars) * 4), #000 calc(var(--bars) * 5), #000 calc(var(--bars) * 14)),
+    repeating-linear-gradient(90deg, #000 calc(var(--bars) * 2), #b3b3b3 calc(var(--bars) * 3), #000 calc(var(--bars) * 3.5), #b3b3b3 calc(var(--bars) * 4), #000 calc(var(--bars) * 5), #000 calc(var(--bars) * 10));
+  background-position:
+    calc((((50% - var(--background-x)) * 1.65) + 50%) + (var(--background-y) * .5)) var(--background-x),
+    calc((((50% - var(--background-x)) * -.9) + 50%) - (var(--background-y) * .75)) var(--background-y);
+  background-size: 200% 200%, 200% 200%;
+  background-blend-mode: screen;
+  filter: brightness(1.15) contrast(1.1);
+  mix-blend-mode: hard-light;
+}
+.card[data-holo="holo"] .art__shine::after {
+  background-image: radial-gradient(farthest-corner circle at var(--pointer-x) var(--pointer-y), hsla(0, 0%, 90%, .8) 0%, hsla(0, 0%, 78%, .1) 25%, #000 90%);
+  mix-blend-mode: luminosity;
+  filter: brightness(.6) contrast(4);
+}
+
+/* reverso — "reverse holo": a carta toda brilha, menos a arte */
+.card[data-holo="reverso"] .face__shine {
+  display: block;
+  background-image:
+    radial-gradient(circle at var(--pointer-x) var(--pointer-y), #fff 5%, #000 50%, #fff 80%),
+    linear-gradient(-45deg, #000 15%, #fff, #000 85%);
+  background-blend-mode: soft-light;
+  background-size: 120% 120%, 200% 200%;
+  background-position: center, calc(100% * var(--pointer-from-left)) calc(100% * var(--pointer-from-top));
+  filter: brightness(.45) contrast(1.5) saturate(1);
+}
+.card[data-holo="reverso"] .face__shine::after {
+  background: var(--sp-4);
+  -webkit-mask: var(--foil) center / cover no-repeat; mask: var(--foil) center / cover no-repeat;
+  mix-blend-mode: color-dodge;
+  opacity: calc(.25 + var(--pointer-from-center) * .5);
+}
+
+/* cintilante — "rainbow secret": faixas largas a -30° com o padrão faiscando, carta e arte */
+.card[data-holo="cintilante"] .face__shine,
+.card[data-holo="cintilante"] .art__shine {
+  display: block;
+  background-image:
+    linear-gradient(-45deg, var(--sp-6), var(--sp-2)),
+    linear-gradient(-30deg, var(--sp-1), var(--sp-2), var(--sp-3), var(--sp-4), var(--sp-5), var(--sp-6), var(--sp-1), var(--sp-2), var(--sp-3), var(--sp-4), var(--sp-5), var(--sp-6), var(--sp-1));
+  background-blend-mode: luminosity;
+  background-size: 200% 200%, 400% 400%;
+  background-position: calc(25% + (50% * var(--pointer-from-left))) calc(25% + (50% * var(--pointer-from-top))), calc(25% + (var(--pointer-x) / 2)) calc(25% + (var(--pointer-y) / 2));
+  filter: brightness(calc((var(--pointer-from-center) * .25) + .6)) contrast(2.2) saturate(.75);
+}
+.card[data-holo="cintilante"] .art__shine { opacity: calc(var(--shine) * .6); }
+.card[data-holo="cintilante"] .face__shine::after,
+.card[data-holo="cintilante"] .art__shine::after {
+  background-image: linear-gradient(-60deg, var(--sp-1), var(--sp-2), var(--sp-3), var(--sp-4), var(--sp-5), var(--sp-6), var(--sp-1), var(--sp-2), var(--sp-3));
+  background-size: 400% 400%;
+  background-position: var(--pointer-x) var(--pointer-y);
+  -webkit-mask: var(--foil) center / cover no-repeat; mask: var(--foil) center / cover no-repeat;
+  filter: brightness(calc((var(--pointer-from-center) * .3) + .55)) contrast(2) saturate(1);
+  mix-blend-mode: color-dodge;
+}
+
+/* secreta — "secret rare": cone de tons + metal na cor da carta, com faíscas no padrão do nome */
+.card[data-holo="secreta"] .face__shine,
+.card[data-holo="secreta"] .art__shine {
+  display: block;
+  background-image:
+    conic-gradient(var(--sp-4), var(--sp-5), var(--sp-6), var(--sp-1), var(--sp-4)),
+    radial-gradient(farthest-corner circle at var(--pointer-x) var(--pointer-y), hsla(150, 0%, 0%, .98) 10%, hsla(0, 0%, 95%, .15) 90%);
+  background-blend-mode: overlay;
+  filter: brightness(calc(.4 + (var(--pointer-from-center) * .2))) contrast(1) saturate(2.7);
+}
+.card[data-holo="secreta"] .face__shine::before {
+  background-image:
+    linear-gradient(45deg, hsl(var(--h) 95% 50%), hsl(var(--h) 100% 69%)),
+    radial-gradient(farthest-corner circle at var(--pointer-x) var(--pointer-y), hsla(10, 20%, 90%, .95) 10%, #000 70%);
+  background-blend-mode: multiply;
+  mix-blend-mode: lighten;
+  filter: brightness(1.25) contrast(1.25) saturate(.35);
+  opacity: .8;
+}
+.card[data-holo="secreta"] .face__shine::after,
+.card[data-holo="secreta"] .art__shine::after {
+  background: #fff;
+  -webkit-mask: var(--foil) center / cover no-repeat; mask: var(--foil) center / cover no-repeat;
+  filter: brightness(calc((var(--pointer-from-center) * .6) + .6)) contrast(1.5);
+  opacity: calc(.3 + var(--pointer-from-center) * .5);
+  mix-blend-mode: overlay;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card__rotator { transform: none !important; }
+}

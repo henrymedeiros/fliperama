@@ -5,253 +5,178 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Fliperama</title>
 <meta name="description" content="Os jogos que a gente faz com Claude Code.">
+<link rel="icon" href="design/marca.svg" type="image/svg+xml">
+<script src="design/tema.js"></script>
+<script>
+  // abertura: logo nasce no meio da tela e voa pro canto. Uma vez por sessão (aba nova ou janela anônima mostram de novo).
+  try {
+    if (!matchMedia('(prefers-reduced-motion: reduce)').matches && !sessionStorage.getItem('fliperama:abertura')) document.documentElement.classList.add('is-intro');
+  } catch (e) {}
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="design/tokens.css">
+<link rel="stylesheet" href="design/components.css">
+<link rel="stylesheet" href="design/carta.css">
 <style>
-:root{
-  /* Layout: letreiro de fliperama no topo, prateleira de fichas (cards) em grade abaixo. */
-  --bg:#0c0a12; --panel:#15121e; --panel-2:#1d1929; --line:rgba(200,180,255,.13);
-  --ink:#f1ecf8; --dim:#9d95b3; --coin:#ffb000; --cyan:#33e1ed; --pink:#ff4f9a;
-  --display:'Bungee','Impact',system-ui,sans-serif;
-  --body:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
-  --mono:'IBM Plex Mono',ui-monospace,Consolas,monospace;
-  color-scheme:dark;
+/* Catálogo: só layout da página. Cores, fontes, raios e movimento vêm dos tokens. */
+body { overflow-x: hidden; }
+
+/* topo */
+.top { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-4); padding-top: var(--sp-6); }
+.top .logo { font-size: clamp(2rem, 6.5vw, var(--fs-8)); }
+.lede { margin: var(--sp-3) 0 0; max-width: 56ch; color: var(--ink-2); font-size: var(--fs-3); text-wrap: pretty; }
+.lede b { color: var(--ink); font-weight: 600; }
+
+/* barra de busca, ordem e filtros */
+.bar { position: sticky; top: 0; z-index: var(--z-bar); margin-top: var(--sp-5); padding-block: var(--sp-3); transition: background-color var(--dur-2), box-shadow var(--dur-2); }
+.bar.is-stuck { background: var(--scrim); backdrop-filter: blur(14px) saturate(1.4); -webkit-backdrop-filter: blur(14px) saturate(1.4); box-shadow: 0 1px 0 var(--line); }
+.bar__row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-3); }
+.bar__tail { display: flex; align-items: center; gap: var(--sp-3); min-width: 0; }
+.bar .seg { max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+.bar .seg::-webkit-scrollbar { display: none; }
+.seg__short { display: none; }
+@media (max-width: 719px) {
+  .bar__tail { width: 100%; justify-content: space-between; }
+  #filtersBtn .btn__label { display: none; }
+  .seg__long { display: none; }
+  .seg__short { display: inline; }
+  .bar .seg button { padding: 0 10px; }
 }
-*{box-sizing:border-box}
-html,body{margin:0}
-body{background:var(--bg);color:var(--ink);font:16px/1.5 var(--body);min-height:100vh;
-  background-image:radial-gradient(ellipse 80% 50% at 50% -10%,rgba(255,176,0,.10),transparent 70%),radial-gradient(circle at 1px 1px,rgba(255,255,255,.035) 1px,transparent 0);
-  background-size:auto,22px 22px}
-.wrap{max-width:1200px;margin:0 auto;padding-inline:16px}
-a{color:inherit}
-:focus-visible{outline:2px solid var(--coin);outline-offset:3px;border-radius:6px}
+.osk { max-width: 640px; }
+.filters { display: grid; gap: var(--sp-4); padding-block: var(--sp-4) var(--sp-2); }
+.fgroup { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); }
+.fgroup__chips { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+.fgroup__label { width: 72px; flex: none; font: 600 var(--fs-2)/1 var(--font-body); color: var(--ink-2); }
+@media (max-width: 559px) { .fgroup__label { width: 100%; } }
+.filters__foot { display: flex; align-items: center; gap: var(--sp-3); color: var(--ink-2); font-size: var(--fs-2); }
 
-/* letreiro */
-header{padding-block:48px 28px}
-.marquee{display:inline-block;position:relative;padding:14px 26px 12px;border:3px solid var(--coin);border-radius:14px;
-  box-shadow:0 0 0 6px var(--bg),0 0 0 8px rgba(255,176,0,.35),0 0 40px rgba(255,176,0,.25) inset,0 0 50px rgba(255,176,0,.2)}
-.marquee h1{margin:0;font-family:var(--display);font-weight:400;font-size:clamp(40px,9vw,88px);line-height:1;letter-spacing:.02em;color:#fff3d6;
-  text-shadow:0 0 4px #fff,0 0 16px var(--coin),0 0 38px rgba(255,176,0,.7)}
-.bulbs{position:absolute;inset:-9px;pointer-events:none;border-radius:18px;
-  background:radial-gradient(circle,#ffe7a3 0 2px,transparent 3px) 0 0/18px 18px;
-  -webkit-mask:linear-gradient(#000 0 0) content-box exclude,linear-gradient(#000 0 0);mask:linear-gradient(#000 0 0) content-box exclude,linear-gradient(#000 0 0);
-  padding:4px;opacity:.8;animation:chase 1.2s steps(2) infinite}
-@keyframes chase{50%{background-position:9px 0}}
-.lede{margin:22px 0 0;max-width:60ch;color:#d9d1ea;font-size:18px;text-wrap:pretty}
-.stats{display:flex;flex-wrap:wrap;gap:8px 22px;margin-top:14px;font:500 13px/1 var(--mono);color:var(--dim);letter-spacing:.04em}
-.stats b{color:var(--ink);font-weight:500}
-
-/* filtros */
-.bar{position:sticky;top:0;z-index:5;background:rgba(12,10,18,.86);backdrop-filter:blur(10px);border-block:1px solid var(--line)}
-.bar .wrap{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:center;padding-block:12px}
-.search{flex:1 1 220px;min-width:0;position:relative}
-.search input{width:100%;font:500 15px var(--body);color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px 10px 36px}
-.search input::placeholder{color:var(--dim)}
-.search svg{position:absolute;left:11px;top:50%;translate:0 -50%;width:16px;height:16px;color:var(--dim)}
-.chips{display:flex;flex-wrap:wrap;gap:6px}
-.chip{font:500 13px/1 var(--body);color:var(--dim);background:transparent;border:1px solid var(--line);border-radius:999px;padding:8px 12px;cursor:pointer}
-.chip:hover{color:var(--ink)}
-.chip[aria-pressed="true"]{color:var(--bg);background:var(--c,var(--coin));border-color:transparent}
-select{font:500 13px var(--body);color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:9px 10px}
-
-/* grade */
-main{padding-block:28px 60px}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:18px}
-.card{position:relative;display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden;transition:transform .18s,border-color .18s,box-shadow .18s}
-.card:hover{transform:translateY(-4px);border-color:rgba(255,176,0,.55);box-shadow:0 14px 40px rgba(0,0,0,.45),0 0 0 1px rgba(255,176,0,.25)}
-.card:has(.go:focus-visible){outline:2px solid var(--coin);outline-offset:3px}
-/* a ficha inteira é clicável pelo link do título; o seletor de versões fica por cima */
-.go{color:inherit;text-decoration:none}
-.go:focus-visible{outline:none}
-.go::after{content:"";position:absolute;inset:0;z-index:1}
-.thumb{position:relative;aspect-ratio:16/10;max-width:100%;background:var(--panel-2);overflow:hidden}
-.thumb img{width:100%;height:100%;object-fit:cover;display:block;transition:opacity .18s}
-.thumb img.swap{opacity:.25}
-.vers{position:absolute;left:10px;top:10px;z-index:2;display:flex;gap:3px;max-width:calc(100% - 20px);overflow-x:auto;scrollbar-width:none;padding:3px;background:rgba(12,10,18,.84);border:1px solid var(--line);border-radius:10px;backdrop-filter:blur(6px)}
-.vers::-webkit-scrollbar{display:none}
-.multi .badges{top:52px}
-.ver{flex:none;display:flex;align-items:center;gap:6px;font:600 12px/1 var(--body);color:var(--dim);background:transparent;border:0;border-radius:7px;padding:7px 10px;cursor:pointer;white-space:nowrap}
-.ver:hover{color:var(--ink);background:rgba(255,255,255,.06)}
-.ver[aria-checked="true"]{color:var(--bg);background:var(--coin)}
-.ver small{font:500 10px/1 var(--mono);opacity:.7}
-.ver i{width:6px;height:6px;border-radius:50%;background:var(--pink)}
-.vnote{margin:0;font:500 12px/1.45 var(--mono);color:var(--dim)}
-.vnote b{color:var(--ink);font-weight:500}
-.gen{position:absolute;inset:0;display:grid;place-items:center;font-family:var(--display);font-size:56px;color:rgba(255,255,255,.9);text-shadow:0 4px 30px rgba(0,0,0,.4)}
-.play{position:absolute;right:12px;bottom:12px;font:600 12px/1 var(--body);letter-spacing:.12em;text-transform:uppercase;color:var(--bg);background:var(--coin);padding:8px 12px;border-radius:8px;opacity:0;translate:0 6px;transition:.18s}
-.card:hover .play,.card:focus-within .play{opacity:1;translate:0 0}
-.badges{position:absolute;left:10px;right:10px;top:10px;display:flex;flex-wrap:wrap;gap:6px}
-.badge{white-space:nowrap;font:500 11px/1 var(--mono);letter-spacing:.04em;background:rgba(12,10,18,.8);border:1px solid var(--line);border-radius:6px;padding:5px 7px;color:var(--ink)}
-.badge.new{background:var(--pink);border-color:transparent;color:#fff}
-.body{display:grid;gap:8px;padding:14px 16px 16px;flex:1}
-.body h2{margin:0;font:600 19px/1.2 var(--body);text-wrap:balance}
-.by{font:500 13px/1 var(--mono);color:var(--c,var(--dim))}
-.desc{margin:0;color:#cfc7e0;font-size:14px;line-height:1.45;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
-.foot{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:auto;padding-top:4px}
-.tag{font-size:12px;color:var(--dim);border:1px solid var(--line);border-radius:6px;padding:3px 7px}
-.when{margin-left:auto;font:500 12px var(--mono);color:var(--dim)}
-/* notas de atualização: fica por cima do link da ficha inteira */
-.notes{position:relative;z-index:2;font:500 12px/1 var(--mono);color:var(--coin);text-decoration:none;border:1px solid rgba(255,176,0,.4);border-radius:6px;padding:4px 7px}
-.notes:hover{color:var(--bg);background:var(--coin)}
-.empty{padding:48px 0;color:var(--dim);max-width:52ch}
-.empty code,.how code{font-family:var(--mono);color:var(--coin)}
+/* grade de cartas */
+main { padding-block: var(--sp-5) var(--sp-8); }
+.grid {
+  position: relative;
+  display: grid; gap: var(--sp-6) var(--sp-5);
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+}
+.grid > .card { width: 100%; max-width: 400px; justify-self: center; }
+.empty { display: grid; justify-items: center; gap: var(--sp-4); padding: var(--sp-8) 0; text-align: center; color: var(--ink-2); }
+.empty[hidden] { display: none; }
+.empty__card { width: 84px; aspect-ratio: 63 / 88; border-radius: 0; border: 2px dashed var(--line-strong); rotate: -6deg; display: grid; place-items: center; color: var(--ink-3); }
+.empty__card svg { width: 28px; height: 28px; }
+.empty p { margin: 0; max-width: 40ch; font-size: var(--fs-3); }
+.empty b { color: var(--ink); }
 
 /* como publicar */
-.how{border-top:1px solid var(--line);padding-block:32px 48px;color:var(--dim)}
-.how h3{margin:0 0 14px;font:400 18px var(--display);color:var(--ink);letter-spacing:.03em}
-.how ol{margin:0;padding-left:1.2em;display:grid;gap:8px;max-width:70ch}
-@media (prefers-reduced-motion:reduce){.bulbs{animation:none}.card,.play{transition:none}}
+.how { padding-block: var(--sp-7) var(--sp-8); border-top: 1px solid var(--line); }
+.how h2 { margin: 0 0 var(--sp-5); font: 700 var(--fs-4)/var(--lh-tight) var(--font-display); letter-spacing: -.02em; }
+.how ol { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--sp-4); grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); counter-reset: passo; }
+.how li { counter-increment: passo; padding: var(--sp-4); border-radius: 0; background: var(--surface); box-shadow: var(--shadow-1), inset 0 0 0 1px var(--line); color: var(--ink-2); font-size: var(--fs-2); }
+.how li::before { content: counter(passo); display: grid; place-items: center; width: 28px; height: 28px; margin-bottom: var(--sp-3); border-radius: 0; background: var(--accent-soft); color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); font: 700 var(--fs-2)/1 var(--font-display); }
+.how code { font-family: ui-monospace, Consolas, monospace; font-size: .95em; color: var(--ink); background: var(--bg-deep); padding: 1px 6px; border-radius: 0; }
+
+
+/* abertura: o logo nasce no meio da tela e voa pro canto (estilo Xbox 360), só com cor sólida */
+.intro { position: fixed; inset: 0; z-index: var(--z-intro); display: none; place-items: center; background: var(--bg); overflow: hidden; pointer-events: none; }
+.is-intro .intro { display: grid; }
+.is-intro .logo { position: relative; z-index: calc(var(--z-intro) + 1); }
+.is-intro .reveal { opacity: 0; }
+.intro__orb { position: absolute; width: 40vmin; aspect-ratio: 1; border-radius: 0; border: 8px solid var(--accent); opacity: 0; }
+.intro__ring { position: absolute; width: 70vmin; aspect-ratio: 1; border-radius: 0; border: 4px solid var(--accent); opacity: 0; }
+.intro__skip { position: absolute; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); font: 500 var(--fs-1)/1 var(--font-body); color: var(--ink-3); opacity: 0; }
 </style>
 </head>
 <body>
-<header class="wrap">
-  <div class="marquee"><span class="bulbs"></span><h1>Fliperama</h1></div>
-  <p class="lede" id="lede">Os jogos que a gente faz com Claude Code. Clique numa ficha pra jogar.</p>
-  <div class="stats" id="stats"></div>
-</header>
+<div class="intro" id="intro" aria-hidden="true">
+  <div class="intro__orb"></div>
+  <div class="intro__ring"></div>
+  <div class="intro__ring"></div>
+  <div class="intro__ring"></div>
+  <span class="intro__skip">Toque ou aperte qualquer botão pra pular</span>
+</div>
 
-<div class="bar">
+<header class="top wrap">
+  <a class="logo" id="logo" href="./" aria-label="Fliperama, início">
+    <span class="logo__word" data-text="Fliperama">Fliperama</span>
+  </a>
+  <button type="button" class="btn btn--ghost btn--icon theme-toggle reveal" data-theme-toggle aria-label="Usar tema claro" aria-pressed="true">
+    <svg class="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/></svg>
+    <svg class="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z"/></svg>
+  </button>
+</header>
+<div class="wrap reveal"><p class="lede" id="lede">Os jogos que a gente faz com Claude Code. Escolha uma carta pra jogar.</p></div>
+
+<div class="bar reveal" id="bar">
   <div class="wrap">
-    <label class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
-      <input id="q" type="search" placeholder="Buscar por nome, tag ou descrição" autocomplete="off" aria-label="Buscar jogos"></label>
-    <div class="chips" id="authors" role="group" aria-label="Filtrar por autor"></div>
-    <select id="sort" aria-label="Ordenar">
-      <option value="updated">Atualizados agora</option>
-      <option value="created">Mais novos</option>
-      <option value="title">Nome (A–Z)</option>
-    </select>
+    <div class="bar__row">
+      <div class="search" id="search">
+        <svg class="search__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m20 20-4.8-4.8"/></svg>
+        <input id="q" type="search" placeholder="Buscar jogo, tag ou autor" autocomplete="off" spellcheck="false" aria-label="Buscar jogos" aria-controls="grid">
+        <span class="search__count" id="count" aria-live="polite"></span>
+        <button type="button" class="search__clear" id="clear" aria-label="Limpar busca" tabindex="-1">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="m4 4 8 8M12 4l-8 8"/></svg>
+        </button>
+        <kbd class="search__key" aria-hidden="true">/</kbd>
+      </div>
+      <div class="bar__tail">
+        <div class="seg" id="sort" role="group" aria-label="Ordenar cartas">
+          <span class="seg__thumb" aria-hidden="true"></span>
+          <button type="button" data-sort="updated">Recentes</button>
+          <button type="button" data-sort="created">Novos</button>
+          <button type="button" data-sort="title">A–Z</button>
+          <button type="button" data-sort="players"><span class="seg__long">Mais jogadores</span><span class="seg__short">Jogadores</span></button>
+        </div>
+        <button type="button" class="btn btn--ghost" id="filtersBtn" aria-expanded="false" aria-controls="filters">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M7 12h10M10 18h4"/></svg>
+          <span class="btn__label">Filtros</span><span class="btn__count" id="fcount"></span>
+        </button>
+      </div>
+    </div>
+    <div class="osk" id="osk" hidden role="group" aria-label="Teclado na tela"></div>
+  </div>
+  <div class="collapse" id="filters">
+    <div>
+      <div class="wrap filters">
+        <div class="fgroup" role="group" aria-labelledby="lMode"><span class="fgroup__label" id="lMode">Modo</span><span id="fMode" class="fgroup__chips"></span></div>
+        <div class="fgroup" role="group" aria-labelledby="lTags"><span class="fgroup__label" id="lTags">Tags</span><span id="fTags" class="fgroup__chips"></span></div>
+        <div class="fgroup" role="group" aria-labelledby="lAuth"><span class="fgroup__label" id="lAuth">Autor</span><span id="fAuth" class="fgroup__chips"></span></div>
+        <div class="filters__foot"><button type="button" class="btn btn--ghost" id="reset">Limpar filtros</button><span>A carta precisa ter tudo que estiver marcado.</span></div>
+      </div>
+    </div>
   </div>
 </div>
 
-<main class="wrap">
-  <div class="grid" id="grid"></div>
-  <p class="empty" id="empty" hidden></p>
+<main class="wrap reveal">
+  <div class="grid" id="grid" aria-label="Jogos"></div>
+  <div class="empty" id="empty" hidden>
+    <div class="empty__card"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m20 20-4.8-4.8"/></svg></div>
+    <p id="emptyMsg"></p>
+    <button type="button" class="btn btn--primary" id="emptyReset">Limpar busca e filtros</button>
+  </div>
 </main>
 
-<section class="how wrap">
-  <h3>Colocar um jogo aqui</h3>
+<section class="how wrap reveal">
+  <h2>Colocar um jogo aqui</h2>
   <ol>
     <li>No Claude Code, dentro da pasta do repositório, rode <code>/novo-jogo</code> e descreva a ideia.</li>
-    <li>Quando estiver bom, rode <code>/publicar</code>. Em cerca de um minuto o jogo aparece nesta página.</li>
+    <li>Quando estiver bom, rode <code>/publicar</code>. Em cerca de um minuto a carta do jogo aparece nesta página.</li>
     <li>Pra mexer no jogo de outra pessoa, rode <code>/alterar</code>. A mudança vira um pedido pro autor aprovar.</li>
-    <li>Pra fazer uma variação de um jogo, ou guardar a versão atual antes de uma mudança grande, rode <code>/versao</code>. As versões aparecem no seletor da capa.</li>
+    <li>Pra fazer uma variação de um jogo, ou guardar a versão atual antes de uma mudança grande, rode <code>/versao</code>. As versões aparecem na linha "Versão" da carta.</li>
   </ol>
 </section>
 
+<div class="hintbar" id="hints" aria-hidden="true">
+  <span><b class="pad-btn pad-btn--a">A</b>Jogar</span>
+  <span><b class="pad-btn pad-btn--b">B</b>Voltar</span>
+  <span><b class="pad-btn pad-btn--y">Y</b>Buscar</span>
+  <span><b class="pad-btn pad-btn--x">X</b>Filtros</span>
+  <span><b class="pad-btn">LB</b><b class="pad-btn">RB</b>Versão</span>
+  <span><b class="pad-btn">LT</b><b class="pad-btn">RT</b>Ordem</span>
+  <span><b class="pad-btn">⧉</b>Tema</span>
+</div>
+
 <script src="games.js"></script>
-<script>
-(()=>{
-const $=id=>document.getElementById(id);
-const data=window.FLIPERAMA;
-if(!data){ $('empty').hidden=false; $('empty').innerHTML='O catálogo ainda não foi gerado. Rode <code>node scripts/build.mjs</code> na pasta do repositório.'; return; }
-const games=data.games;
-const state={q:'',author:null,sort:'updated'};
-try{ const s=JSON.parse(localStorage.getItem('fliperama:filtros')||'{}'); if(s.sort) state.sort=s.sort; }catch(e){}
-$('sort').value=state.sort;
-
-const hue=s=>{ let h=0; for(const c of s) h=(h*31+c.charCodeAt(0))>>>0; return h%360; };
-const authorCol=a=>`hsl(${hue(a)} 90% 66%)`;
-const rtf=new Intl.RelativeTimeFormat('pt-BR',{numeric:'auto'});
-function ago(iso){
-  const s=(new Date(iso)-Date.now())/1000, units=[['year',31536000],['month',2592000],['week',604800],['day',86400],['hour',3600],['minute',60]];
-  for(const [u,v] of units) if(Math.abs(s)>=v) return rtf.format(Math.round(s/v),u);
-  return 'agora';
-}
-const authors=[...new Set(games.map(g=>g.author))].sort();
-$('stats').innerHTML='';
-const stat=(n,t)=>{ const s=document.createElement('span'); const b=document.createElement('b'); b.textContent=n; s.append(b,' '+t); $('stats').append(s); };
-stat(games.length,games.length===1?'jogo':'jogos'); stat(authors.length,authors.length===1?'autor':'autores');
-if(games.length){ const s=document.createElement('span'), b=document.createElement('b'); b.textContent=ago(games.reduce((m,g)=>g.updated>m?g.updated:m,games[0].updated)); s.append('última mudança ',b); $('stats').append(s); }
-if(authors.length) $('lede').textContent='Os jogos que '+(authors.length>1?authors.slice(0,-1).map(a=>'@'+a).join(', ')+' e @'+authors[authors.length-1]:'@'+authors[0])+(authors.length>1?' fazem':' faz')+' com Claude Code. Clique numa ficha pra jogar.';
-
-function chip(label,val,col){
-  const b=document.createElement('button'); b.type='button'; b.className='chip'; b.textContent=label;
-  if(col) b.style.setProperty('--c',col);
-  b.setAttribute('aria-pressed',String(state.author===val));
-  b.addEventListener('click',()=>{ state.author=val; render(); });
-  return b;
-}
-function renderChips(){ const c=$('authors'); c.textContent=''; c.append(chip('Todos',null)); for(const a of authors) c.append(chip('@'+a,a,authorCol(a))); }
-
-// versões: o jogo pode ter várias (atual, antigas, alternativas). A escolha de cada um fica salva neste navegador.
-const VKEY='fliperama:versoes';
-let chosen={}; try{ chosen=JSON.parse(localStorage.getItem(VKEY)||'{}')||{}; }catch(e){}
-const versionsOf=g=>g.versions&&g.versions.length>1?g.versions:null;
-const isNew=iso=>!!iso&&Date.now()-new Date(iso)<7*864e5;
-const KIND={alternativa:'alternativa',antiga:'antiga'};
-function playUrl(g,v){ return 'play.html?g='+encodeURIComponent(g.slug)+(v?'&v='+encodeURIComponent(v.id):''); }
-
-function card(g){
-  const vs=versionsOf(g); let cur=vs?(vs.find(v=>v.id===chosen[g.slug])||vs[0]):null;
-  const a=document.createElement('article'); a.className='card'+(vs?' multi':'');
-  a.style.setProperty('--c',authorCol(g.author));
-  const th=document.createElement('div'); th.className='thumb';
-  const thumbOf=v=>(v&&v.thumb)||g.thumb;
-  let img=null;
-  if(thumbOf(cur)){ img=document.createElement('img'); img.src='games/'+g.slug+'/'+thumbOf(cur); img.alt=''; img.loading='lazy'; th.append(img); }
-  else{ const h=hue(g.slug), gen=document.createElement('div'); gen.className='gen';
-    th.style.background=`linear-gradient(135deg,hsl(${h} 70% 38%),hsl(${(h+60)%360} 75% 22%))`;
-    gen.textContent=g.title.split(/\s+/).map(w=>w[0]).join('').slice(0,2).toUpperCase(); th.append(gen); }
-  const bd=document.createElement('div'); bd.className='badges';
-  const addBadge=(t,cls)=>{ const s=document.createElement('span'); s.className='badge'+(cls?' '+cls:''); s.textContent=t; bd.append(s); };
-  if(isNew(g.created)) addBadge('novo','new');
-  else if(vs&&vs.some(v=>isNew(v.created))) addBadge('versão nova','new');
-  addBadge(g.players==='1'?'1 jogador':g.players+' jogadores');
-  if(g.online) addBadge('online');
-  th.append(bd);
-  const pl=document.createElement('span'); pl.className='play'; pl.textContent='Jogar'; th.append(pl);
-  const body=document.createElement('div'); body.className='body';
-  const h=document.createElement('h2'), go=document.createElement('a'); go.className='go'; go.href=playUrl(g,cur); go.textContent=g.title; h.append(go);
-  const by=document.createElement('span'); by.className='by'; by.textContent='@'+g.author;
-  const d=document.createElement('p'); d.className='desc'; d.textContent=g.description;
-  body.append(h,by,d);
-  if(vs){
-    const note=document.createElement('p'); note.className='vnote'; body.append(note);
-    const box=document.createElement('div'); box.className='vers'; box.setAttribute('role','radiogroup'); box.setAttribute('aria-label','Versão de '+g.title);
-    const btns=vs.map(v=>{
-      const b=document.createElement('button'); b.type='button'; b.className='ver'; b.setAttribute('role','radio'); b.textContent=v.name;
-      if(v.kind==='antiga'){ const k=document.createElement('small'); k.textContent='antiga'; b.append(k); }
-      if(isNew(v.created)){ const i=document.createElement('i'); i.title='versão nova'; b.append(i); }
-      b.title=[v.name+(v.kind?' ('+KIND[v.kind]+')':''),v.note].filter(Boolean).join(': ');
-      b.addEventListener('click',()=>select(v,true));
-      return b;
-    });
-    box.addEventListener('keydown',e=>{
-      const dir=e.key==='ArrowRight'||e.key==='ArrowDown'?1:e.key==='ArrowLeft'||e.key==='ArrowUp'?-1:0; if(!dir) return;
-      e.preventDefault(); const i=(vs.indexOf(cur)+dir+vs.length)%vs.length; select(vs[i],true); btns[i].focus();
-    });
-    const select=(v,save)=>{
-      cur=v; go.href=playUrl(g,v);
-      btns.forEach((b,i)=>{ const on=vs[i]===v; b.setAttribute('aria-checked',String(on)); b.tabIndex=on?0:-1; });
-      note.textContent=''; const nb=document.createElement('b'); nb.textContent=v.name; note.append('Versão ',nb,(v.kind?' · '+KIND[v.kind]:'')+(v.note?' · '+v.note:''));
-      const src=thumbOf(v)?'games/'+g.slug+'/'+thumbOf(v):null;
-      if(img&&src&&img.getAttribute('src')!==src){ img.classList.add('swap'); const pre=new Image(); pre.onload=pre.onerror=()=>{ img.src=src; img.classList.remove('swap'); }; pre.src=src; }
-      if(save){ chosen[g.slug]=v.id; try{ localStorage.setItem(VKEY,JSON.stringify(chosen)); }catch(e){} }
-    };
-    box.append(...btns); th.append(box); select(cur,false);
-  }
-  const ft=document.createElement('div'); ft.className='foot';
-  for(const t of g.tags.slice(0,3)){ const s=document.createElement('span'); s.className='tag'; s.textContent=t; ft.append(s); }
-  if(g.notes){ const n=document.createElement('a'); n.className='notes'; n.href='games/'+g.slug+'/'+g.notes; n.textContent='Notas de atualização'; n.title='Buffs, nerfs e reworks de cada versão'; ft.append(n); }
-  const w=document.createElement('span'); w.className='when'; w.textContent=ago(g.updated); w.title='Última mudança: '+new Date(g.updated).toLocaleString('pt-BR'); ft.append(w);
-  body.append(ft); a.append(th,body);
-  return a;
-}
-function render(){
-  renderChips();
-  const q=state.q.trim().toLowerCase();
-  let list=games.filter(g=>(!state.author||g.author===state.author)&&(!q||[g.title,g.description,g.author,...g.tags,...(g.versions||[]).map(v=>v.name)].join(' ').toLowerCase().includes(q)));
-  if(state.sort==='title') list.sort((a,b)=>a.title.localeCompare(b.title,'pt-BR'));
-  else list.sort((a,b)=>b[state.sort].localeCompare(a[state.sort]));
-  const grid=$('grid'); grid.textContent=''; for(const g of list) grid.append(card(g));
-  const empty=$('empty'); empty.hidden=list.length>0;
-  if(!list.length) empty.innerHTML=games.length?'Nenhum jogo com esse filtro.':'Nenhum jogo ainda. No Claude Code, rode <code>/novo-jogo</code> pra criar o primeiro.';
-}
-$('q').addEventListener('input',e=>{ state.q=e.target.value; render(); });
-$('sort').addEventListener('change',e=>{ state.sort=e.target.value; try{ localStorage.setItem('fliperama:filtros',JSON.stringify({sort:state.sort})); }catch(err){} render(); });
-render();
-})();
-</script>
+<script src="design/holo.js"></script>
+<script src="design/controle.js"></script>
+<script src="catalogo.js"></script>
 </body>
 </html>

@@ -5,8 +5,11 @@ Repositório compartilhado de jogos de navegador feitos com Claude Code. Cada jo
 ## Estrutura
 
 ```
-index.html            catálogo (lê games.js)
+index.html            catálogo de cartas (lê games.js)
+catalogo.js           busca, filtros, ordem e controle do catálogo
 play.html             player: abre games/<slug>/ num iframe com barra de voltar/tela cheia
+DESIGN.md             design system do site (obrigatório pra qualquer interface fora de games/)
+design/               tokens, componentes, tema, cor e padrão das cartas (holo.js) e navegação por controle
 games/<slug>/         um jogo por pasta
   index.html          entrada do jogo (ou o arquivo indicado em "entry")
   game.json           ficha do jogo (obrigatória)
@@ -34,11 +37,11 @@ scripts/dev.mjs       servidor local: http://localhost:5173
 }
 ```
 
-Obrigatórios: `title`, `author`, `description`. O `author` é o login do GitHub de quem criou (`gh api user --jq .login`). As datas de atualização vêm do git, não edite à mão.
+Obrigatórios: `title`, `author`, `description`. Só as 3 primeiras `tags` aparecem na carta do catálogo, então coloque as mais importantes primeiro. A cor e o padrão da carta saem do `title`; não há campo pra escolher. O `author` é o login do GitHub de quem criou (`gh api user --jq .login`). As datas de atualização vêm do git, não edite à mão.
 
 ## Versões
 
-Um jogo pode ter várias versões jogáveis: a atual, versões antigas guardadas e versões alternativas (outra câmera, outras regras). No catálogo, a capa da ficha ganha um seletor que troca a capa e a versão que abre; no player, a barra de cima tem o mesmo seletor. O link de uma versão é `play.html?g=<slug>&v=<id>`.
+Um jogo pode ter várias versões jogáveis: a atual, versões antigas guardadas e versões alternativas (outra câmera, outras regras). No catálogo, a carta ganha uma linha "Versão" que troca a capa e a versão que abre; no player, a barra de cima tem o mesmo seletor. O link de uma versão é `play.html?g=<slug>&v=<id>`.
 
 ```json
 "versions": [
@@ -54,6 +57,16 @@ Um jogo pode ter várias versões jogáveis: a atual, versões antigas guardadas
 - **Versão antiga é congelada.** Antes de uma mudança grande, guarde a atual com `--antiga` e continue mexendo na principal. Não edite a pasta de uma versão antiga.
 - **Não mude o `id` nem a pasta de uma versão publicada**: o link dela quebra.
 - Versão alternativa que joga diferente deve ter recorde próprio: troque o prefixo das chaves de localStorage na cópia (ex.: `meu-jogo-noturno:recorde`). Se tiver modo online, use também um prefixo de sala próprio, pra não cair na sala de outra versão.
+
+## Design system
+
+Toda interface do site (catálogo, player e qualquer página nova fora de `games/`) segue o `DESIGN.md`, sem exceção:
+
+- Importe `design/tema.js`, `design/tokens.css` e `design/components.css` e use só os tokens: nada de cor, fonte, raio, sombra ou duração solta.
+- Reaproveite os componentes de `design/components.css`. Se precisar de um novo, crie lá, documente no `DESIGN.md` e só então use.
+- Tema escuro é o padrão; tudo precisa funcionar nos dois temas, no celular (375px), com teclado, com controle (`design/controle.js`) e com movimento reduzido.
+
+Os jogos em `games/` têm visual próprio e não precisam seguir o design system. A exceção são as páginas de notas de atualização (campo `notes`): elas fazem parte do site, seguem o design system e importam `../../design/` (modelo: `games/ultra-mini-fighter-4/notas.html`).
 
 ## Regras para os jogos
 

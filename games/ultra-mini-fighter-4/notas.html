@@ -5,112 +5,184 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Notas de atualização · Ultra Mini Fighter IV</title>
 <meta name="description" content="Buffs, nerfs e reworks de cada versão do Ultra Mini Fighter IV.">
+<link rel="icon" href="../../design/marca.svg" type="image/svg+xml">
+<!-- página do site ligada ao catálogo: segue o design system (DESIGN.md) -->
+<script src="../../design/tema.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../../design/tokens.css">
+<link rel="stylesheet" href="../../design/components.css">
 <style>
-:root{
-  --bg:#0c0a12; --panel:#15121e; --panel-2:#1d1929; --line:rgba(200,180,255,.13);
-  --ink:#f1ecf8; --dim:#9d95b3; --coin:#ffb000; --cyan:#33e1ed; --pink:#ff4f9a;
-  --buff:#3ddc84; --nerf:#ff5a5a; --rework:#b58cff; --ajuste:#33e1ed; --novo:#ffc21a;
-  --display:'Bungee','Impact',system-ui,sans-serif;
-  --body:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
-  --mono:'IBM Plex Mono',ui-monospace,Consolas,monospace;
-  color-scheme:dark;
-}
-*{box-sizing:border-box}
-html,body{margin:0}
-body{background:var(--bg);color:var(--ink);font:16px/1.55 var(--body);min-height:100vh;
-  background-image:radial-gradient(ellipse 80% 50% at 50% -10%,rgba(255,176,0,.10),transparent 70%),radial-gradient(circle at 1px 1px,rgba(255,255,255,.035) 1px,transparent 0);
-  background-size:auto,22px 22px}
-.wrap{max-width:980px;margin:0 auto;padding-inline:16px}
-a{color:inherit}
-:focus-visible{outline:2px solid var(--coin);outline-offset:3px;border-radius:6px}
-nav{display:flex;flex-wrap:wrap;gap:10px;padding-top:22px}
-nav a{font:500 13px/1 var(--mono);color:var(--dim);text-decoration:none;border:1px solid var(--line);border-radius:8px;padding:9px 12px}
-nav a:hover{color:var(--ink)}
-nav a.play{color:var(--bg);background:var(--coin);border-color:transparent;font-weight:600}
-header{padding-block:28px 10px}
-h1{margin:0;font:400 clamp(30px,7vw,56px)/1.05 var(--display);color:#fff3d6;letter-spacing:.02em;text-shadow:0 0 4px #fff,0 0 16px var(--coin),0 0 38px rgba(255,176,0,.55)}
-.sub{margin:10px 0 0;color:var(--dim);font:500 14px var(--mono)}
-.how{margin:22px 0 0;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px;color:#d9d1ea}
-.how p{margin:0}
-.how p+p{margin-top:8px}
-.how b{color:var(--ink)}
+/* Notas: só layout. Cores, fontes, raios e movimento vêm dos tokens. */
 
-/* barra de filtros: fica presa no topo enquanto rola */
-.filters{position:sticky;top:0;z-index:5;margin-top:26px;background:rgba(12,10,18,.88);backdrop-filter:blur(10px);border-block:1px solid var(--line)}
-.filters .in{display:flex;flex-wrap:wrap;gap:10px 12px;align-items:center;padding-block:12px}
-.filters .lbl{font:500 12px/1 var(--mono);color:var(--dim);letter-spacing:.06em;text-transform:uppercase}
-.types{display:flex;flex-wrap:wrap;gap:6px}
-.filter{display:inline-flex;align-items:center;gap:7px;font:500 14px/1 var(--body);color:var(--dim);background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:8px 13px;cursor:pointer}
-.filter i{width:9px;height:9px;border-radius:50%;background:var(--c,var(--coin))}
-.filter:hover{color:var(--ink)}
-.filter[aria-pressed="true"]{color:var(--bg);background:var(--c,var(--coin));border-color:transparent}
-.filter[aria-pressed="true"] i{background:var(--bg)}
-.filter b{font:600 12px/1 var(--mono);opacity:.85}
-.search{flex:1 1 180px;min-width:0;position:relative}
-.search input{width:100%;font:500 14px var(--body);color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:9px 12px 9px 34px}
-.search input::placeholder{color:var(--dim)}
-.search svg{position:absolute;left:11px;top:50%;translate:0 -50%;width:15px;height:15px;color:var(--dim)}
+/* topo */
+.top { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-4); padding-top: var(--sp-5); }
+.top .logo { font-size: clamp(1.5rem, 4vw, var(--fs-6)); }
+.top__tools { display: flex; align-items: center; gap: var(--sp-2); }
 
-.release{margin-top:28px}
-.rhead{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 14px;border-bottom:1px solid var(--line);padding-bottom:12px}
-.rhead h2{margin:0;font:400 26px/1.1 var(--display);color:var(--ink);letter-spacing:.02em}
-.kind{font:600 12px/1 var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--bg);background:var(--coin);border-radius:6px;padding:6px 8px}
-.date{font:500 13px var(--mono);color:var(--dim)}
-.list{display:grid;gap:12px;margin-top:16px}
-.char{display:grid;grid-template-columns:76px 1fr;gap:14px;background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--c);border-radius:12px;padding:14px 16px}
-.char img{width:76px;height:76px;border-radius:10px;border:2px solid var(--c);background:var(--panel-2);display:block}
-.char h3{margin:0;display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;font:600 19px/1.2 var(--body)}
-.char h3 .ver{font:500 13px/1 var(--mono);color:var(--dim);border:1px solid var(--line);border-radius:5px;padding:4px 6px}
-.tag{font:600 11px/1 var(--mono);letter-spacing:.06em;text-transform:uppercase;border-radius:5px;padding:5px 7px;color:var(--bg);background:var(--c)}
-.char ul{margin:10px 0 0;padding:0;list-style:none;display:grid;gap:7px;color:#d9d1ea}
-.char li{display:grid;grid-template-columns:auto 1fr;gap:9px;align-items:baseline}
-.char li .tag{font-size:10px;padding:4px 6px;min-width:58px;text-align:center}
-.cmd{font:500 .92em var(--mono);color:var(--ink);background:var(--panel-2);border:1px solid var(--line);border-radius:5px;padding:1px 5px;white-space:nowrap}
-.empty{color:var(--dim)}
-footer{padding-block:40px 56px;color:var(--dim);font-size:14px}
-@media (max-width:560px){
-  .char{grid-template-columns:52px 1fr;gap:11px;padding:12px}
-  .char img{width:52px;height:52px}
-  .char li{grid-template-columns:1fr;gap:3px}
-  .char li .tag{justify-self:start}
+.hero { display: grid; grid-template-columns: 1fr auto; gap: var(--sp-6); align-items: center; padding-block: var(--sp-6) var(--sp-5); }
+.hero h1 { margin: 0; font: 800 clamp(2rem, 6vw, var(--fs-8))/var(--lh-tight) var(--font-display); letter-spacing: -.035em; text-wrap: balance; }
+.hero__sub { margin: var(--sp-3) 0 0; color: var(--ink-2); font-size: var(--fs-3); max-width: 52ch; }
+.hero__sub b { color: var(--ink); font-weight: 600; }
+.hero__actions { display: flex; flex-wrap: wrap; gap: var(--sp-3); margin-top: var(--sp-5); }
+.hero__art { width: min(320px, 32vw); aspect-ratio: 16 / 10; border-radius: 0; overflow: hidden; box-shadow: var(--shadow-3); rotate: 2deg; }
+.hero__art img { width: 100%; height: 100%; object-fit: cover; }
+@media (max-width: 719px) { .hero { grid-template-columns: 1fr; } .hero__art { display: none; } }
+
+/* como funcionam as versões */
+.explain { border-radius: 0; background: var(--surface); box-shadow: var(--shadow-1), inset 0 0 0 1px var(--line); }
+.explain summary { display: flex; align-items: center; gap: var(--sp-3); padding: var(--sp-4) var(--sp-5); cursor: pointer; list-style: none; font: 700 var(--fs-3)/1.3 var(--font-body); }
+.explain summary::-webkit-details-marker { display: none; }
+.explain summary svg { width: 18px; height: 18px; margin-left: auto; color: var(--ink-3); transition: rotate var(--dur-2) var(--ease-out); }
+.explain[open] summary svg { rotate: 180deg; }
+.explain__body { display: grid; gap: var(--sp-3); padding: 0 var(--sp-5) var(--sp-5); color: var(--ink-2); max-width: 75ch; }
+.explain__body p { margin: 0; }
+.explain__body b { color: var(--ink); }
+
+/* barra de busca e filtros */
+.bar { position: sticky; top: 0; z-index: var(--z-bar); margin-top: var(--sp-5); padding-block: var(--sp-3); transition: background-color var(--dur-2), box-shadow var(--dur-2); }
+.bar.is-stuck { background: var(--scrim); backdrop-filter: blur(14px) saturate(1.4); -webkit-backdrop-filter: blur(14px) saturate(1.4); box-shadow: 0 1px 0 var(--line); }
+.bar__row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-3); }
+.bar .search { flex: 1 1 280px; }
+.types { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+/* no celular os filtros viram uma faixa só, que rola de lado, pra barra grudada não tomar a tela */
+@media (max-width: 719px) {
+  .types { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin-inline: calc(var(--gutter) * -1); padding-inline: var(--gutter); width: calc(100% + var(--gutter) * 2); }
+  .types::-webkit-scrollbar { display: none; }
+  .types .chip { flex: none; }
 }
+.chip__dot { width: 10px; height: 10px; border-radius: 0; background: var(--c); }
+.chip[aria-pressed="true"] .chip__dot { background: var(--pressed-ink, var(--c)); }
+
+/* conteúdo: linha do tempo + lançamentos */
+.layout { display: grid; grid-template-columns: 220px 1fr; gap: var(--sp-7); padding-block: var(--sp-5) var(--sp-8); }
+@media (max-width: 959px) { .layout { grid-template-columns: 1fr; } .timeline { display: none; } }
+.timeline { position: sticky; top: 96px; align-self: start; max-height: calc(100vh - 120px); overflow-y: auto; scrollbar-width: thin; }
+.timeline h2 { margin: 0 0 var(--sp-3); font: 600 var(--fs-2)/1 var(--font-body); color: var(--ink-2); }
+.timeline ol { margin: 0; padding: 0; list-style: none; display: grid; gap: 2px; border-left: 2px solid var(--line); }
+.timeline a {
+  display: grid; gap: 2px; padding: var(--sp-2) var(--sp-3); margin-left: -2px;
+  border-left: 2px solid transparent; text-decoration: none; color: var(--ink-2);
+  transition: color var(--dur-2), border-color var(--dur-2), background-color var(--dur-2);
+}
+.timeline a:hover { color: var(--ink); background: var(--accent-soft); }
+.timeline a.is-current { color: var(--ink); border-left-color: var(--accent); }
+.timeline b { font: 700 var(--fs-2)/1.25 var(--font-body); }
+.timeline small { font-size: var(--fs-1); color: var(--ink-3); }
+.timeline a.is-empty { text-decoration: line-through; } /* riscado, não apagado: opacidade viraria cinza no tema claro */
+
+.release { scroll-margin-top: 96px; }
+.release + .release { margin-top: var(--sp-7); }
+.release__head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-3); padding-bottom: var(--sp-4); border-bottom: 1px solid var(--line); }
+.release__head h2 { flex-basis: 100%; margin: 0; font: 800 clamp(var(--fs-5), 5vw, var(--fs-6))/var(--lh-tight) var(--font-display); letter-spacing: -.03em; text-wrap: balance; }
+.release__kind { display: inline-flex; align-items: center; min-height: 26px; padding: 0 10px; border-radius: 0; background: var(--accent-soft); color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); font: 700 var(--fs-1)/1 var(--font-body); }
+.release__meta { color: var(--ink-2); font-size: var(--fs-2); }
+.list { display: grid; gap: var(--sp-3); margin-top: var(--sp-4); }
+.empty { display: grid; justify-items: start; gap: var(--sp-4); padding-block: var(--sp-6); color: var(--ink-2); }
+.empty p { margin: 0; font-size: var(--fs-3); }
+.timeline a.is-empty { pointer-events: none; }
+
+/* um lutador */
+.fighter {
+  display: grid; grid-template-columns: 72px 1fr; gap: var(--sp-4);
+  padding: var(--sp-4) var(--sp-5); border-radius: 0;
+  background: var(--surface); box-shadow: var(--shadow-1), inset 0 0 0 1px var(--line);
+  scroll-margin: 96px var(--gutter) var(--sp-7);
+}
+.fighter__face { width: 72px; height: 72px; border-radius: 0; background: var(--bg-deep); box-shadow: 0 0 0 3px var(--surface), 0 0 0 5px var(--c); }
+.fighter h3 { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); margin: 0; font: 700 var(--fs-4)/1.2 var(--font-display); letter-spacing: -.02em; }
+.fighter__ver { padding: 3px 8px; border-radius: 0; background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--line-strong); font: 600 var(--fs-1)/1.2 var(--font-body); letter-spacing: 0; color: var(--ink-2); }
+.fighter__types { display: inline-flex; gap: 4px; margin-left: auto; }
+.fighter ul { display: grid; gap: var(--sp-3); margin: var(--sp-3) 0 0; padding: 0; list-style: none; }
+.fighter li { display: grid; grid-template-columns: 72px 1fr; gap: var(--sp-3); align-items: baseline; color: var(--ink); font-size: var(--fs-2); line-height: 1.55; }
+.fighter li .badge { width: 100%; }
+@media (max-width: 559px) {
+  .fighter { grid-template-columns: 48px 1fr; gap: var(--sp-3); padding: var(--sp-4); }
+  .fighter__face { width: 48px; height: 48px; }
+  .fighter__types { display: none; }
+  .fighter li { grid-template-columns: 1fr; gap: var(--sp-1); }
+  .fighter li .badge { width: auto; justify-self: start; }
+}
+
+footer.wrap { border-top: 1px solid var(--line); }
+.foot { margin: 0; padding-block: var(--sp-6) var(--sp-8); color: var(--ink-2); font-size: var(--fs-2); max-width: 75ch; }
 </style>
 </head>
 <body>
-<div class="wrap">
-  <nav>
-    <a href="../../index.html">← Fliperama</a>
-    <a class="play" href="../../play.html?g=ultra-mini-fighter-4">Jogar Ultra Mini Fighter IV</a>
-  </nav>
-  <header>
+<header class="top wrap">
+  <a class="logo" href="../../index.html" aria-label="Voltar pro Fliperama">
+    <span class="logo__word" data-text="Fliperama">Fliperama</span>
+  </a>
+  <div class="top__tools">
+    <button type="button" class="btn btn--ghost btn--icon theme-toggle" data-theme-toggle aria-label="Usar tema claro" aria-pressed="true">
+      <svg class="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/></svg>
+      <svg class="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z"/></svg>
+    </button>
+  </div>
+</header>
+
+<section class="hero wrap">
+  <div>
     <h1>Notas de atualização</h1>
-    <p class="sub">Ultra Mini Fighter IV · buffs, nerfs e reworks de cada versão</p>
-  </header>
-  <div class="how">
-    <p><b>Como funcionam as versões.</b> O jogo base continua melhorando, e cada lutador tem a própria versão no formato <span class="cmd">X.Y.Z</span>. O <b>X</b> é uma reformulação completa do lutador; <b>Y</b> e <b>Z</b> são ajustes menores dentro dela (balanceamento e correções).</p>
-    <p>Na seleção de personagem, depois de escolher um lutador, use <span class="cmd">← →</span> pra escolher entre a <b>Base</b> e as reformulações (1, 2…), e confirme. Cada reformulação já vem com os ajustes mais recentes dela. A mais nova já vem marcada, e é a que a CPU usa.</p>
-    <p>Online, cada jogador escolhe a versão do próprio lutador e os dois jogam com as mesmas escolhas. Os desafios de combo continuam usando a Base.</p>
+    <p class="hero__sub"><b>Ultra Mini Fighter IV</b>: os buffs, nerfs e reworks de cada versão, do lançamento mais novo pro mais antigo.</p>
+    <div class="hero__actions">
+      <a class="btn btn--primary" href="../../play.html?g=ultra-mini-fighter-4">Jogar Ultra Mini Fighter IV</a>
+      <a class="btn btn--ghost" href="../../index.html">Voltar pro Fliperama</a>
+    </div>
   </div>
-</div>
-<div class="filters">
-  <div class="wrap in">
-    <span class="lbl">Filtrar</span>
-    <div class="types" id="types" role="group" aria-label="Filtrar por tipo de mudança"></div>
-    <label class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
-      <input id="q" type="search" placeholder="Buscar lutador ou golpe" aria-label="Buscar lutador ou golpe"></label>
-  </div>
-</div>
+  <div class="hero__art"><img src="thumb.jpg" alt=""></div>
+</section>
+
 <div class="wrap">
-  <div id="releases"></div>
-  <footer>Versões de lutador (como a 1.0.0) mudam um personagem; as melhorias gerais de mecânica e qualidade de vida entram direto na Base, pra todo mundo.</footer>
+  <details class="explain">
+    <summary>Como funcionam as versões dos lutadores
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+    </summary>
+    <div class="explain__body">
+      <p>O jogo base continua melhorando, e cada lutador tem a própria versão no formato <kbd class="kbd">X.Y.Z</kbd>. O <b>X</b> é uma reformulação completa do lutador; <b>Y</b> e <b>Z</b> são ajustes menores dentro dela (balanceamento e correções).</p>
+      <p>Na seleção de personagem, depois de escolher um lutador, use <kbd class="kbd">← →</kbd> pra escolher entre a <b>Base</b> e as reformulações (1, 2…), e confirme. Cada reformulação já vem com os ajustes mais recentes dela. A mais nova já vem marcada, e é a que a CPU usa.</p>
+      <p>Online, cada jogador escolhe a versão do próprio lutador e os dois jogam com as mesmas escolhas. Os desafios de combo continuam usando a Base.</p>
+    </div>
+  </details>
 </div>
+
+<div class="bar" id="bar">
+  <div class="wrap bar__row">
+    <div class="search" id="search">
+      <svg class="search__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m20 20-4.8-4.8"/></svg>
+      <input id="q" type="search" placeholder="Buscar lutador ou golpe" autocomplete="off" spellcheck="false" aria-label="Buscar lutador ou golpe" aria-controls="releases">
+      <span class="search__count" id="count" aria-live="polite"></span>
+      <button type="button" class="search__clear" id="clear" aria-label="Limpar busca" tabindex="-1">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="m4 4 8 8M12 4l-8 8"/></svg>
+      </button>
+      <kbd class="search__key" aria-hidden="true">/</kbd>
+    </div>
+    <div class="types" id="types" role="group" aria-label="Filtrar por tipo de mudança"></div>
+  </div>
+</div>
+
+<div class="wrap layout">
+  <nav class="timeline" aria-label="Lançamentos">
+    <h2>Lançamentos</h2>
+    <ol id="timeline"></ol>
+  </nav>
+  <main id="releases"></main>
+</div>
+
+<footer class="wrap"><p class="foot">Versões de lutador (como a 1.0.0) mudam um personagem; as melhorias gerais de mecânica e qualidade de vida entram direto na Base, pra todo mundo.</p></footer>
+
+<div class="hintbar" id="hints" aria-hidden="true">
+  <span><b class="pad-btn pad-btn--b">B</b>Voltar pro Fliperama</span>
+  <span><b class="pad-btn">LB</b><b class="pad-btn">RB</b>Tipo de mudança</span>
+  <span><b class="pad-btn">⧉</b>Tema</span>
+</div>
+
+<script src="../../design/controle.js"></script>
 <script>
-// tipos de mudança (cada item de cada lutador tem um)
-const TYPES = { novo: ['Novo', 'var(--novo)'], buff: ['Buff', 'var(--buff)'], nerf: ['Nerf', 'var(--nerf)'], rework: ['Rework', 'var(--rework)'], ajuste: ['Ajuste', 'var(--ajuste)'] };
-const C = s => `<span class="cmd">${s}</span>`;
+(() => {
+// tipos de mudança (cada item de cada lutador tem um); as cores são tokens --change-*
+const TYPES = { novo: ['Novo', 'var(--change-novo)'], buff: ['Buff', 'var(--change-buff)'], nerf: ['Nerf', 'var(--change-nerf)'], rework: ['Rework', 'var(--change-rework)'], ajuste: ['Ajuste', 'var(--change-ajuste)'] };
+const C = s => `<kbd class="kbd">${s}</kbd>`;
 // notas por lançamento (o mais novo primeiro). Lutador: [id do retrato, nome, [[tipo, mudança], ...], versão do lutador (padrão: a do lançamento)]
 const RELEASES = [{
   id: 'gunter-eterno-g', title: 'Gunter e Eterno G.', kind: 'Ajuste de personagem', date: '2026-10-03',
@@ -217,47 +289,156 @@ const RELEASES = [{
 const $ = id => document.getElementById(id);
 const state = { type: null, q: '' };
 try { const h = location.hash.slice(1); if (TYPES[h]) state.type = h; } catch (e) {}
-const plain = s => s.replace(/<[^>]+>/g, '').toLowerCase();
-// tipos de um lutador, do mais frequente pro menos
-const typesOf = items => { const n = {}; for (const [t] of items) n[t] = (n[t] || 0) + 1; return Object.keys(n).sort((a, b) => n[b] - n[a]); };
 
+// busca sem diferença de acento e maiúscula
+const fold = s => String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+const plain = s => fold(s.replace(/<[^>]+>/g, ''));
+const typesOf = items => { const n = {}; for (const [t] of items) n[t] = (n[t] || 0) + 1; return Object.keys(n).sort((a, b) => n[b] - n[a]); };
+const fmtDate = d => new Date(d + 'T12:00').toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' });
+const fmtShort = d => new Date(d + 'T12:00').toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' }).replace('.', '');
+
+// marca os termos buscados nos textos já renderizados (sem mexer nas tags de comando)
+function mark(root, terms) {
+  if (!terms.length) return;
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  const nodes = []; while (walker.nextNode()) nodes.push(walker.currentNode);
+  for (const node of nodes) {
+    const text = node.nodeValue; let out = '', map = [];
+    for (let i = 0; i < text.length; i++) for (const ch of fold(text[i])) { out += ch; map.push(i); }
+    const hits = [];
+    for (const t of terms) for (let i = out.indexOf(t); i !== -1; i = out.indexOf(t, i + t.length)) hits.push([map[i], map[i + t.length - 1] + 1]);
+    if (!hits.length) continue;
+    hits.sort((a, b) => a[0] - b[0]);
+    const frag = document.createDocumentFragment(); let pos = 0;
+    for (const [a, b] of hits) {
+      if (a < pos) continue;
+      if (a > pos) frag.append(text.slice(pos, a));
+      const m = document.createElement('mark'); m.textContent = text.slice(a, b); frag.append(m); pos = b;
+    }
+    if (pos < text.length) frag.append(text.slice(pos));
+    node.replaceWith(frag);
+  }
+}
+
+let lastCount = -1;
 function render() {
+  const terms = fold(state.q).split(/\s+/).filter(Boolean);
   const root = $('releases'); root.textContent = '';
+  const tl = $('timeline'); tl.textContent = '';
+  let total = 0, totalAll = 0;
   for (const r of RELEASES) {
     const sec = document.createElement('section'); sec.className = 'release'; sec.id = r.id;
     const shown = [];
     for (const [id, name, items, ver] of r.chars) {
+      totalAll++;
       let its = state.type ? items.filter(i => i[0] == state.type) : items;
-      if (state.q) { const q = state.q; its = plain(name).includes(q) ? its : its.filter(i => plain(i[1]).includes(q)); }
+      if (terms.length) its = terms.every(t => fold(name).includes(t)) ? its : its.filter(i => terms.every(t => plain(i[1]).includes(t)));
       if (its.length) shown.push([id, name, items, its, ver || r.id]);
     }
-    sec.innerHTML = `<div class="rhead"><h2>${r.title}</h2><span class="kind">${r.kind}</span><span class="date">${new Date(r.date + 'T12:00').toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })} · ${shown.length} de ${r.chars.length} lutadores</span></div>`;
+    total += shown.length;
+    sec.innerHTML = `<div class="release__head"><h2>${r.title}</h2><span class="release__kind">${r.kind}</span>` +
+      `<span class="release__meta">${fmtDate(r.date)} · ${shown.length} de ${r.chars.length} ${r.chars.length === 1 ? 'lutador' : 'lutadores'}</span></div>`;
     const list = document.createElement('div'); list.className = 'list';
     for (const [id, name, items, its, ver] of shown) {
       const ty = typesOf(items), main = state.type || ty[0];
-      const el = document.createElement('article'); el.className = 'char'; el.style.setProperty('--c', TYPES[main][1]);
-      el.innerHTML = `<img src="retratos/${id}.webp" alt="" width="76" height="76" loading="lazy">
-        <div><h3>${name}<span class="ver">${ver}</span>${ty.map(t => `<span class="tag" style="--c:${TYPES[t][1]}">${TYPES[t][0]}</span>`).join('')}</h3>
-        <ul>${its.map(([t, s]) => `<li><span class="tag" style="--c:${TYPES[t][1]}">${TYPES[t][0]}</span><span>${s}</span></li>`).join('')}</ul></div>`;
+      const el = document.createElement('article'); el.className = 'fighter'; el.tabIndex = 0;
+      el.style.setProperty('--c', TYPES[main][1]);
+      el.setAttribute('aria-label', `${name}, versão ${ver}`);
+      el.innerHTML = `<img class="fighter__face" src="retratos/${id}.webp" alt="" width="72" height="72" loading="lazy">
+        <div><h3><span class="fighter__name">${name}</span><span class="fighter__ver">${ver}</span>
+          <span class="fighter__types">${ty.map(t => `<span class="badge" style="--c:${TYPES[t][1]}">${TYPES[t][0]}</span>`).join('')}</span></h3>
+        <ul>${its.map(([t, s]) => `<li><span class="badge" style="--c:${TYPES[t][1]}">${TYPES[t][0]}</span><span class="fighter__text">${s}</span></li>`).join('')}</ul></div>`;
+      el.querySelectorAll('.fighter__name, .fighter__text').forEach(n => mark(n, terms.filter(t => t.length > 1)));
       list.append(el);
     }
-    if (!shown.length) { const p = document.createElement('p'); p.className = 'empty'; p.textContent = 'Nada com esse filtro nesta versão.'; list.append(p); }
-    sec.append(list); root.append(sec);
+    sec.append(list);
+    // com filtro ou busca, lançamento sem resultado sai da lista (continua na linha do tempo, apagado)
+    if (shown.length || (!state.type && !terms.length)) root.append(sec);
+
+    const li = document.createElement('li');
+    li.innerHTML = `<a href="#${r.id}" data-nav="skip"${shown.length ? '' : ' class="is-empty" aria-disabled="true" tabindex="-1"'}><b>${r.title}</b><small>${fmtShort(r.date)} · ${shown.length} ${shown.length === 1 ? 'lutador' : 'lutadores'}</small></a>`;
+    tl.append(li);
+  }
+  if (!total) {
+    const box = document.createElement('div'); box.className = 'empty';
+    const p = document.createElement('p'); p.textContent = state.q ? `Nenhuma mudança com “${state.q}”${state.type ? ' nesse tipo' : ''}.` : 'Nenhuma mudança desse tipo.';
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'btn btn--primary'; b.textContent = 'Limpar busca e filtro';
+    b.addEventListener('click', () => { q.value = ''; state.q = ''; setType(null); q.focus(); });
+    box.append(p, b); root.append(box);
   }
   for (const b of $('types').children) b.setAttribute('aria-pressed', String((b.dataset.t || null) === state.type));
+  const count = $('count');
+  count.innerHTML = total === totalAll ? `<b>${total}</b> mudanças` : `<b>${total}</b> de ${totalAll}`;
+  if (lastCount !== -1 && total !== lastCount) count.querySelector('b').classList.add('is-bump');
+  lastCount = total;
+  $('search').classList.toggle('has-text', !!state.q);
+  watchCurrent();
 }
 
-// botões de filtro com a contagem de mudanças de cada tipo (somando todas as versões)
+// filtros com a contagem de mudanças de cada tipo (somando todos os lançamentos)
 const all = RELEASES.flatMap(r => r.chars.flatMap(c => c[2]));
-const btn = (label, t) => {
-  const b = document.createElement('button'); b.type = 'button'; b.className = 'filter'; if (t) { b.dataset.t = t; b.style.setProperty('--c', TYPES[t][1]); }
-  b.innerHTML = `${t ? '<i></i>' : ''}${label} <b>${t ? all.filter(i => i[0] == t).length : all.length}</b>`;
-  b.addEventListener('click', () => { state.type = t; try { history.replaceState(null, '', t ? '#' + t : location.pathname); } catch (e) {} render(); });
-  return b;
-};
-$('types').append(btn('Tudo', null), ...Object.keys(TYPES).map(t => btn(TYPES[t][0] + 's', t)));
-$('q').addEventListener('input', e => { state.q = e.target.value.trim().toLowerCase(); render(); });
+const order = [null, ...Object.keys(TYPES)];
+function setType(t) {
+  state.type = t;
+  try { history.replaceState(null, '', t ? '#' + t : location.pathname + location.search); } catch (e) {}
+  render();
+}
+for (const t of order) {
+  const b = document.createElement('button'); b.type = 'button'; b.className = 'chip';
+  if (t) { b.dataset.t = t; b.style.setProperty('--c', TYPES[t][1]); }
+  b.innerHTML = `${t ? '<span class="chip__dot" aria-hidden="true"></span>' : ''}<span>${t ? TYPES[t][0] + 's' : 'Tudo'}</span><span class="chip__n">${t ? all.filter(i => i[0] == t).length : all.length}</span>`;
+  b.addEventListener('click', () => setType(t));
+  $('types').append(b);
+}
+
+// busca
+const q = $('q'), search = $('search');
+q.addEventListener('input', () => {
+  state.q = q.value.trim();
+  search.classList.remove('is-typing'); void search.offsetWidth; search.classList.add('is-typing');
+  render();
+});
+q.addEventListener('keydown', e => { if (e.key === 'Escape') { if (q.value) { q.value = ''; state.q = ''; render(); } else q.blur(); } });
+$('clear').addEventListener('click', () => { q.value = ''; state.q = ''; render(); q.focus(); });
+addEventListener('keydown', e => {
+  if (e.key !== '/' || e.ctrlKey || e.metaKey || e.altKey) return;
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+  e.preventDefault(); q.focus(); q.select();
+});
+
+// barra grudada e lançamento atual na linha do tempo
+const bar = $('bar'), sentinel = document.createElement('div');
+bar.before(sentinel);
+new IntersectionObserver(([e]) => bar.classList.toggle('is-stuck', !e.isIntersecting)).observe(sentinel);
+let io = null;
+function watchCurrent() {
+  if (io) io.disconnect();
+  const links = new Map([...$('timeline').querySelectorAll('a')].map(a => [a.getAttribute('href').slice(1), a]));
+  io = new IntersectionObserver(entries => {
+    for (const e of entries) if (e.isIntersecting) {
+      links.forEach(a => a.classList.remove('is-current'));
+      const a = links.get(e.target.id); if (a) a.classList.add('is-current');
+    }
+  }, { rootMargin: '-30% 0px -60% 0px' });
+  const first = [...links.values()][0]; if (first && !document.querySelector('.timeline .is-current')) first.classList.add('is-current');
+  document.querySelectorAll('.release').forEach(s => io.observe(s));
+}
+
+// controle: direcional anda pelos lutadores, LB/RB troca o tipo, B volta pro catálogo
+Controle.init({
+  hints: $('hints'),
+  first: () => document.querySelector('.fighter'),
+  onButton(n) {
+    if (n === 'lb' || n === 'rb') { const i = order.indexOf(state.type); setType(order[(i + (n === 'rb' ? 1 : -1) + order.length) % order.length]); return true; }
+    if (n === 'b') { location.href = '../../index.html'; return true; }
+    if (n === 'select') { window.Tema && Tema.toggle(document.querySelector('[data-theme-toggle]')); return true; }
+    return false;
+  },
+});
+
 render();
+if (location.hash && !TYPES[location.hash.slice(1)]) { const t = document.getElementById(location.hash.slice(1)); if (t) t.scrollIntoView(); }
+})();
 </script>
 </body>
 </html>
