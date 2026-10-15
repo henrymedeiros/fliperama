@@ -5051,6 +5051,14 @@ addVersion('sakda', { id: '1.0.0', apply(ch) {
 } });
 
 </script>
+<script>/* src/data/versions/taiho.js */
+// ===== TAIHO 1.0.0 =====
+addVersion('taiho', { id: '1.0.0', apply(ch) {
+  // Oicho Throw agora sai com ↓↙← + Chute (antes →↘↓↙← + Soco)
+  ch.specials = ch.specials.map(s => s.id == 'oicho' ? Object.assign({}, s, { input: '214', btn: 'K' }) : s);
+} });
+
+</script>
 <script>/* src/data/endings.js */
 // ===== finais do modo arcade (um por lutador) =====
 const ENDINGS = {
