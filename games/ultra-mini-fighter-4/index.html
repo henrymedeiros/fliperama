@@ -5035,6 +5035,12 @@ addVersion('altair', { id: '1.1.0', apply(ch) {
     hits: [{ f: [10, 90], box: [6, 30, 84, 56], dmg: S3(s, [12, 13, 14, 15]), lv: 'SP', high: 1, kd: 'soft', hs: 22, bs: 14 }] });
 } });
 
+// ===== ALTAIR 1.2.0 =====
+addVersion('altair', { id: '1.2.0', apply(ch) {
+  // agarrão aéreo (no ar, Soco Fraco + Chute Fraco), como o do Vega
+  ch.airThrow = 1;
+} });
+
 </script>
 <script>/* src/data/versions/sakda.js */
 // ===== SAKDA 1.0.0 =====
