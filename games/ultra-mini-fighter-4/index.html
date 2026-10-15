@@ -4521,6 +4521,20 @@ addVersion('genoma', { id: '1.2.0', apply(ch) {
   ch.moves.super = s => Object.assign(sup(s), { recovery: 66 });
 } });
 
+// ===== GENOMA 1.3.0 =====
+addVersion('genoma', { id: '1.3.0', apply(ch) {
+  // Absorção deixa de ser V-Skill e vira especial (←↓↙ + Chute, o Shoryuken ao contrário), com a cauda alcançando 27% menos.
+  // O EX sai mais rápido e mantém o alcance antigo
+  const abs = ch.vskill;
+  ch.moves.absorb = s => Object.assign(JSON.parse(JSON.stringify(abs)), { name: 'Absorção', startup: s == 3 ? 7 : abs.startup,
+    hits: abs.hits.map(h => Object.assign({}, h, { box: [h.box[0], h.box[1], s == 3 ? h.box[2] : 80, h.box[3]] })) });
+  // Barreira Perfeita sai do ↓↙← + Soco e vira a V-Skill (com os valores da versão média)
+  ch.vskill = Object.assign(ch.moves.barrier(1), { name: 'BARREIRA PERFEITA' });
+  delete ch.moves.barrier;
+  ch.specials = ch.specials.filter(s => s.id != 'barrier').concat([{ id: 'absorb', input: '421', btn: 'K' }]);
+  ch.ai = Object.assign({}, ch.ai, { enders: ['kame', 'burst'] });
+} });
+
 </script>
 <script>/* src/data/versions/kai.js */
 // ===== KAI 1.0.0 =====
