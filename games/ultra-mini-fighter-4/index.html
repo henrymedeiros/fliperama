@@ -4875,6 +4875,13 @@ addVersion('yura', { id: '1.1.0', apply(ch) {
   };
 } });
 
+// ===== YURA 1.2.0 =====
+addVersion('yura', { id: '1.2.0', apply(ch) {
+  // Fuhajin mais forte: 6 de dano (antes 5; EX 5,5 por acerto, antes 5) e recupera 2 quadros mais rápido
+  const fuha = ch.moves.fuha;
+  ch.moves.fuha = s => { const m = fuha(s); m.recovery -= 2; m.proj.dmg = s == 3 ? 5.5 : 6; return m; };
+} });
+
 </script>
 <script>/* src/data/versions/kongo.js */
 // ===== KONGO 1.0.0 =====
