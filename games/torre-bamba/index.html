@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Torre Bamba</title>
+<meta name="description" content="Torre de blocos de madeira em 3D com física realista. Jogue sozinho, no mesmo aparelho ou online com os amigos.">
+<meta name="theme-color" content="#0b0705">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect x='14' y='44' width='36' height='10' rx='2' fill='%23d9a86a'/%3E%3Crect x='14' y='31' width='36' height='10' rx='2' fill='%23c48d4f'/%3E%3Crect x='22' y='18' width='36' height='10' rx='2' fill='%23e8bf85'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700;9..144,900&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/",
+    "@dimforge/rapier3d-compat": "https://cdn.jsdelivr.net/npm/@dimforge/rapier3d-compat@0.14.0/rapier.es.js"
+  }
+}
+</script>
+<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<style>
+  :root{
+    --bg:#0b0705; --ink:#f6ead8; --ink2:#cdb89c; --mute:#8d7a63;
+    --glass:rgba(24,16,11,.72); --glass2:rgba(40,27,18,.78); --line:rgba(255,214,160,.16);
+    --amber:#ffb45e; --amber2:#ff8a3d; --good:#8fe08a; --bad:#ff6b5e;
+    --r:18px; --shadow:0 24px 60px rgba(0,0,0,.55), 0 2px 0 rgba(255,230,190,.05) inset;
+    --display:'Fraunces', Georgia, serif; --ui:'Manrope', system-ui, sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);font-family:var(--ui);overflow:hidden;
+    -webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;touch-action:none}
+  canvas#scene{position:fixed;inset:0;width:100%;height:100%;display:block;outline:none;cursor:grab}
+  canvas#scene.grabbing{cursor:grabbing}
+  canvas#scene.pointing{cursor:pointer}
+  canvas#scene.nope{cursor:not-allowed}
+  .vignette{position:fixed;inset:0;pointer-events:none;
+    background:radial-gradient(120% 90% at 50% 45%, transparent 55%, rgba(0,0,0,.55) 100%);}
+  .grain{position:fixed;inset:-50%;pointer-events:none;opacity:.05;mix-blend-mode:overlay;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    animation:grain 1.2s steps(6) infinite}
+  @keyframes grain{0%{transform:translate(0,0)}25%{transform:translate(-3%,2%)}50%{transform:translate(2%,-3%)}75%{transform:translate(-1%,3%)}100%{transform:translate(3%,-1%)}}
+  @media (prefers-reduced-motion: reduce){ .grain{animation:none} }
+
+  button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
+  input{font:inherit}
+  [hidden]{display:none!important}
+
+  /* ---------- telas ---------- */
+  .screens{position:fixed;inset:0;display:grid;place-items:center;padding:20px;pointer-events:none;
+    padding-top:max(20px, env(safe-area-inset-top));padding-bottom:max(20px, env(safe-area-inset-bottom))}
+  .card{pointer-events:auto;width:min(440px,100%);max-height:calc(100dvh - 40px);overflow:auto;
+    background:linear-gradient(180deg,var(--glass2),var(--glass));backdrop-filter:blur(14px) saturate(1.2);-webkit-backdrop-filter:blur(14px) saturate(1.2);
+    border:1px solid var(--line);border-radius:26px;box-shadow:var(--shadow);padding:26px 24px;
+    animation:rise .45s cubic-bezier(.2,.9,.25,1.15) both}
+  @keyframes rise{from{opacity:0;transform:translateY(18px) scale(.97)}to{opacity:1;transform:none}}
+  @media (prefers-reduced-motion: reduce){ .card{animation:none} }
+  .card.title-card{background:none;border:0;box-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none;width:min(420px,100%);
+    align-self:end;margin-bottom:4vh;padding:0}
+  .logo{text-align:center;margin-bottom:18px}
+  .logo h1{font-family:var(--display);font-weight:900;font-size:clamp(46px,11vw,72px);line-height:.9;margin:0;letter-spacing:-.02em;
+    background:linear-gradient(180deg,#fff3dc 0%,#ffc477 55%,#d47a30 100%);-webkit-background-clip:text;background-clip:text;color:transparent;
+    filter:drop-shadow(0 6px 24px rgba(255,150,60,.35))}
+  .logo h1 i{font-style:italic;font-weight:500}
+  .logo p{margin:10px 0 0;color:var(--ink2);font-size:15px;letter-spacing:.02em}
+  h2{font-family:var(--display);font-weight:700;font-size:28px;margin:0 0 6px}
+  .sub{color:var(--ink2);margin:0 0 18px;font-size:14px;line-height:1.5}
+  .stack{display:grid;gap:10px}
+  .row{display:flex;gap:10px}
+  .row>*{flex:1}
+  .btn{display:flex;align-items:center;justify-content:center;gap:10px;min-height:52px;padding:0 18px;border-radius:16px;font-weight:800;font-size:16px;
+    background:rgba(255,236,210,.07);border:1px solid var(--line);transition:transform .12s, background .2s, border-color .2s}
+  .btn:hover{background:rgba(255,236,210,.13);border-color:rgba(255,214,160,.32)}
+  .btn:active{transform:scale(.97)}
+  .btn:focus-visible,.chip:focus-visible,input:focus-visible,.icon-btn:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+  .btn.primary{background:linear-gradient(180deg,#ffc477,#f08a36);color:#2a1406;border-color:transparent;box-shadow:0 10px 30px rgba(240,138,54,.35), 0 1px 0 rgba(255,255,255,.4) inset}
+  .btn.primary:hover{filter:brightness(1.06)}
+  .btn.small{min-height:40px;font-size:14px;border-radius:12px}
+  .btn[disabled]{opacity:.45;pointer-events:none}
+  .btn .k{font-weight:600;color:var(--mute);font-size:13px}
+  .field{display:grid;gap:6px;margin-bottom:12px}
+  .field label{font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--mute)}
+  .input{width:100%;min-height:50px;padding:0 16px;border-radius:14px;border:1px solid var(--line);background:rgba(0,0,0,.35);color:var(--ink);font-weight:700;font-size:16px}
+  .input::placeholder{color:var(--mute)}
+  .code-input{text-align:center;font-family:var(--display);font-size:34px;letter-spacing:.3em;text-transform:uppercase;min-height:66px}
+  .note{color:var(--ink2);font-size:13px;line-height:1.5;margin:10px 0 0;text-align:center;min-height:1em}
+  .note.err{color:var(--bad)}
+  .record{text-align:center;color:var(--ink2);font-size:13px;margin-top:12px}
+  .record b{color:var(--amber)}
+  .back{position:absolute;top:18px;left:18px}
+
+  .room-code{font-family:var(--display);font-weight:900;font-size:54px;letter-spacing:.18em;text-align:center;margin:4px 0 2px;
+    background:linear-gradient(180deg,#fff3dc,#ffb45e);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .plist{list-style:none;margin:16px 0;padding:0;display:grid;gap:8px}
+  .plist li{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:14px;background:rgba(0,0,0,.25);border:1px solid var(--line);font-weight:700}
+  .plist li .dot{width:14px;height:14px;border-radius:50%;flex:none;box-shadow:0 0 12px currentColor}
+  .plist li .tag{margin-left:auto;font-size:12px;color:var(--mute);font-weight:700}
+  .plist li input{flex:1;min-width:0;background:none;border:0;color:var(--ink);font-weight:700;font-size:16px}
+  .plist li button{color:var(--mute);font-size:20px;line-height:1;padding:2px 6px;border-radius:8px}
+  .plist li button:hover{color:var(--bad)}
+  .how{display:grid;gap:12px;margin:8px 0 18px;padding:0;list-style:none}
+  .how li{display:grid;grid-template-columns:36px 1fr;gap:12px;align-items:start;color:var(--ink2);font-size:14px;line-height:1.5}
+  .how li b{color:var(--ink)}
+  .how .n{width:36px;height:36px;border-radius:12px;display:grid;place-items:center;font-family:var(--display);font-weight:900;font-size:18px;
+    background:rgba(255,180,94,.14);color:var(--amber)}
+  .seg{display:flex;padding:4px;border-radius:14px;background:rgba(0,0,0,.3);border:1px solid var(--line)}
+  .seg button{flex:1;min-height:40px;border-radius:10px;font-weight:800;font-size:14px;color:var(--ink2)}
+  .seg button[aria-pressed="true"]{background:rgba(255,180,94,.2);color:var(--ink)}
+
+  .results{list-style:none;padding:0;margin:16px 0;display:grid;gap:8px}
+  .results li{display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:14px;background:rgba(0,0,0,.25);border:1px solid var(--line);font-weight:700}
+  .results li .dot{width:12px;height:12px;border-radius:50%}
+  .results li .v{margin-left:auto;font-family:var(--display);font-size:20px}
+  .results li.lose{border-color:rgba(255,107,94,.4);background:rgba(255,107,94,.08)}
+  .big-num{font-family:var(--display);font-weight:900;font-size:76px;line-height:1;text-align:center;color:var(--amber);margin:8px 0 0}
+  .big-cap{text-align:center;color:var(--ink2);font-weight:700;margin-bottom:8px}
+
+  /* ---------- HUD ---------- */
+  .hud{position:fixed;inset:0;pointer-events:none;padding:max(14px, env(safe-area-inset-top)) 14px max(14px, env(safe-area-inset-bottom))}
+  .players{position:absolute;left:14px;top:max(14px, env(safe-area-inset-top));display:grid;gap:6px;max-width:46vw}
+  .pchip{display:flex;align-items:center;gap:8px;padding:7px 12px 7px 8px;border-radius:999px;background:var(--glass);border:1px solid var(--line);
+    font-weight:700;font-size:13px;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);transition:transform .3s, border-color .3s, opacity .3s;opacity:.7}
+  .pchip .dot{width:12px;height:12px;border-radius:50%;flex:none}
+  .pchip .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .pchip .ct{margin-left:auto;padding-left:6px;color:var(--mute);font-variant-numeric:tabular-nums}
+  .pchip.on{opacity:1;border-color:currentColor;transform:translateX(4px);box-shadow:0 0 24px -6px currentColor}
+  .pchip.gone{opacity:.3;text-decoration:line-through}
+  .tools{position:absolute;right:14px;top:max(14px, env(safe-area-inset-top));display:flex;gap:8px;pointer-events:auto}
+  .icon-btn{width:44px;height:44px;border-radius:14px;display:grid;place-items:center;background:var(--glass);border:1px solid var(--line);
+    backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+  .icon-btn svg{width:20px;height:20px;stroke:var(--ink);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  .icon-btn:hover{background:var(--glass2)}
+  .hint{position:absolute;left:50%;top:max(16px, env(safe-area-inset-top));transform:translateX(-50%);padding:10px 18px;border-radius:999px;
+    background:var(--glass);border:1px solid var(--line);font-weight:700;font-size:14px;white-space:nowrap;
+    backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);display:flex;align-items:center;gap:10px;max-width:calc(100vw - 32px)}
+  .hint .ring{width:22px;height:22px;flex:none}
+  .stats{position:absolute;left:50%;bottom:max(16px, env(safe-area-inset-bottom));transform:translateX(-50%);display:flex;gap:18px;
+    color:var(--ink2);font-size:13px;font-weight:700;text-shadow:0 1px 8px #000}
+  .stats b{color:var(--ink);font-variant-numeric:tabular-nums}
+  .tension{position:absolute;left:50%;bottom:calc(max(16px, env(safe-area-inset-bottom)) + 34px);transform:translateX(-50%);width:min(320px,70vw);
+    transition:opacity .25s;opacity:0}
+  .tension.show{opacity:1}
+  .tension .lab{display:flex;justify-content:space-between;font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--ink2);margin-bottom:6px}
+  .tension .bar{height:8px;border-radius:99px;background:rgba(0,0,0,.45);border:1px solid var(--line);overflow:hidden}
+  .tension .fill{height:100%;width:0;border-radius:99px;background:linear-gradient(90deg,#8fe08a,#ffd15e 55%,#ff5e4a);background-size:320px 100%;transition:width .08s}
+  .banner{position:fixed;left:0;right:0;top:38%;text-align:center;pointer-events:none;font-family:var(--display);font-weight:900;
+    font-size:clamp(40px,9vw,84px);letter-spacing:-.01em;opacity:0;text-shadow:0 8px 40px rgba(0,0,0,.6)}
+  .banner small{display:block;font-family:var(--ui);font-size:clamp(14px,2.6vw,18px);font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink2);margin-top:6px}
+  .banner.go{animation:ban 2s cubic-bezier(.2,.8,.2,1) both}
+  @keyframes ban{0%{opacity:0;transform:translateY(20px) scale(.9)}15%{opacity:1;transform:none}75%{opacity:1}100%{opacity:0;transform:translateY(-12px)}}
+  @media (prefers-reduced-motion: reduce){ .banner.go{animation:banfade 2s both} @keyframes banfade{0%,100%{opacity:0}15%,75%{opacity:1}} }
+  .toast{position:fixed;left:50%;bottom:110px;transform:translateX(-50%) translateY(20px);padding:12px 18px;border-radius:14px;background:var(--glass2);
+    border:1px solid var(--line);font-weight:700;font-size:14px;opacity:0;transition:opacity .25s, transform .25s;pointer-events:none;max-width:calc(100vw - 32px);text-align:center}
+  .toast.show{opacity:1;transform:translateX(-50%)}
+  .loading{position:fixed;inset:0;display:grid;place-items:center;background:var(--bg);z-index:9;transition:opacity .6s}
+  .loading.out{opacity:0;pointer-events:none}
+  .loading .in{text-align:center}
+  .loading .blocks{display:grid;gap:5px;width:72px;margin:0 auto 18px}
+  .loading .blocks i{display:block;height:14px;border-radius:3px;background:linear-gradient(180deg,#e8bf85,#b47a3f);animation:lb 1.1s ease-in-out infinite}
+  .loading .blocks i:nth-child(2){animation-delay:.12s;width:60%;justify-self:center}
+  .loading .blocks i:nth-child(3){animation-delay:.24s}
+  @keyframes lb{0%,100%{transform:translateX(0)}50%{transform:translateX(8px)}}
+  .loading p{color:var(--ink2);font-weight:700;margin:0}
+  .tap{position:fixed;left:50%;transform:translateX(-50%);bottom:24%;color:var(--ink2);font-weight:700;font-size:14px;pointer-events:none}
+
+  @media (max-width:560px){
+    .players{max-width:52vw}
+    .pchip{font-size:12px;padding:5px 10px 5px 6px}
+    .hint{top:auto;bottom:calc(max(16px, env(safe-area-inset-bottom)) + 84px);font-size:13px;white-space:normal;text-align:center;justify-content:center}
+    .stats{gap:12px;font-size:12px}
+    .card{padding:22px 18px}
+  }
+</style>
+</head>
+<body>
+<canvas id="scene" tabindex="0" aria-label="Torre de blocos de madeira em 3D"></canvas>
+<div class="vignette"></div>
+<div class="grain"></div>
+
+<!-- HUD -->
+<div class="hud" id="hud" hidden>
+  <div class="players" id="players"></div>
+  <div class="hint" id="hint" role="status"><span id="hintText"></span></div>
+  <div class="tools">
+    <button class="icon-btn" id="btnCam" aria-label="Recentrar câmera" title="Recentrar câmera (C)"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M3 12h3M18 12h3M12 3v3M12 18v3"/></svg></button>
+    <button class="icon-btn" id="btnSound" aria-label="Som" title="Som (M)"><svg viewBox="0 0 24 24" id="icoSound"><path d="M4 10v4h4l5 4V6L8 10H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/></svg></button>
+    <button class="icon-btn" id="btnQuit" aria-label="Sair da partida" title="Sair"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
+  </div>
+  <div class="tension" id="tension"><div class="lab"><span>Atrito</span><span id="tensionLab">solto</span></div><div class="bar"><div class="fill" id="tensionFill"></div></div></div>
+  <div class="stats" id="stats"><span>Andares <b id="stLayers">18</b></span><span>Tirados <b id="stMoved">0</b></span></div>
+</div>
+<div class="banner" id="banner"></div>
+<div class="toast" id="toast" role="status"></div>
+
+<main class="screens" id="screens">
+  <!-- título -->
+  <section class="card title-card" id="scr-title" hidden>
+    <div class="logo"><h1>Torre <i>Bamba</i></h1><p>Puxe, empilhe e não derrube.</p></div>
+    <div class="stack">
+      <button class="btn primary" data-go="solo">Jogar sozinho</button>
+      <div class="row">
+        <button class="btn" data-go="create">Criar sala</button>
+        <button class="btn" data-go="join">Entrar na sala</button>
+      </div>
+      <button class="btn" data-go="local">Vários no mesmo aparelho</button>
+      <div class="row">
+        <button class="btn small" data-go="how">Como jogar</button>
+        <button class="btn small" data-go="opts">Opções</button>
+      </div>
+    </div>
+    <div class="record" id="record"></div>
+  </section>
+
+  <!-- nome (antes do online) -->
+  <section class="card" id="scr-name" hidden>
+    <h2>Seu nome</h2>
+    <p class="sub">É assim que seus amigos vão te ver na sala.</p>
+    <div class="field"><input class="input" id="nameInput" maxlength="16" placeholder="Seu nome" autocomplete="nickname"></div>
+    <div class="stack">
+      <button class="btn primary" id="nameOk">Continuar</button>
+      <button class="btn small" data-go="title">Voltar</button>
+    </div>
+  </section>
+
+  <!-- entrar -->
+  <section class="card" id="scr-join" hidden>
+    <h2>Entrar na sala</h2>
+    <p class="sub">Digite o código que aparece na tela de quem criou a sala.</p>
+    <div class="field"><input class="input code-input" id="joinCode" maxlength="5" placeholder="•••••" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-label="Código da sala"></div>
+    <div class="stack">
+      <button class="btn primary" id="joinBtn">Entrar</button>
+      <button class="btn small" data-go="title">Voltar</button>
+    </div>
+    <p class="note" id="joinNote"></p>
+  </section>
+
+  <!-- sala -->
+  <section class="card" id="scr-lobby" hidden>
+    <h2 id="lobbyTitle">Sala aberta</h2>
+    <p class="sub" id="lobbySub">Passe o código ou o link para os amigos entrarem.</p>
+    <div class="room-code" id="roomCode">-----</div>
+    <div class="row" id="shareRow">
+      <button class="btn small" id="copyLink">Copiar link</button>
+      <button class="btn small" id="shareLink" hidden>Compartilhar</button>
+    </div>
+    <ul class="plist" id="lobbyList"></ul>
+    <div class="stack">
+      <button class="btn primary" id="startOnline">Começar</button>
+      <button class="btn small" id="leaveLobby">Sair da sala</button>
+    </div>
+    <p class="note" id="lobbyNote"></p>
+  </section>
+
+  <!-- mesmo aparelho -->
+  <section class="card" id="scr-local" hidden>
+    <h2>Mesmo aparelho</h2>
+    <p class="sub">Cada um joga na sua vez, passando o aparelho. Quem derrubar a torre perde.</p>
+    <ul class="plist" id="localList"></ul>
+    <div class="stack">
+      <button class="btn small" id="addLocal">+ Adicionar jogador</button>
+      <button class="btn primary" id="startLocal">Começar</button>
+      <button class="btn small" data-go="title">Voltar</button>
+    </div>
+  </section>
+
+  <!-- como jogar -->
+  <section class="card" id="scr-how" hidden>
+    <h2>Como jogar</h2>
+    <ul class="how">
+      <li><span class="n">1</span><span><b>Puxe ou empurre um bloco.</b> Segure o bloco e arraste: pra perto de você puxa, pra longe empurra. Alguns blocos estão soltos e outros carregam o peso da torre. Se a barra de atrito ficar vermelha, tente outro.</span></li>
+      <li><span class="n">2</span><span><b>Leve ao topo.</b> Quando o bloco sai da torre, ele vai pra sua mão. Mova até um dos lugares marcados no topo e clique (ou solte o dedo) pra colocar.</span></li>
+      <li><span class="n">3</span><span><b>Aguente 3 segundos.</b> A vez passa quando a torre fica de pé. Se algum bloco cair, quem estava jogando perde.</span></li>
+      <li><span class="n">!</span><span>Não vale tirar da última camada completa nem da incompleta acima dela. Arraste o fundo pra girar, use a roda (ou pinça) pro zoom e o botão direito (ou dois dedos) pra subir e descer.</span></li>
+    </ul>
+    <button class="btn primary" data-go="title" style="width:100%">Entendi</button>
+  </section>
+
+  <!-- opções -->
+  <section class="card" id="scr-opts" hidden>
+    <h2>Opções</h2>
+    <div class="field"><label>Gráficos</label>
+      <div class="seg" id="segQuality"><button data-q="baixa">Leve</button><button data-q="media">Médio</button><button data-q="alta">Máximo</button></div>
+    </div>
+    <div class="field"><label>Som</label>
+      <div class="seg" id="segSound"><button data-s="1">Ligado</button><button data-s="0">Desligado</button></div>
+    </div>
+    <div class="field"><label>Seu nome</label><input class="input" id="nameOpt" maxlength="16" placeholder="Seu nome"></div>
+    <button class="btn primary" data-go="title" style="width:100%">Pronto</button>
+  </section>
+
+  <!-- fim -->
+  <section class="card" id="scr-over" hidden>
+    <h2 id="overTitle">A torre caiu!</h2>
+    <p class="sub" id="overSub"></p>
+    <div id="overBig"></div>
+    <ul class="results" id="overList"></ul>
+    <div class="stack">
+      <button class="btn primary" id="again">Jogar de novo</button>
+      <button class="btn small" id="toMenu">Voltar ao menu</button>
+    </div>
+    <p class="note" id="overNote"></p>
+  </section>
+
+  <!-- sair -->
+  <section class="card" id="scr-quit" hidden>
+    <h2>Sair da partida?</h2>
+    <p class="sub" id="quitSub">A partida atual termina aqui.</p>
+    <div class="row">
+      <button class="btn" id="quitNo">Continuar</button>
+      <button class="btn primary" id="quitYes">Sair</button>
+    </div>
+  </section>
+</main>
+
+<div class="loading" id="loading"><div class="in"><div class="blocks"><i></i><i></i><i></i></div><p id="loadMsg">Empilhando a torre…</p></div></div>
+
+<script type="module" src="./js/main.js"></script>
+</body>
+</html>

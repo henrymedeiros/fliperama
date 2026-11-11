@@ -1,0 +1,12 @@
+{
+  "title": "Torre Bamba",
+  "author": "lexmarcos",
+  "description": "Torre de blocos de madeira em 3D com física realista: puxe um bloco solto sem derrubar nada, leve ao topo e passe a vez. Jogue sozinho, no mesmo aparelho ou online com os amigos.",
+  "tags": ["3d", "física", "multiplayer", "festa"],
+  "players": "1-8",
+  "controls": "Arraste o bloco pra puxar ou empurrar · arraste o fundo pra girar · roda ou pinça dá zoom · clique coloca no topo",
+  "online": true,
+  "thumb": "thumb.svg",
+  "entry": "index.html",
+  "created": "2026-11-11"
+}
